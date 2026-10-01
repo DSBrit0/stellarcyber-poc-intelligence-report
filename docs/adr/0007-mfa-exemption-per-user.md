@@ -1,0 +1,3 @@
+# MFA is mandatory, with an Admin-controlled exemption per User
+
+TOTP is required for every local account (ADR 0003). The one exception is the installation Admin. That account is created by the CLI with a known password and the `--no-mfa` flag, so the first sign-in works before anyone has enrolled an authenticator. The exemption is a per-User flag that only an Admin can set or clear, never a global switch. Clearing it ends the User's sessions, and the User's next sign-in goes through TOTP enrolment. Any account created by the CLI must also change its password at its first sign-in: until it does, the API refuses everything except changing the password, reading `/auth/me` and signing out.

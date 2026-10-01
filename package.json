@@ -1,0 +1,20 @@
+{
+  "name": "poc-intel",
+  "private": true,
+  "type": "module",
+  "workspaces": [
+    "packages/*",
+    "apps/*"
+  ],
+  "engines": {
+    "node": ">=24"
+  },
+  "scripts": {
+    "dev:api": "npm -w @poc-intel/server run dev:api",
+    "dev:worker": "npm -w @poc-intel/server run dev:worker",
+    "dev:web": "npm -w @poc-intel/web run dev",
+    "build": "npm -w @poc-intel/server run build && npm -w @poc-intel/web run build",
+    "typecheck": "npm run typecheck --workspaces --if-present",
+    "test": "npm run test --workspaces --if-present"
+  }
+}

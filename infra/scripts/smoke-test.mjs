@@ -1,0 +1,121 @@
+// End-to-end smoke test against a running stack. It creates a throwaway Admin and PoC, then
+// deletes them. Run it inside the api container (it needs the app's node_modules and DATABASE_URL):
+//   docker compose exec -T -w /app/apps/server api node - < infra/scripts/smoke-test.mjs
+import { generate } from 'otplib'
+import postgres from 'postgres'
+
+const BASE = 'http://127.0.0.1:3000/api'
+const ORIGIN = process.env.APP_ORIGIN
+const EMAIL = `smoke-${Date.now()}@smoke.test`
+const sql = postgres(process.env.DATABASE_URL, { max: 1 })
+let cookie = ''
+let failures = 0
+
+async function call(path, { method = 'GET', body } = {}) {
+  const res = await fetch(BASE + path, {
+    method,
+    headers: { origin: ORIGIN, cookie, ...(body ? { 'content-type': 'application/json' } : {}) },
+    body: body ? JSON.stringify(body) : undefined,
+  })
+  const setCookie = res.headers.get('set-cookie')
+  if (setCookie) cookie = setCookie.split(';')[0]
+  const type = res.headers.get('content-type') ?? ''
+  const data = type.includes('json') ? await res.json() : Buffer.from(await res.arrayBuffer())
+  return { status: res.status, type, headers: res.headers, data }
+}
+
+function check(name, ok, detail = '') {
+  console.log(`${ok ? 'PASS' : 'FAIL'}  ${name}${detail ? `  (${detail})` : ''}`)
+  if (!ok) failures++
+}
+
+const { hash } = await import('@node-rs/argon2')
+const password = `smoke-${Math.random().toString(36).slice(2)}-pw`
+const [user] = await sql`
+  INSERT INTO users (email, name, password_hash, role, status)
+  VALUES (${EMAIL}, 'Smoke Admin', ${await hash(password, { memoryCost: 19456, timeCost: 2, parallelism: 1 })}, 'admin', 'active')
+  RETURNING id`
+
+try {
+  check('rejects wrong password', (await call('/auth/login', { method: 'POST', body: { email: EMAIL, password: 'wrong-password' } })).status === 401)
+
+  const login = await call('/auth/login', { method: 'POST', body: { email: EMAIL, password } })
+  check('login asks for MFA setup', login.data.step === 'mfa_setup', JSON.stringify(login.data))
+  check('partial session cannot reach the API', (await call('/pocs')).status === 401)
+
+  const setup = await call('/auth/mfa/setup', { method: 'POST', body: {} })
+  const secret = new URL(setup.data.uri).searchParams.get('secret')
+  check('MFA setup returns QR code', setup.data.qrDataUrl?.startsWith('data:image/png'))
+  check('rejects wrong TOTP', (await call('/auth/mfa/verify', { method: 'POST', body: { code: '000000' } })).status === 401)
+
+  const code = await generate({ secret })
+  const verify = await call('/auth/mfa/verify', { method: 'POST', body: { code } })
+  check('TOTP completes sign-in', verify.data.step === 'done')
+  check('/auth/me', (await call('/auth/me')).data.email === EMAIL)
+
+  const settings = await call('/admin/settings')
+  check('admin settings default retention 90', settings.data.retentionDays === 90)
+
+  const ssrf = await call('/stellar/tenants', {
+    method: 'POST',
+    body: { instanceUrl: 'https://10.30.11.150', credential: { method: 'apiKey', apiKey: 'smoke-test-key' } },
+  })
+  check('SSRF guard blocks private Instance', ssrf.status === 502 && ssrf.data.error === 'stellar_network', JSON.stringify(ssrf.data))
+
+  const poc = await call('/pocs', {
+    method: 'POST',
+    body: {
+      instanceUrl: 'https://smoke.example.com',
+      tenant: { id: 't-smoke', name: 'Smoke Tenant' },
+      period: { start: '2026-09-01', end: '2026-09-10' },
+      details: { customerName: 'Smoke Customer', verdict: 'approved' },
+    },
+  })
+  check('create PoC', poc.status === 201)
+
+  const daily = Array.from({ length: 10 }, (_, i) => ({ date: `2026-09-${String(i + 1).padStart(2, '0')}`, value: 100 + i * 3 }))
+  const compliance = { stats: { days: 10, zeroDays: 0, min: 100, avg: 114, max: 127 }, recommended: 121, recommendedWindow: { from: '2026-09-08', to: '2026-09-10' }, scenarios: [] }
+  const data = {
+    version: 1,
+    collectedAt: new Date().toISOString(),
+    instanceUrl: 'https://smoke.example.com',
+    tenant: { id: 't-smoke', name: 'Smoke Tenant' },
+    period: { start: '2026-09-01', end: '2026-09-10' },
+    cases: { total: 30, bySeverity: { critical: 2, high: 8, medium: 12, low: 8 } },
+    assets: { daily, compliance },
+    volume: { dailyGb: daily, compliance },
+    connectors: [],
+    dataSensors: [],
+    gaps: [],
+  }
+  const [report] = await sql`INSERT INTO report_data (poc_id, version, data) VALUES (${poc.data.id}, 1, ${sql.json(data)}) RETURNING id`
+
+  for (const template of ['technical', 'executive', 'insight']) {
+    const html = await call(`/report-data/${report.id}/html?template=${template}&locale=pt-BR`)
+    check(`HTML ${template}`, html.status === 200 && String(html.data).includes('Smoke Customer') && /script-src|default-src 'none'/.test(html.headers.get('content-security-policy') ?? ''))
+  }
+  const pdf = await call(`/report-data/${report.id}/pdf?template=insight&locale=en`)
+  check('PDF render', pdf.status === 200 && pdf.type === 'application/pdf' && pdf.data.subarray(0, 4).toString() === '%PDF', `${pdf.data.length} bytes`)
+
+  check('delete PoC', (await call(`/pocs/${poc.data.id}`, { method: 'DELETE' })).status === 204)
+  check('logout', (await call('/auth/logout', { method: 'POST' })).status === 204)
+  check('session gone after logout', (await call('/auth/me')).status === 401)
+
+  // Installation-style account: MFA exempt and must change its password first.
+  await sql`UPDATE users SET mfa_exempt = true, must_change_password = true WHERE id = ${user.id}`
+  const exempt = await call('/auth/login', { method: 'POST', body: { email: EMAIL, password } })
+  check('MFA-exempt login completes with password only', exempt.data.step === 'done' && exempt.data.me?.mustChangePassword === true)
+  const blocked = await call('/pocs')
+  check('pending password change blocks the API', blocked.status === 403 && blocked.data.error === 'password_change_required')
+  check('same password is refused', (await call('/auth/password', { method: 'POST', body: { currentPassword: password, newPassword: password } })).status === 400)
+  const changed = await call('/auth/password', { method: 'POST', body: { currentPassword: password, newPassword: `${password}-new` } })
+  check('password change succeeds', changed.status === 200)
+  check('API released after the change', (await call('/pocs')).status === 200)
+} finally {
+  await sql`DELETE FROM audit_log WHERE user_id = ${user.id}`
+  await sql`DELETE FROM users WHERE id = ${user.id}`
+  await sql.end()
+}
+
+console.log(failures ? `\n${failures} check(s) failed` : '\nall checks passed')
+process.exit(failures ? 1 : 0)

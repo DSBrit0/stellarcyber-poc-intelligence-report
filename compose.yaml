@@ -1,0 +1,65 @@
+name: poc-intel
+
+# Host paths live under DATA_ROOT (default /opt/poc-intel/data). Only Caddy publishes ports,
+# bound to BIND_IP: Docker-published ports bypass ufw, so they must never bind 0.0.0.0.
+
+x-app: &app
+  env_file: .env
+  environment:
+    NODE_ENV: production
+    DATA_DIR: /data
+  volumes:
+    - ${DATA_ROOT:-/opt/poc-intel/data}/files:/data
+  restart: unless-stopped
+  depends_on:
+    postgres:
+      condition: service_healthy
+
+services:
+  postgres:
+    image: postgres:17-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      POSTGRES_DB: ${POSTGRES_DB}
+      TZ: UTC
+    volumes:
+      - ${DATA_ROOT:-/opt/poc-intel/data}/postgres:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $${POSTGRES_USER} -d $${POSTGRES_DB}"]
+      interval: 5s
+      retries: 10
+    shm_size: 256mb
+
+  api:
+    <<: *app
+    build: { context: ., target: api }
+    image: poc-intel/api
+    healthcheck:
+      test: ["CMD", "node", "-e", "fetch('http://127.0.0.1:3000/api/health').then(r=>process.exit(r.ok?0:1),()=>process.exit(1))"]
+      interval: 10s
+      retries: 6
+
+  worker:
+    <<: *app
+    build: { context: ., target: worker }
+    image: poc-intel/worker
+    shm_size: 512mb
+
+  web:
+    build: { context: ., target: web }
+    image: poc-intel/web
+    restart: unless-stopped
+    environment:
+      SITE_ADDRESS: ${SITE_ADDRESS}
+      TLS_MODE: ${TLS_MODE}
+      DEFAULT_SNI: ${DEFAULT_SNI:-localhost}
+    ports:
+      - "${BIND_IP}:80:80"
+      - "${BIND_IP}:443:443"
+    volumes:
+      - ${DATA_ROOT:-/opt/poc-intel/data}/caddy:/data
+    depends_on:
+      api:
+        condition: service_healthy

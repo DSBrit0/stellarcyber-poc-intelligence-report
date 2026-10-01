@@ -1,0 +1,116 @@
+# Stellar Cyber PoC Intelligence Report
+
+Internal tool for Stellar Cyber Sales Engineers and Partners: it connects to a customer's Stellar Cyber platform through its API, collects evidence from a PoC period and produces the final PoC Report.
+
+## Language
+
+### People and access
+
+**User**:
+A person who signs in to this tool: a Stellar Cyber Sales Engineer or a Partner.
+_Avoid_: Account, login, customer
+
+**Role**:
+The level of access a User has. A User is one of Admin, Sales Engineer or Partner.
+_Avoid_: Permission, group
+
+**Admin**:
+A User who approves registrations, manages Users and settings, and can see every PoC.
+
+**Sales Engineer**:
+A Stellar Cyber employee who runs PoCs. Sees only the PoCs they own.
+_Avoid_: SE (allowed only as an abbreviation)
+
+**Partner**:
+A reseller's staff member who runs PoCs. Sees only the PoCs they own.
+
+**Registration**:
+A self-service request to become a User. It stays Pending until an Admin approves or rejects it.
+_Avoid_: Signup, invite
+
+**Owner**:
+The User who created a PoC and its Reports.
+_Avoid_: Author, creator
+
+**Stellar Credential**:
+A Scoped API Key, or a username and token, that grants access to a Stellar Cyber Instance's API. It is distinct from the User's own sign-in.
+_Avoid_: Login, password, token
+
+### Stellar Cyber platform
+
+**Instance**:
+One Stellar Cyber deployment, identified by its base URL.
+_Avoid_: Platform, server, environment
+
+**Tenant**:
+A data partition inside an Instance (`cust_id`). Every collection is scoped to exactly one Tenant.
+_Avoid_: Customer, cust
+
+**Tenant Group**:
+A label that groups Tenants inside an Instance and holds no data of its own.
+
+**Case**:
+A correlated incident in Stellar Cyber, made of one or more Alerts and rated by Severity.
+_Avoid_: Incident, ticket
+
+**Alert**:
+A single detection inside a Case, tagged with MITRE ATT&CK or XDR Kill Chain tactics and techniques.
+_Avoid_: Event, detection
+
+**Severity**:
+One of Critical, High, Medium or Low on a Case.
+
+**Connector**:
+An integration that sends logs or data from a third-party source into an Instance.
+
+**Data Sensor**:
+A Stellar Cyber sensor (modular, device or server agent) that collects data into an Instance.
+_Avoid_: Agent, probe
+
+**Ingestion**:
+Raw bytes received from Data Sensors and Connectors, measured before enrichment.
+
+**Licensing Volume**:
+GB per day stored after enrichment and compression. It is the figure used for license compliance.
+_Avoid_: Ingestion (they are different measurements)
+
+**Asset Count**:
+The number of licensed assets observed per day.
+_Avoid_: Entity count
+
+**License Compliance**:
+The assessment of Asset Count or Licensing Volume against the licensed amount under the Stellar 7.0 tolerance rule, with the levels Warning, Violation and Out of Compliance.
+
+### PoC and reporting
+
+**PoC**:
+One customer's evaluation of Stellar Cyber on one Tenant over a period of up to 30 days. It is owned by a User, and holds the customer details, contacts, success criteria and Verdict.
+_Avoid_: Project, trial, evaluation
+
+**Sync**:
+One collection run that pulls a PoC's period data from the Instance API and condenses it into Report Data.
+_Avoid_: Refresh, import, fetch
+
+**Report Data**:
+The frozen set of figures that one Sync collected for a PoC. A Report renders it together with the PoC's current details, so the Report can be regenerated without contacting the Instance again.
+_Avoid_: Raw data, cache, dump
+
+**Report**:
+The rendering of Report Data in a given Template and language. It can be viewed as a responsive page or exported to PDF, and both show the same content.
+_Avoid_: Export, document
+
+**Retention Period**:
+How long Report Data is kept and its Reports stay downloadable. An Admin can change it at any time; the default is 90 days. When it ends, the Report Data is permanently deleted.
+_Avoid_: TTL, expiry
+
+**Template**:
+The layout of a Report. Technical and Executive are carried over from the previous tool; Insight is the new redesign.
+
+**Verdict**:
+The PoC outcome: Approved, Conditional or Rejected.
+
+**Effort Premises**:
+The assumed analyst minutes per Alert and per Case, used to estimate the effort avoided.
+
+**Detection Story**:
+The five-part executive narrative in the Executive Template: signal funnel, top threats, priority matrix, response scorecard and effort avoided.
