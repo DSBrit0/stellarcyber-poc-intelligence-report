@@ -32,9 +32,11 @@ export async function customerRoutes(app: FastifyInstance): Promise<void> {
         instanceUrl: customers.instanceUrl,
         ownerId: customers.ownerId,
         createdAt: customers.createdAt,
-        pocs: dsql<number>`(SELECT count(*)::int FROM ${pocs} WHERE ${pocs.customerId} = ${customers.id})`,
-        users: dsql<number>`(SELECT count(*)::int FROM ${users} WHERE ${users.customerId} = ${customers.id} AND ${users.status} = 'active')`,
-        pending: dsql<number>`(SELECT count(*)::int FROM ${users} WHERE ${users.customerId} = ${customers.id} AND ${users.status} = 'pending')`,
+        // Written out with aliases: in a single-table select drizzle leaves columns unqualified, so
+        // "id" inside the subquery would resolve to the inner table's own id. Drafts are not counted.
+        pocs: dsql<number>`(SELECT count(*)::int FROM pocs p WHERE p.customer_id = customers.id AND NOT p.draft)`,
+        users: dsql<number>`(SELECT count(*)::int FROM users u WHERE u.customer_id = customers.id AND u.status = 'active')`,
+        pending: dsql<number>`(SELECT count(*)::int FROM users u WHERE u.customer_id = customers.id AND u.status = 'pending')`,
       })
       .from(customers)
       .where(user.role === 'admin' ? undefined : eq(customers.ownerId, user.id))
