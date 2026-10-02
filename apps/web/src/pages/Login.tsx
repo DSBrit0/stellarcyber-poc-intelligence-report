@@ -7,6 +7,8 @@ import { api } from '../lib/api'
 import { useMe } from '../lib/auth'
 import { errorKey } from '../lib/errors'
 import { useI18n } from '../lib/i18n'
+import logo from '../assets/stellar-cyber-logo.svg'
+import logoDark from '../assets/stellar-cyber-logo-dark.svg'
 
 type Stage = 'login' | 'register' | 'registered' | LoginStep
 
@@ -72,8 +74,13 @@ export function LoginPage() {
   return (
     <div className="flex min-h-dvh items-center justify-center px-4">
       <div className="w-full max-w-sm">
-        <div className="mb-6 flex items-center justify-between">
-          <h1 className="text-lg font-semibold">{t('app.name')}</h1>
+        <div className="mb-6 flex items-end justify-between gap-4">
+          <div className="space-y-2">
+            {/* Official logo from the Stellar Cyber console: dark text for light mode, light text for dark mode. */}
+            <img src={logo} alt="Stellar Cyber" width={159} height={22} className="h-6 w-auto dark:hidden" />
+            <img src={logoDark} alt="Stellar Cyber" width={159} height={22} className="hidden h-6 w-auto dark:block" />
+            <h1 className="text-lg font-semibold">{t('app.name')}</h1>
+          </div>
           <LocaleSwitch />
         </div>
         <form className="card space-y-4" onSubmit={submit}>
