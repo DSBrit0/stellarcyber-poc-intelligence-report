@@ -13,6 +13,9 @@ let custUserId = null
 const jars = { main: '', customer: '' }
 let failures = 0
 
+/** JSON with sorted keys: PostgreSQL JSONB does not keep key order. */
+const canonical = (v) => JSON.stringify(v, (_k, x) => (x && typeof x === 'object' && !Array.isArray(x) ? Object.fromEntries(Object.entries(x).sort(([a], [b]) => a.localeCompare(b))) : x))
+
 async function call(path, { method = 'GET', body, jar = 'main' } = {}) {
   const res = await fetch(BASE + path, {
     method,
@@ -103,6 +106,30 @@ try {
   }
   const pdf = await call(`/report-data/${report.id}/pdf?template=insight&locale=en`)
   check('PDF render', pdf.status === 200 && pdf.type === 'application/pdf' && pdf.data.subarray(0, 4).toString() === '%PDF', `${pdf.data.length} bytes`)
+
+  // Full PoC form round trip: API → PostgreSQL → read back → rendered Report.
+  const form = {
+    customerName: 'Smoke Customer', department: 'SOC', customerEmail: 'soc@smoke.test', analysts: ['Ana Smoke', 'Bruno Smoke'],
+    successCriteria: 'Detect lateral movement; Cut alert noise', salesEngineer: { name: 'SE Smoke', email: 'se@smoke.test', phone: '+55 11 0000' },
+    partner: { name: 'Partner Smoke', email: 'p@smoke.test', site: 'partner.smoke.test' }, platformVersion: '6.6.0', region: 'LATAM', version: '2.1',
+    verdict: 'approved', comments: 'Round-trip comment', aiTriageTested: true,
+    effort: { alertMin: 7, critHighMin: 90, mediumMin: 15, lowMin: 3, monthHours: 150 },
+  }
+  check('save the full form', (await call(`/pocs/${poc.data.id}`, { method: 'PATCH', body: { details: form } })).status === 200)
+  const back = await call(`/pocs/${poc.data.id}`)
+  check('form reads back identical from the database', canonical(back.data.details) === canonical(form), canonical(back.data.details).slice(0, 120))
+  const [{ details: dbDetails }] = await sql`SELECT details FROM pocs WHERE id = ${poc.data.id}`
+  check('form is stored in pocs.details (JSONB)', dbDetails.salesEngineer.phone === '+55 11 0000' && dbDetails.effort.alertMin === 7)
+  const png = 'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg=='
+  check('upload architecture image', (await call(`/pocs/${poc.data.id}/arch-image`, { method: 'PUT', body: { dataUrl: `data:image/png;base64,${png}` } })).status === 200)
+  const img = await call(`/pocs/${poc.data.id}/arch-image`)
+  check('architecture image reads back', img.status === 200 && img.type === 'image/png' && img.data.length === Buffer.from(png, 'base64').length)
+  const tech = String((await call(`/report-data/${report.id}/html?template=technical&locale=en`)).data)
+  check('Technical Report shows the form fields', ['SE Smoke', 'partner.smoke.test', 'Detect lateral movement', 'Round-trip comment', 'Ana Smoke; Bruno Smoke', 'LATAM', '6.6.0', 'Version 2.1'].every((x) => tech.includes(x)), ['SE Smoke', 'partner.smoke.test', 'Detect lateral movement', 'Round-trip comment', 'Ana Smoke; Bruno Smoke', 'LATAM', '6.6.0', 'Version 2.1'].filter((x) => !tech.includes(x)).join(','))
+  check('Technical Report embeds the architecture image', tech.includes(`data:image/png;base64,${png}`))
+  const exec = String((await call(`/report-data/${report.id}/html?template=executive&locale=en`)).data)
+  check('Executive Report uses the effort premises (7 min triage)', /triage 7 min/.test(exec) && exec.includes('Approved'))
+  check('verdict shown', tech.includes('Approved'))
 
   const present = await call(`/report-data/${report.id}/present?template=executive&locale=en`)
   check('presentation mode has a nonce-bound script', present.status === 200 && /<script nonce="[^"]+">/.test(String(present.data)) && /script-src 'nonce-/.test(present.headers.get('content-security-policy') ?? ''))
