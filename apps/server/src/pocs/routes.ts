@@ -9,6 +9,7 @@ import { customers, pocs, reportData, syncs } from '../db/schema.js'
 import { audit } from '../lib/audit.js'
 import { HttpError, notFound, parse } from '../lib/http.js'
 import { getSettings } from '../settings.js'
+import { apiCallRecorder, appLog } from '../lib/log-sink.js'
 import { deleteRenders } from '../report/render-cache.js'
 import { forgetCredential, rememberCredential, rememberedCredential, rememberedInstances } from '../credentials/remembered.js'
 import type { FastifyReply, FastifyRequest } from 'fastify'
@@ -54,7 +55,7 @@ export async function pocRoutes(app: FastifyInstance, { dispatcher }: StellarDep
     const auth = staff(req)
     const input = parse(z.object({ instanceUrl: InstanceUrl, credential: StellarCredential.optional(), remember: z.boolean().optional() }), req.body)
     const credential = resolveCredential(req, reply, auth.user.id, input.instanceUrl, input.credential, input.remember)
-    const client = new StellarClient(input.instanceUrl, credential, dispatcher)
+    const client = new StellarClient(input.instanceUrl, credential, dispatcher, apiCallRecorder({ userId: auth.user.id }))
     await client.authenticate()
     // Remember only a credential the Instance accepted.
     if (input.credential && input.remember) rememberCredential(reply, auth.user.id, input.instanceUrl, input.credential)
@@ -204,6 +205,7 @@ export async function pocRoutes(app: FastifyInstance, { dispatcher }: StellarDep
     const [sync] = await db.insert(syncs).values({ pocId: poc.id, requestedBy: auth.user.id }).returning({ id: syncs.id })
     await app.enqueueSync(sync!.id, credential)
     await audit({ action: 'sync.requested', userId: auth.user.id, target: poc.id, ip: req.ip, meta: { syncId: sync!.id } })
+    appLog('info', 'sync', 'Sync requested', { userId: auth.user.id, requestId: req.id, context: { syncId: sync!.id, pocId: poc.id, remembered: !input.credential } })
     return reply.code(202).send({ syncId: sync!.id })
   })
 

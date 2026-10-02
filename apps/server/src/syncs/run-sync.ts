@@ -5,6 +5,7 @@ import { db } from '../db/client.js'
 import { pocs, reportData, syncs } from '../db/schema.js'
 import { StellarApiError, StellarClient } from '../stellar/client.js'
 import type { SyncMetrics } from '../stellar/request-stats.js'
+import { appLog, apiCallRecorder } from '../lib/log-sink.js'
 import { collectReportData } from './collect-report-data.js'
 
 type Logger = { info: (obj: object, msg: string) => void; warn: (obj: object, msg: string) => void }
@@ -31,7 +32,8 @@ export async function runSync(syncId: string, credential: StellarCredential, dis
   await db.update(syncs).set({ status: 'running', startedAt: dsql`now()` }).where(eq(syncs.id, syncId))
 
   try {
-    const client = new StellarClient(poc.instanceUrl, credential, dispatcher)
+    const client = new StellarClient(poc.instanceUrl, credential, dispatcher, apiCallRecorder({ syncId, userId: row.sync.requestedBy }))
+    appLog('info', 'sync', 'Sync started', { userId: row.sync.requestedBy, context: { syncId, pocId: poc.id, tenant: poc.tenantName, instance: poc.instanceUrl, period: [poc.periodStart, poc.periodEnd] } })
     await client.authenticate()
 
     const target = {
@@ -41,17 +43,28 @@ export async function runSync(syncId: string, credential: StellarCredential, dis
       aiTriage: poc.details.aiTriageTested === true,
     }
     let metrics: SyncMetrics | null = null
-    const data = await collectReportData(client, target, { log, onProgress: (p) => setProgress(syncId, p), onMetrics: (m) => (metrics = m) })
+    const data = await collectReportData(client, target, {
+      log,
+      onProgress: (p) => setProgress(syncId, p),
+      onMetrics: (m) => (metrics = m),
+      onCollectorFailed: (name, err) => appLog('warn', 'collector', `Collector ${name} failed`, { userId: row.sync.requestedBy, context: { syncId, collector: name, message: err.message } }),
+    })
 
     const [stored] = await db.insert(reportData).values({ pocId: poc.id, version: REPORT_DATA_VERSION, data }).returning({ id: reportData.id })
     await db
       .update(syncs)
       .set({ status: 'succeeded', reportDataId: stored!.id, metrics, finishedAt: dsql`now()`, progress: { step: 'done', done: 1, total: 1 } })
       .where(eq(syncs.id, syncId))
-    log.info({ syncId, reportDataId: stored!.id, gaps: data.gaps.length, totalMs: (metrics as SyncMetrics | null)?.totalMs }, 'sync succeeded')
+    const m = metrics as SyncMetrics | null
+    log.info({ syncId, reportDataId: stored!.id, gaps: data.gaps.length, totalMs: m?.totalMs }, 'sync succeeded')
+    appLog(data.gaps.length ? 'warn' : 'info', 'sync', data.gaps.length ? `Sync finished with ${data.gaps.length} gap(s)` : 'Sync finished', {
+      userId: row.sync.requestedBy,
+      context: { syncId, reportDataId: stored!.id, totalMs: m?.totalMs, phases: m?.phases, counts: m?.counts, gaps: data.gaps },
+    })
   } catch (err) {
     const code = err instanceof StellarApiError ? err.code : 'internal'
     await db.update(syncs).set({ status: 'failed', error: code, finishedAt: dsql`now()` }).where(eq(syncs.id, syncId))
     log.warn({ syncId, code, err: (err as Error).message }, 'sync failed')
+    appLog('error', 'sync', `Sync failed: ${code}`, { userId: row.sync.requestedBy, context: { syncId, pocId: poc.id, code, message: (err as Error).message } })
   }
 }

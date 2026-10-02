@@ -7,6 +7,7 @@ import { api } from './lib/api'
 import { useMe } from './lib/auth'
 import { useI18n } from './lib/i18n'
 import { AdminPage } from './pages/Admin'
+import { AuditPage } from './pages/Audit'
 import { CustomersPage } from './pages/Customers'
 import { LoginPage } from './pages/Login'
 import { PocDetailPage } from './pages/PocDetail'
@@ -24,6 +25,7 @@ export function App() {
         <Route path="/pocs/new" element={<Shell><PocNewPage /></Shell>} />
         <Route path="/pocs/:id" element={<Shell><PocDetailPage /></Shell>} />
         <Route path="/admin" element={<Shell adminOnly><AdminPage /></Shell>} />
+        <Route path="/audit" element={<Shell adminOnly><AuditPage /></Shell>} />
         <Route path="/customers" element={<Shell staffOnly><CustomersPage /></Shell>} />
         <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>
@@ -74,6 +76,7 @@ function Shell({ children, adminOnly, staffOnly }: { children: ReactNode; adminO
           <nav className="flex gap-4 text-sm">
             {me.role !== 'customer' ? <Link to="/customers">{t('nav.customers')}</Link> : null}
             {me.role === 'admin' ? <Link to="/admin">{t('nav.admin')}</Link> : null}
+            {me.role === 'admin' ? <Link to="/audit">{t('nav.audit')}</Link> : null}
           </nav>
           <div className="ml-auto flex items-center gap-3 text-sm">
             <span className="hidden text-slate-500 sm:inline">{me.name}</span>

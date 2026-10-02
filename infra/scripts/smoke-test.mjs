@@ -198,6 +198,25 @@ try {
   check('delete PoC', (await call(`/pocs/${poc.data.id}`, { method: 'DELETE' })).status === 204)
   const [pocLeft] = await sql`SELECT count(*)::int AS n FROM pocs WHERE id = ${poc.data.id}`
   check('PoC row and its details are gone', pocLeft.n === 0)
+  // Audit page: the log sink flushes every second.
+  await new Promise((r) => setTimeout(r, 1500))
+  const summary = await call('/admin/audit/summary')
+  check('audit summary', summary.status === 200 && typeof summary.data.counts?.logins24h === 'number' && summary.data.hourly?.length === 24)
+  const events = await call(`/admin/audit/events?userId=${user.id}&action=auth.`)
+  check('audit events list this User\'s sign-in', events.data.rows?.some((e) => e.action === 'auth.login' && e.email === EMAIL))
+  const logs = await call(`/admin/audit/logs?level=debug&category=http&q=${encodeURIComponent('/api/pocs')}`)
+  check('HTTP access is logged', logs.data.rows?.some((l) => l.userId === user.id && l.context?.path?.startsWith('/api/pocs')) && typeof logs.data.levels === 'object')
+  const [leaked] = await sql`SELECT count(*)::int AS n FROM app_logs WHERE context::text ILIKE ${'%' + password + '%'}`
+  check('no password in the logs', leaked.n === 0)
+  check('audit API calls list', (await call('/admin/audit/api-calls?outcome=http_error')).status === 200)
+  check('audit API stats', Array.isArray((await call('/admin/audit/api-stats')).data.endpoints))
+  check('audit Syncs list', (await call('/admin/audit/syncs?status=failed')).status === 200)
+  const csv = await call(`/admin/audit/export?kind=events&format=csv&userId=${user.id}`)
+  check('audit CSV export', csv.type.startsWith('text/csv') && csv.data.toString().includes('auth.login'))
+  const txt = await call('/admin/audit/export?kind=logs&format=txt&level=info')
+  check('audit TXT export', txt.type.startsWith('text/plain') && /^\[(INFO|WARN|ERROR)\]/m.test(txt.data.toString()))
+  check('audit rejects a bad filter', (await call('/admin/audit/logs?level=loud')).status === 400)
+
   check('logout', (await call('/auth/logout', { method: 'POST' })).status === 204)
   check('session gone after logout', (await call('/auth/me')).status === 401)
 
@@ -216,6 +235,8 @@ try {
   await sql`DELETE FROM users WHERE email LIKE 'smoke-cust-%@smoke.test'`
   if (customerId) await sql`DELETE FROM customers WHERE id = ${customerId}`
   await sql`DELETE FROM audit_log WHERE user_id = ${user.id}`
+  await sql`DELETE FROM app_logs WHERE user_id = ${user.id}`
+  await sql`DELETE FROM api_calls WHERE user_id = ${user.id}`
   await sql`DELETE FROM users WHERE id = ${user.id}`
   await sql.end()
 }

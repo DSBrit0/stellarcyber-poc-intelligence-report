@@ -7,6 +7,9 @@ import { seal } from './lib/crypto.js'
 import { MIGRATIONS_DIR } from './lib/paths.js'
 import { QUEUES, startBoss, type RenderPdfJob, type SyncJob } from './queue.js'
 import { createSafeAgent } from './stellar/safe-agent.js'
+import { appLog, flush, setLogSource } from './lib/log-sink.js'
+
+setLogSource('api')
 
 const cfg = config()
 const applied = await migrate(sql, MIGRATIONS_DIR)
@@ -28,10 +31,12 @@ const app = await buildApp({
 })
 
 await app.listen({ port: cfg.PORT, host: '0.0.0.0' })
+appLog('info', 'system', 'API started')
 
 for (const signal of ['SIGTERM', 'SIGINT'] as const) {
   process.once(signal, async () => {
     await app.close()
+    await flush()
     await boss.stop({ graceful: true })
     await dispatcher.close()
     await sql.end({ timeout: 5 })

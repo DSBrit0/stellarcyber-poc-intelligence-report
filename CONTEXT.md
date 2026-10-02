@@ -53,6 +53,16 @@ _Avoid_: Author, creator
 A Scoped API Key, or a username and token, that grants access to a Stellar Cyber Instance's API. It is distinct from the User's own sign-in.
 _Avoid_: Login, password, token
 
+**Audit Event**:
+A record of something a User did that matters for accountability, such as signing in, approving a User, or deleting a Report.
+
+**API Call**:
+One request the app made to an Instance, recorded with its outcome and latency, and tied to the Sync or the User that made it.
+
+**App Log**:
+A line of the application's own log, with a level (debug, info, warn, error) and a category. It is kept for the Retention Period, debug lines for 7 days.
+_Avoid_: Audit Event (an App Log describes the system, not a User's act)
+
 ### Stellar Cyber platform
 
 **Instance**:

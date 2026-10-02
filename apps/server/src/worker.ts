@@ -13,9 +13,11 @@ import { renderReportHtml } from './report/render-html.js'
 import { purgeExpired } from './retention/purge.js'
 import { createSafeAgent } from './stellar/safe-agent.js'
 import { runSync } from './syncs/run-sync.js'
+import { appLog, flush, setLogSource } from './lib/log-sink.js'
 
 const cfg = config()
 const log = pino({ level: cfg.LOG_LEVEL, base: { proc: 'worker' } })
+setLogSource('worker')
 
 await migrate(sql, MIGRATIONS_DIR)
 const boss = await startBoss()
@@ -43,20 +45,31 @@ await boss.work<RenderPdfJob>(QUEUES.renderPdf, { localConcurrency: 2 }, async (
     .limit(1)
   if (!row) return
   const html = renderReportHtml(row.data, row.details, Template.parse(job.data.template), Locale.parse(job.data.locale), { archImage: row.archImage })
-  await renderPdf(html, job.data.outputPath)
+  const t0 = performance.now()
+  try {
+    await renderPdf(html, job.data.outputPath)
+    appLog('info', 'pdf', 'PDF rendered', { context: { reportDataId: job.data.reportDataId, template: job.data.template, locale: job.data.locale, ms: Math.round(performance.now() - t0) } })
+  } catch (err) {
+    appLog('error', 'pdf', 'PDF render failed', { context: { reportDataId: job.data.reportDataId, template: job.data.template, message: (err as Error).message } })
+    throw err
+  }
 })
 
 await boss.work(QUEUES.retention, async () => {
-  log.info(await purgeExpired(), 'retention purge done')
+  const purged = await purgeExpired()
+  log.info(purged, 'retention purge done')
+  appLog('info', 'retention', 'Retention purge done', { context: purged })
 })
 // Daily at 03:00 server time.
 await boss.schedule(QUEUES.retention, '0 3 * * *', null, { tz: 'America/Sao_Paulo' })
 
 log.info('worker ready')
+appLog('info', 'system', 'Worker started')
 
 for (const signal of ['SIGTERM', 'SIGINT'] as const) {
   process.once(signal, async () => {
     await boss.stop({ graceful: true })
+    await flush()
     await closeBrowser()
     await dispatcher.close()
     await sql.end({ timeout: 5 })

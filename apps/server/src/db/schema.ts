@@ -127,6 +127,37 @@ export const settings = pgTable('settings', {
   updatedAt: ts('updated_at').notNull().defaultNow(),
 })
 
+export const apiCalls = pgTable('api_calls', {
+  id: bigint('id', { mode: 'number' }).primaryKey().generatedAlwaysAsIdentity(),
+  at: ts('at').notNull().defaultNow(),
+  syncId: uuid('sync_id'),
+  userId: uuid('user_id'),
+  instance: text('instance').notNull(),
+  method: text('method').notNull(),
+  endpoint: text('endpoint').notNull(),
+  path: text('path').notNull(),
+  query: jsonb('query').$type<Record<string, string>>(),
+  status: integer('status'),
+  outcome: text('outcome').$type<'ok' | 'http_error' | 'network'>().notNull(),
+  ms: integer('ms').notNull(),
+  bytes: integer('bytes').notNull().default(0),
+  retry: boolean('retry').notNull().default(false),
+  error: text('error'),
+})
+
+export type LogLevel = 'debug' | 'info' | 'warn' | 'error'
+export const appLogs = pgTable('app_logs', {
+  id: bigint('id', { mode: 'number' }).primaryKey().generatedAlwaysAsIdentity(),
+  at: ts('at').notNull().defaultNow(),
+  level: text('level').$type<LogLevel>().notNull(),
+  source: text('source').notNull(),
+  category: text('category').notNull(),
+  message: text('message').notNull(),
+  userId: uuid('user_id'),
+  requestId: text('request_id'),
+  context: jsonb('context'),
+})
+
 export const auditLog = pgTable('audit_log', {
   id: bigint('id', { mode: 'number' }).primaryKey().generatedAlwaysAsIdentity(),
   at: ts('at').notNull().defaultNow(),

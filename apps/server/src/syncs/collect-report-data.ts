@@ -31,7 +31,12 @@ type Logger = { warn: (obj: object, msg: string) => void }
 export async function collectReportData(
   client: StellarClient,
   target: SyncTarget,
-  { log, onProgress, onMetrics }: { log: Logger; onProgress: (p: SyncProgress) => Promise<void> | void; onMetrics?: (m: SyncMetrics) => void },
+  {
+    log,
+    onProgress,
+    onMetrics,
+    onCollectorFailed,
+  }: { log: Logger; onProgress: (p: SyncProgress) => Promise<void> | void; onMetrics?: (m: SyncMetrics) => void; onCollectorFailed?: (name: string, err: Error) => void },
 ): Promise<ReportData> {
   const t0 = performance.now()
   const phases: Record<string, number> = {}
@@ -75,6 +80,7 @@ const ctx: CollectContext = { client, tenantId: target.tenant.id, period: target
       if (err instanceof StellarApiError && err.code === 'auth_failed') throw err
       gaps.push({ collector: name, reason: err instanceof StellarApiError ? err.code : 'internal' })
       log.warn({ collector: name, err: (err as Error).message }, 'collector failed')
+      onCollectorFailed?.(name, err as Error)
       return null
     }
   }

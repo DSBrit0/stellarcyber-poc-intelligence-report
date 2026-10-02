@@ -80,6 +80,8 @@ export function PocNewPage() {
   const [error, setError] = useState<string | null>(null)
   const [busy, setBusy] = useState(false)
   const [saved, setSaved] = useState(false)
+  // Details as last saved (JSON); Save stays disabled until the form differs from it.
+  const [savedSnapshot, setSavedSnapshot] = useState<string | null>(null)
   const sync = useSync(syncId).data
 
   const url = origin(instanceUrl)
@@ -148,10 +150,12 @@ export function PocNewPage() {
 
   const save = async () => {
     if (!pocId) return
+    const snapshot = JSON.stringify(details)
     setBusy(true)
     setError(null)
     try {
       await api(`/pocs/${pocId}`, { method: 'PATCH', body: { finalize: true, details: { ...details, analysts: details.analysts.map((a) => a.trim()).filter(Boolean) } } })
+      setSavedSnapshot(snapshot)
       setSaved(true)
     } catch (err) {
       setError(t(errorKey(err)))
@@ -160,10 +164,12 @@ export function PocNewPage() {
     }
   }
 
-  // After Save, open the Report as soon as the collection is over.
+  const dirty = savedSnapshot !== JSON.stringify(details)
+
+  // After Save, open the Report as soon as the collection is over (not while there are unsaved edits).
   useEffect(() => {
-    if (saved && pocId && sync && !isRunning(sync)) navigate(`/pocs/${pocId}`)
-  }, [saved, pocId, sync, navigate])
+    if (saved && !dirty && pocId && sync && !isRunning(sync)) navigate(`/pocs/${pocId}`)
+  }, [saved, dirty, pocId, sync, navigate])
 
   const forget = async () => {
     await api(`/stellar/credentials?instanceUrl=${encodeURIComponent(url)}`, { method: 'DELETE' })
@@ -271,7 +277,7 @@ export function PocNewPage() {
         ) : null}
       </Block>
 
-      {syncId ? <SyncBar sync={sync} label={saved ? t('wiz.waiting', { p: syncPct(sync) }) : undefined} /> : null}
+      {syncId ? <SyncBar sticky sync={sync} label={saved ? t('wiz.waiting', { p: syncPct(sync) }) : undefined} /> : null}
       {error ? (
         <p className="text-sm text-red-600" role="alert">
           {error}
@@ -282,7 +288,7 @@ export function PocNewPage() {
         <Block title={t('wiz.detailsTitle')} help={t('wiz.detailsHelp')} done={saved}>
           <PocForm value={details} onChange={setDetails} />
           <div className="flex items-center gap-3">
-            <button type="button" className="btn" disabled={busy} onClick={() => void save()}>
+            <button type="button" className="btn" disabled={busy || !dirty} onClick={() => void save()}>
               {t('common.save')}
             </button>
             {saved && isRunning(sync) ? <span className="text-sm text-slate-500">{t('wiz.waiting', { p: syncPct(sync) })}</span> : null}

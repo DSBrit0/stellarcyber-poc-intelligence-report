@@ -25,14 +25,14 @@ export function useSync(syncId: string | null) {
   })
 }
 
-/** Always-visible progress bar of a Sync. */
-export function SyncBar({ sync, label }: { sync: SyncRow | undefined; label?: string }) {
+/** Always-visible progress bar of a Sync; `sticky` pins it to the top of the viewport while the page scrolls. */
+export function SyncBar({ sync, label, sticky }: { sync: SyncRow | undefined; label?: string; sticky?: boolean }) {
   const { t } = useI18n()
   if (!sync) return null
   const pct = syncPct(sync)
   const failed = sync.status === 'failed'
-  return (
-    <div className={`rounded-lg border p-3 ${failed ? 'border-red-300 bg-red-50' : 'border-blue-200 bg-blue-50 dark:bg-blue-950/30'}`} role="status" aria-live="polite">
+  const bar = (
+    <div className={`rounded-lg border p-3 ${sticky ? 'shadow-md' : ''} ${failed ? 'border-red-300 bg-red-50' : 'border-blue-200 bg-blue-50 dark:bg-blue-950/30'}`} role="status" aria-live="polite">
       <div className="mb-2 flex justify-between text-sm">
         <span className="font-medium">
           {failed ? t('sync.status.failed') : sync.status === 'succeeded' ? t('sync.done') : (label ?? t('sync.progress', { p: pct }))}
@@ -45,4 +45,6 @@ export function SyncBar({ sync, label }: { sync: SyncRow | undefined; label?: st
       {failed ? <p className="mt-2 text-sm text-red-700">{t(errorKey(new ApiError(500, `stellar_${sync.error ?? ''}`)))}</p> : null}
     </div>
   )
+  // Opaque strip in the page colour, so the content scrolling under the bar does not show through.
+  return sticky ? <div className="sticky top-0 z-20 bg-slate-50 py-2 dark:bg-slate-950">{bar}</div> : bar
 }

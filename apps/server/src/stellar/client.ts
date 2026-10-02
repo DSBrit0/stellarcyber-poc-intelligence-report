@@ -2,7 +2,8 @@ import type { StellarCredential } from '@poc-intel/shared'
 import { request, type Dispatcher } from 'undici'
 import type { z } from 'zod'
 import { ENDPOINTS } from './endpoints.js'
-import { RequestStats } from './request-stats.js'
+import type { ApiCallRecord } from '../lib/log-sink.js'
+import { RequestStats, endpointGroup } from './request-stats.js'
 
 const RETRYABLE = new Set([429, 502, 503, 504])
 const MAX_RETRIES = 3
@@ -48,6 +49,8 @@ export class StellarClient {
     readonly instanceUrl: string,
     readonly credential: StellarCredential,
     readonly dispatcher: Dispatcher,
+    /** Receives every call for the Audit log (no headers, no bodies). */
+    private readonly recorder?: (call: ApiCallRecord) => void,
   ) {}
 
   async authenticate(): Promise<void> {
@@ -99,6 +102,22 @@ export class StellarClient {
     }
   }
 
+  #audit(method: string, url: URL, status: number | null, ms: number, bytes: number, retry: boolean, error: string | null) {
+    this.recorder?.({
+      instance: url.origin,
+      method,
+      endpoint: endpointGroup(url.pathname),
+      path: url.pathname,
+      query: url.searchParams.size ? Object.fromEntries(url.searchParams) : null,
+      status,
+      outcome: status == null ? 'network' : status >= 400 ? 'http_error' : 'ok',
+      ms: Math.round(ms),
+      bytes,
+      retry,
+      error,
+    })
+  }
+
   async #ensureToken(): Promise<void> {
     if (this.#token && Date.now() < this.#tokenExpiresAt - RENEW_BEFORE_MS) return
     // Concurrent workers share a single renewal.
@@ -137,14 +156,27 @@ export class StellarClient {
       } catch {
         body = null
       }
-      this.stats.record(url.pathname, res.statusCode, performance.now() - t0, text.length, retry)
+      const ms = performance.now() - t0
+      this.stats.record(url.pathname, res.statusCode, ms, text.length, retry)
+      this.#audit(method, url, res.statusCode, ms, text.length, retry, res.statusCode >= 400 ? errorText(body) : null)
       return { status: res.statusCode, body }
     } catch (err) {
       this.stats.record(url.pathname, 'network', performance.now() - t0, 0, retry)
+      this.#audit(method, url, null, performance.now() - t0, 0, retry, (err as Error).message)
       // Never include headers here: they carry the credential.
       throw new StellarApiError('network', `${method} ${url.pathname}: ${(err as Error).message}`)
     } finally {
       done()
     }
   }
+}
+
+/** The Instance's own error message, if its JSON body has one (e.g. "security_exception"). */
+function errorText(body: unknown): string | null {
+  if (body && typeof body === 'object') {
+    const b = body as Record<string, unknown>
+    const m = b.message ?? b.error ?? b.detail
+    if (typeof m === 'string') return m.slice(0, 300)
+  }
+  return null
 }
