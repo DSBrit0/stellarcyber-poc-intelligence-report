@@ -37,7 +37,12 @@ export async function adminRoutes(app: FastifyInstance): Promise<void> {
   app.get('/users', async (req) => {
     const { status } = parse(z.object({ status: UserStatus.optional() }), req.query)
     return db
-      .select(userColumns)
+      .select({
+        ...userColumns,
+        // Explicit aliases: see customers/routes.ts on unqualified columns in single-table selects.
+        customers: dsql<number>`(SELECT count(*)::int FROM customers c WHERE c.owner_id = users.id)`,
+        pocs: dsql<number>`(SELECT count(*)::int FROM pocs p WHERE p.owner_id = users.id AND NOT p.draft)`,
+      })
       .from(users)
       .where(status ? eq(users.status, status) : undefined)
       .orderBy(desc(users.createdAt))

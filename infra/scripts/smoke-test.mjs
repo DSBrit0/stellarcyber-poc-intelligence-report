@@ -113,7 +113,7 @@ try {
     aiTriage: null,
     gaps: [],
   }
-  const [report] = await sql`INSERT INTO report_data (poc_id, version, data) VALUES (${poc.data.id}, ${data.version}, ${sql.json(data)}) RETURNING id`
+  const [report] = await sql`INSERT INTO report_data (poc_id, version, seq, data) VALUES (${poc.data.id}, ${data.version}, 1, ${sql.json(data)}) RETURNING id`
 
   const withReports = await call(`/pocs/${poc.data.id}`)
   const w = withReports.data.reports[0]
@@ -144,14 +144,30 @@ try {
   const img = await call(`/pocs/${poc.data.id}/arch-image`)
   check('architecture image reads back', img.status === 200 && img.type === 'image/png' && img.data.length === Buffer.from(png, 'base64').length)
   const tech = String((await call(`/report-data/${report.id}/html?template=technical&locale=en`)).data)
-  check('Technical Report shows the form fields', ['SE Smoke', 'partner.smoke.test', 'Detect lateral movement', 'Round-trip comment', 'Ana Smoke; Bruno Smoke', 'LATAM', '6.6.0', 'Version 2.1'].every((x) => tech.includes(x)), ['SE Smoke', 'partner.smoke.test', 'Detect lateral movement', 'Round-trip comment', 'Ana Smoke; Bruno Smoke', 'LATAM', '6.6.0', 'Version 2.1'].filter((x) => !tech.includes(x)).join(','))
+  check('Technical Report shows the form fields', ['SE Smoke', 'partner.smoke.test', 'Detect lateral movement', 'Round-trip comment', 'Ana Smoke; Bruno Smoke', 'LATAM', '6.6.0', 'Version 1.0'].every((x) => tech.includes(x)), ['SE Smoke', 'partner.smoke.test', 'Detect lateral movement', 'Round-trip comment', 'Ana Smoke; Bruno Smoke', 'LATAM', '6.6.0', 'Version 1.0'].filter((x) => !tech.includes(x)).join(','))
   check('Technical Report embeds the architecture image', tech.includes(`data:image/png;base64,${png}`))
   const exec = String((await call(`/report-data/${report.id}/html?template=executive&locale=en`)).data)
   check('Executive Report uses the effort premises (7 min triage)', /triage 7 min/.test(exec) && exec.includes('Approved'))
   check('verdict shown', tech.includes('Approved'))
 
-  const present = await call(`/report-data/${report.id}/present?template=executive&locale=en`)
-  check('presentation mode has a nonce-bound script', present.status === 200 && /<script nonce="[^"]+">/.test(String(present.data)) && /script-src 'nonce-/.test(present.headers.get('content-security-policy') ?? ''))
+  const page = await call(`/report-data/${report.id}/html?template=executive&locale=en`)
+  check('Open HTML Report is the presentation mode (nonce-bound script)', page.status === 200 && /<script nonce="[^"]+">/.test(String(page.data)) && /script-src 'nonce-/.test(page.headers.get('content-security-policy') ?? ''))
+  check('the separate presentation route is gone', (await call(`/report-data/${report.id}/present?template=executive&locale=en`)).status === 404)
+  const pocView = await call(`/pocs/${poc.data.id}`)
+  check('first Report is version 1.0', pocView.data.reports?.[0]?.seq === 1 && pocView.data.reports[0].version === '1.0', JSON.stringify(pocView.data.reports?.[0]?.version))
+
+  // Admin sees PoCs of other Owners, with the Owner's name, and per-User counts.
+  const [se] = await sql`INSERT INTO users (email, name, password_hash, role, status) VALUES (${`smoke-se-${Date.now()}@smoke.test`}, 'Smoke SE', 'x', 'sales_engineer', 'active') RETURNING id`
+  const [sePoc] = await sql`
+    INSERT INTO pocs (owner_id, instance_url, tenant_id, tenant_name, period_start, period_end, details)
+    VALUES (${se.id}, 'https://smoke.example.com', 't-se', 'SE Tenant', '2026-09-01', '2026-09-10', ${sql.json({ customerName: 'SE Customer' })}) RETURNING id`
+  const adminList = await call('/pocs')
+  check('Admin sees a PoC owned by an SE, with the Owner name', adminList.data.some((p) => p.id === sePoc.id && p.ownerName === 'Smoke SE'))
+  check('Admin filters PoCs by Owner', (await call(`/pocs?owner=${se.id}`)).data.every((p) => p.ownerId === se.id) && !(await call('/pocs?owner=me')).data.some((p) => p.id === sePoc.id))
+  const seRow = (await call('/admin/users')).data.find((u) => u.id === se.id)
+  check('Admin users list counts the SE PoCs', seRow?.pocs === 1 && seRow?.customers === 0, JSON.stringify(seRow))
+  await sql`DELETE FROM pocs WHERE id = ${sePoc.id}`
+  await sql`DELETE FROM users WHERE id = ${se.id}`
 
   // Customer access: registered in advance, linked by company name + Access Key, approved by the owner.
   const customer = await call('/customers', { method: 'POST', body: { name: `Smoke Customer ${Date.now()}`, instanceUrl: 'https://smoke.example.com/' } })
@@ -183,7 +199,17 @@ const custPocs = await call('/pocs', { jar: 'customer' })
   check('customer cannot reach staff routes', (await call('/customers', { jar: 'customer' })).status === 403)
   check('customer comments on the Report', (await call(`/report-data/${report.id}/comments`, { method: 'POST', jar: 'customer', body: { body: 'Looks good' } })).status === 201)
   const comments = await call(`/report-data/${report.id}/comments`)
-  check('owner reads the comment', comments.data.length === 1 && comments.data[0].body === 'Looks good')
+  check('owner reads the comment', comments.data.length === 1 && comments.data[0].body === 'Looks good' && comments.data[0].kind === 'internal')
+  check('owner adds a private comment', (await call(`/report-data/${report.id}/comments`, { method: 'POST', body: { body: 'Pricing note', private: true } })).status === 201)
+  check('owner sees the private comment', (await call(`/report-data/${report.id}/comments`)).data.some((c) => c.body === 'Pricing note' && c.private === true))
+  check('customer does not see the private comment', !(await call(`/report-data/${report.id}/comments`, { jar: 'customer' })).data.some((c) => c.body === 'Pricing note'))
+  check('customer cannot write a private comment', (await call(`/report-data/${report.id}/comments`, { method: 'POST', jar: 'customer', body: { body: 'x', private: true } })).status === 403)
+  check('a Report comment cannot be private', (await call(`/report-data/${report.id}/comments`, { method: 'POST', body: { body: 'x', kind: 'report', private: true } })).status === 400)
+  check('Report comment accepted', (await call(`/report-data/${report.id}/comments`, { method: 'POST', body: { body: 'Scope extended to EDR', kind: 'report' } })).status === 201)
+  check('a Report comment makes version 1.1', (await call(`/pocs/${poc.data.id}`)).data.reports[0].version === '1.1')
+  const versioned = String((await call(`/report-data/${report.id}/html?template=technical&locale=en`)).data)
+  check('Appendix B prints the Report comment, not the internal one', versioned.includes('Version 1.1') && versioned.includes('Scope extended to EDR') && !versioned.includes('Looks good') && !versioned.includes('Pricing note'))
+  check('unknown comment kind is refused', (await call(`/report-data/${report.id}/comments`, { method: 'POST', body: { body: 'x', kind: 'secret' } })).status === 400)
   custUserId = me2.data.id
 
   // Permanent deletion of a Report: nothing of it may remain in the database or on disk.
@@ -234,7 +260,8 @@ const custPocs = await call('/pocs', { jar: 'customer' })
   check('API released after the change', (await call('/pocs')).status === 200)
 } finally {
   if (custUserId) await sql`DELETE FROM audit_log WHERE user_id = ${custUserId}`
-  await sql`DELETE FROM users WHERE email LIKE 'smoke-cust-%@smoke.test'`
+  await sql`DELETE FROM pocs WHERE owner_id IN (SELECT id FROM users WHERE email LIKE 'smoke-se-%@smoke.test')`
+  await sql`DELETE FROM users WHERE email LIKE 'smoke-cust-%@smoke.test' OR email LIKE 'smoke-se-%@smoke.test'`
   if (customerId) await sql`DELETE FROM customers WHERE id = ${customerId}`
   await sql`DELETE FROM audit_log WHERE user_id = ${user.id}`
   await sql`DELETE FROM app_logs WHERE user_id = ${user.id}`

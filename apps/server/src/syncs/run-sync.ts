@@ -34,6 +34,7 @@ export async function runSync(syncId: string, credential: StellarCredential, dis
   try {
     const client = new StellarClient(poc.instanceUrl, credential, dispatcher, apiCallRecorder({ syncId, userId: row.sync.requestedBy }))
     appLog('info', 'sync', 'Sync started', { userId: row.sync.requestedBy, context: { syncId, pocId: poc.id, tenant: poc.tenantName, instance: poc.instanceUrl, period: [poc.periodStart, poc.periodEnd] } })
+    await setProgress(syncId, { step: 'connect', phase: 1, done: 2, total: 100 })
     await client.authenticate()
 
     const target = {
@@ -50,7 +51,10 @@ export async function runSync(syncId: string, credential: StellarCredential, dis
       onCollectorFailed: (name, err) => appLog('warn', 'collector', `Collector ${name} failed`, { userId: row.sync.requestedBy, context: { syncId, collector: name, message: err.message } }),
     })
 
-    const [stored] = await db.insert(reportData).values({ pocId: poc.id, version: REPORT_DATA_VERSION, data }).returning({ id: reportData.id })
+    await setProgress(syncId, { step: 'save', phase: 5, done: 97, total: 100 })
+    const [stored] = await db
+      .insert(reportData)
+      .values({ pocId: poc.id, version: REPORT_DATA_VERSION, seq: dsql`(SELECT coalesce(max(seq), 0) + 1 FROM report_data WHERE poc_id = ${poc.id})`, data }).returning({ id: reportData.id })
     await db
       .update(syncs)
       .set({ status: 'succeeded', reportDataId: stored!.id, metrics, finishedAt: dsql`now()`, progress: { step: 'done', done: 1, total: 1 } })

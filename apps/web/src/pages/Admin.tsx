@@ -1,6 +1,7 @@
 import { ROLES, type Role } from '@poc-intel/shared'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { useState } from 'react'
+import { Link } from 'react-router'
 import { api } from '../lib/api'
 import { useI18n } from '../lib/i18n'
 
@@ -14,6 +15,8 @@ interface UserRow {
   mfaEnabled: boolean
   mfaExempt: boolean
   createdAt: string
+  customers: number
+  pocs: number
 }
 
 interface Settings {
@@ -73,6 +76,17 @@ export function AdminPage() {
       <section className="card space-y-3 overflow-x-auto">
         <h2 className="font-semibold">{t('admin.users')}</h2>
         <table className="w-full text-sm">
+          <thead>
+            <tr className="text-left text-xs tracking-wide text-slate-500 uppercase">
+              <th className="py-2 font-medium">{t('auth.name')}</th>
+              <th className="font-medium">{t('auth.email')}</th>
+              <th className="font-medium">{t('admin.role')}</th>
+              <th className="font-medium">{t('admin.status')}</th>
+              <th className="text-right font-medium">{t('nav.customers')}</th>
+              <th className="text-right font-medium">PoCs</th>
+              <th />
+            </tr>
+          </thead>
           <tbody>
             {others.map((u) => (
               <tr key={u.id} className="border-t border-slate-200 dark:border-slate-800">
@@ -93,6 +107,16 @@ export function AdminPage() {
                   </select>
                 </td>
                 <td>{u.status}</td>
+                <td className="text-right tabular-nums">{u.role === 'customer' ? '—' : u.customers}</td>
+                <td className="text-right tabular-nums">
+                  {u.role === 'customer' ? (
+                    '—'
+                  ) : (
+                    <Link className="text-brand hover:underline" to={`/?owner=${u.id}`}>
+                      {u.pocs}
+                    </Link>
+                  )}
+                </td>
                 <td className="space-x-2 text-right whitespace-nowrap">
                   <label className="inline-flex items-center gap-1 text-xs">
                     <input

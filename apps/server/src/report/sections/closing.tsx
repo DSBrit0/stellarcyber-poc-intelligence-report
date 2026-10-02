@@ -367,7 +367,15 @@ export function Appendices({ rc }: { rc: ReportContext }) {
         <Table head={[t('glossTerm'), t('glossDef')]} rows={GLOSSARY.map(([term, key]) => [<b>{term}</b>, t(key)])} />
       </Section>
       <Section rc={rc} title={t('appendixB')} newPage={false}>
-        <Table head={[t('verVersion'), t('verDate'), t('verAuthor'), t('verChanges')]} rows={[[details.version || '1.0', fmt.date(rc.generatedAt), details.salesEngineer.name || '—', t('verInitial')]]} />
+        <Table
+          head={[t('verVersion'), t('verDate'), t('verAuthor'), t('verChanges')]}
+          rows={(rc.versioning?.history ?? [{ version: rc.version, date: rc.generatedAt.toISOString(), author: null, changes: null, first: true, period: null }]).map((v) => [
+            <b>{v.version}</b>,
+            fmt.date(v.date),
+            v.author || details.salesEngineer.name || '—',
+            v.changes ?? (v.first ? t('verInitial') : rc.x('verNewSync', { start: v.period ? fmt.date(v.period.start) : '—', end: v.period ? fmt.date(v.period.end) : '—' })),
+          ])}
+        />
       </Section>
     </>
   )

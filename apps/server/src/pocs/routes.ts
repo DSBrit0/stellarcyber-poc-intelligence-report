@@ -5,7 +5,7 @@ import { z } from 'zod'
 import { requireAuth, requireRole } from '../auth/guards.js'
 import type { AuthContext } from '../auth/session.js'
 import { db } from '../db/client.js'
-import { customers, pocs, reportData, syncs } from '../db/schema.js'
+import { customers, pocs, reportData, syncs, users } from '../db/schema.js'
 import { audit } from '../lib/audit.js'
 import { HttpError, notFound, parse } from '../lib/http.js'
 import { getSettings } from '../settings.js'
@@ -72,25 +72,37 @@ export async function pocRoutes(app: FastifyInstance, { dispatcher }: StellarDep
     return reply.code(204).send()
   })
 
+  // An Admin sees every PoC (optionally one Owner's: `owner=me` or a User id); an SE/Partner their own;
+  // a Customer User the PoCs linked to their Customer.
   app.get('/pocs', async (req) => {
     const auth = requireAuth(req)
-    const { all } = parse(z.object({ all: z.stringbool().optional() }), req.query)
-    const seeAll = all === true && auth.user.role === 'admin'
+    const { owner } = parse(z.object({ owner: z.union([z.literal('me'), z.uuid()]).optional() }), req.query)
+    const scope =
+      auth.user.role === 'admin'
+        ? owner
+          ? eq(pocs.ownerId, owner === 'me' ? auth.user.id : owner)
+          : undefined
+        : auth.user.role === 'customer'
+          ? eq(pocs.customerId, auth.user.customerId ?? '00000000-0000-0000-0000-000000000000')
+          : eq(pocs.ownerId, auth.user.id)
     return db
       .select({
         id: pocs.id,
         ownerId: pocs.ownerId,
+        ownerName: users.name,
         customerName: dsql<string>`${pocs.details}->>'customerName'`,
+        linkedCustomer: customers.name,
         tenantName: pocs.tenantName,
         periodStart: pocs.periodStart,
         periodEnd: pocs.periodEnd,
         draft: pocs.draft,
         updatedAt: pocs.updatedAt,
+        reports: dsql<number>`(SELECT count(*)::int FROM report_data r WHERE r.poc_id = ${pocs.id})`,
       })
       .from(pocs)
-      .where(
-        seeAll ? undefined : auth.user.role === 'customer' ? eq(pocs.customerId, auth.user.customerId ?? '00000000-0000-0000-0000-000000000000') : eq(pocs.ownerId, auth.user.id),
-      )
+      .leftJoin(users, eq(users.id, pocs.ownerId))
+      .leftJoin(customers, eq(customers.id, pocs.customerId))
+      .where(scope)
       .orderBy(desc(pocs.updatedAt))
   })
 
@@ -125,7 +137,10 @@ export async function pocRoutes(app: FastifyInstance, { dispatcher }: StellarDep
         .select({
           id: reportData.id,
           createdAt: reportData.createdAt,
-          version: reportData.version,
+          seq: reportData.seq,
+          // seq.minor, where minor counts the Report comments (see report/versioning.ts). report_data.id is
+          // written out: drizzle leaves columns unqualified in a single-table select.
+          version: dsql<string>`${reportData.seq} || '.' || (SELECT count(*) FROM report_comments c WHERE c.report_data_id = report_data.id AND c.kind = 'report')`,
           // Widget figures read straight from the JSONB, without loading the whole Report Data.
           assetsAvg: dsql<number | null>`(${reportData.data}->'assets'->'compliance'->'stats'->>'avg')::float`,
           assetsPeak: dsql<number | null>`(${reportData.data}->'assets'->'compliance'->'stats'->>'max')::float`,

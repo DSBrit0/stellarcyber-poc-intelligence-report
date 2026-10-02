@@ -90,11 +90,16 @@ export const customers = pgTable('customers', {
 })
 export type Customer = typeof customers.$inferSelect
 
+export type CommentKind = 'internal' | 'report'
 export const reportComments = pgTable('report_comments', {
   id: uuid('id').primaryKey().defaultRandom(),
   reportDataId: uuid('report_data_id').notNull(),
   userId: uuid('user_id'),
   body: text('body').notNull(),
+  /** internal: stays in the app; report: a change note, printed in the Report's version history. */
+  kind: text('kind').$type<CommentKind>().notNull().default('internal'),
+  /** Hidden from Customer Users; internal comments by staff only. */
+  isPrivate: boolean('is_private').notNull().default(false),
   createdAt: ts('created_at').notNull().defaultNow(),
 })
 
@@ -102,6 +107,8 @@ export const reportData = pgTable('report_data', {
   id: uuid('id').primaryKey().defaultRandom(),
   pocId: uuid('poc_id').notNull(),
   version: integer('version').notNull(),
+  /** Major version of the Report within its PoC: 1, 2, 3… (gaps stay when a Report is deleted). */
+  seq: integer('seq').notNull(),
   data: jsonb('data').$type<ReportData>().notNull(),
   createdAt: ts('created_at').notNull().defaultNow(),
 })

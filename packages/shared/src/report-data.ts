@@ -152,9 +152,15 @@ export const ReportData = z.object({
 })
 export type ReportData = z.infer<typeof ReportData>
 
+/** The phases of a Sync, in order; the progress bar shows "phase n/5". */
+export const SYNC_PHASES = ['connect', 'collect', 'alerts', 'process', 'save'] as const
+export type SyncPhase = (typeof SYNC_PHASES)[number]
+
 export const SyncProgress = z.object({
   step: z.string(),
   done: z.number(),
   total: z.number(),
+  /** 1-based index in SYNC_PHASES; absent on Syncs from before phases existed. */
+  phase: z.number().int().min(1).max(SYNC_PHASES.length).optional(),
 })
 export type SyncProgress = z.infer<typeof SyncProgress>

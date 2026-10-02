@@ -51,7 +51,7 @@ export function Cover({ rc }: { rc: ReportContext }) {
         <InfoBlock title={t('blockPartner')} lines={[p.partner.name, p.partner.email, p.partner.site]} />
       </div>
       <div className="cover-foot">
-        {t('footerVersion')} {p.version || '1.0'} | {t('footerPocPeriod')} {fmt.date(data.period.start)}–{fmt.date(data.period.end)} | {t('footerReportDate')} {fmt.date(rc.generatedAt)}
+        {t('footerVersion')} {rc.version} | {t('footerPocPeriod')} {fmt.date(data.period.start)}–{fmt.date(data.period.end)} | {t('footerReportDate')} {fmt.date(rc.generatedAt)}
       </div>
     </header>
   )

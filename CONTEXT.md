@@ -39,7 +39,11 @@ _Avoid_: Invite code, password
 A User with the Customer Role: someone from a Customer who can view, download and comment on the Reports of the PoCs linked to their Customer, and nothing else.
 
 **Comment**:
-A remark a User leaves on a Report for the PoC's Owner.
+A remark a User leaves on a Report. An **Internal Comment** stays in the app; a **Report Comment** is a change note that creates a new minor Report Version and is printed in the Report's version history. Staff can mark an Internal Comment **Private**: the Customer Users do not see it.
+
+**Report Version**:
+The version of a Report, major.minor: the major number counts the Reports (data collections) of the PoC, the minor number the Report Comments on that Report. Version 1.0 is the first Report with no Report Comment.
+_Avoid_: Report Data version (the format of the stored data, unrelated)
 
 **Registration**:
 A self-service request to become a User. It stays Pending until an Admin approves or rejects it.

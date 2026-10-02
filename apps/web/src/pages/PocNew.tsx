@@ -10,7 +10,7 @@ import { DateInput } from '../lib/DateInput'
 import { errorKey } from '../lib/errors'
 import { useI18n } from '../lib/i18n'
 import { PocForm, emptyDetails } from '../lib/PocForm'
-import { SyncBar, isRunning, syncPct, useSync } from '../lib/SyncProgress'
+import { SyncBar, isRunning, useSync } from '../lib/SyncProgress'
 
 interface Tenant {
   id: string
@@ -239,20 +239,54 @@ export function PocNewPage() {
       </Block>
 
       <Block title={t('wiz.tenantTitle')} done={Boolean(tenant)} locked={!tenants || locked}>
-        {tenants && tenants.length > 8 ? <input className="input" placeholder={t('wiz.searchTenant')} value={filter} onChange={(e) => setFilter(e.target.value)} /> : null}
-        <select className="input" size={Math.min(8, Math.max(2, shown.length + groups.length))} value={tenantId} onChange={(e) => setTenantId(e.target.value)}>
+        {tenants && tenants.length > 8 ? (
+          <input
+            className="input"
+            placeholder={t('wiz.searchTenant')}
+            value={filter}
+            onChange={(e) => {
+              setFilter(e.target.value)
+              // One match left: pick it, so the filter alone is enough.
+              const q = e.target.value.toLowerCase()
+              const matches = (tenants ?? []).filter((x) => `${x.name} ${x.group}`.toLowerCase().includes(q))
+              if (q && matches.length === 1) setTenantId(matches[0]!.id)
+            }}
+            onKeyDown={(e) => {
+              if (e.key === 'Enter') {
+                e.preventDefault()
+                if (shown[0]) setTenantId(shown[0].id)
+              }
+            }}
+          />
+        ) : null}
+        {tenant ? (
+          <p className="text-sm">
+            <span className="rounded bg-green-100 px-2 py-1 text-green-800">✓ {tenant.group ? `${tenant.group} / ` : ''}{tenant.name}</span>
+          </p>
+        ) : null}
+        {/* A list of buttons rather than a <select size>: a click always selects, filtered or not. */}
+        <div role="listbox" aria-label={t('wiz.tenantTitle')} className="max-h-72 overflow-y-auto rounded-lg border border-slate-200 dark:border-slate-700">
           {groups.map((g) => (
-            <optgroup key={g || '-'} label={g || '—'}>
+            <div key={g || '-'} role="group" aria-label={g || '—'}>
+              <div className="sticky top-0 bg-slate-100 px-3 py-1 text-xs font-semibold text-slate-500 dark:bg-slate-800">{g || '—'}</div>
               {shown
                 .filter((x) => x.group === g)
                 .map((x) => (
-                  <option key={x.id} value={x.id}>
+                  <button
+                    key={x.id}
+                    type="button"
+                    role="option"
+                    aria-selected={x.id === tenantId}
+                    className={`block w-full px-4 py-1.5 text-left text-sm ${x.id === tenantId ? 'bg-brand font-medium text-white' : 'hover:bg-slate-100 dark:hover:bg-slate-800'}`}
+                    onClick={() => setTenantId(x.id)}
+                  >
                     {x.name}
-                  </option>
+                  </button>
                 ))}
-            </optgroup>
+            </div>
           ))}
-        </select>
+          {tenants && shown.length === 0 ? <p className="px-3 py-2 text-sm text-slate-500">{t('wiz.noTenantMatch')}</p> : null}
+        </div>
       </Block>
 
       <Block title={t('wiz.periodTitle')} help={t('wiz.periodHelp')} done={periodOk} locked={!tenant || locked}>
@@ -277,7 +311,7 @@ export function PocNewPage() {
         ) : null}
       </Block>
 
-      {syncId ? <SyncBar sticky sync={sync} label={saved ? t('wiz.waiting', { p: syncPct(sync) }) : undefined} /> : null}
+      {syncId ? <SyncBar sticky sync={sync} label={saved ? t('wiz.waiting') : undefined} /> : null}
       {error ? (
         <p className="text-sm text-red-600" role="alert">
           {error}
@@ -291,7 +325,7 @@ export function PocNewPage() {
             <button type="button" className="btn" disabled={busy || !dirty} onClick={() => void save()}>
               {t('common.save')}
             </button>
-            {saved && isRunning(sync) ? <span className="text-sm text-slate-500">{t('wiz.waiting', { p: syncPct(sync) })}</span> : null}
+            {saved && isRunning(sync) ? <span className="text-sm text-slate-500">{t('wiz.waiting')}</span> : null}
             {saved && sync?.status === 'failed' ? (
               <button type="button" className="btn-ghost" onClick={() => navigate(`/pocs/${pocId}`)}>
                 {t('report.view')}

@@ -1,4 +1,4 @@
-import { REPORT_DATA_VERSION, ReportData, type SyncProgress } from '@poc-intel/shared'
+import { REPORT_DATA_VERSION, ReportData, SYNC_PHASES, type SyncProgress } from '@poc-intel/shared'
 import { alertPageCount, collectAiTriage, collectCases, collectIngestion, collectTactics } from '../stellar/case-collectors.js'
 import { StellarApiError, type StellarClient } from '../stellar/client.js'
 import { PAGING } from '../stellar/endpoints.js'
@@ -62,16 +62,22 @@ const ctx: CollectContext = { client, tenantId: target.tenant.id, period: target
   type Results = { [K in keyof typeof collectors]: Awaited<ReturnType<(typeof collectors)[K]>> | null }
   const names = Object.keys(collectors) as (keyof typeof collectors)[]
 
-  // Progress: collectors first; the alert pages join the total once the Key Cases are known.
-  const progress = { done: 0, total: names.length }
+  // Progress as one percentage across the phases: collectors 5–40 %, alert pages 40–90 %, then
+  // processing. The alert pages join once the Key Cases are known.
+  const progress = { collectors: 0, pages: 0, pageTotal: 0 }
   let lastWrite = 0
-  const tick = async (force = false) => {
-    progress.done++
-    if (force || Date.now() - lastWrite > 1000) {
-      lastWrite = Date.now()
-      await onProgress({ step: 'collect', ...progress })
-    }
+  const report = async (step: 'collect' | 'alerts' | 'process', force = false) => {
+    if (!force && Date.now() - lastWrite < 1000) return
+    lastWrite = Date.now()
+    const pct =
+      step === 'collect'
+        ? 5 + (35 * progress.collectors) / names.length
+        : step === 'alerts'
+          ? 40 + (50 * progress.pages) / Math.max(1, progress.pageTotal)
+          : 92
+    await onProgress({ step, phase: SYNC_PHASES.indexOf(step) + 1, done: Math.round(pct), total: 100 })
   }
+  await report('collect', true)
 
   const guard = async <T,>(name: string, fn: () => Promise<T>): Promise<T | null> => {
     try {
@@ -86,15 +92,22 @@ const ctx: CollectContext = { client, tenantId: target.tenant.id, period: target
   }
 
   const results = Object.fromEntries(
-    await Promise.all(names.map(async (n) => [n, await guard(n, () => timed(n, collectors[n] as () => Promise<unknown>)).finally(() => tick(true))] as const)),
+    await Promise.all(names.map(async (n) => [n, await guard(n, () => timed(n, collectors[n] as () => Promise<unknown>)).finally(() => {
+          progress.collectors++
+          return report('collect', true)
+        })] as const)),
   ) as Results
   if (gaps.length === names.length) throw new StellarApiError('unavailable', 'every collector failed')
 
   const keyCases = results.cases?.keyCases ?? []
-  progress.total += alertPageCount(keyCases)
+  progress.pageTotal = alertPageCount(keyCases)
+  if (keyCases.length) await report('alerts', true)
   const emptyTactics: ReportData['tactics'] = { mitre: { tactics: [], techniques: [] }, xdr: { tactics: [], techniques: [] }, byCase: {}, topAlerts: {}, pages: { fetched: 0, failed: 0, forbidden: 0 }, alertsMissing: 0, casesWithoutAlertAccess: 0 }
   const tactics = keyCases.length
-    ? ((await guard('tactics', () => timed('tactics', () => collectTactics(ctx, keyCases, () => void tick())))) ?? emptyTactics)
+    ? ((await guard('tactics', () => timed('tactics', () => collectTactics(ctx, keyCases, () => {
+            progress.pages++
+            void report('alerts')
+          })))) ?? emptyTactics)
     : emptyTactics
 
   // /ingestion-stats/sensor only carries sensor ids: name them from /data_sensors.
@@ -112,6 +125,7 @@ const ctx: CollectContext = { client, tenantId: target.tenant.id, period: target
       }
     : { bySensor: [], byConnector: [] }
 
+  await report('process', true)
   const emptyCompliance = { stats: null, recommended: null, recommendedWindow: null, scenarios: [] }
   const aiTriage = target.aiTriage && keyCases.length ? await guard('aiTriage', () => timed('aiTriage', () => collectAiTriage(ctx, keyCases))) : null
 

@@ -10,6 +10,7 @@ import { MIGRATIONS_DIR } from './lib/paths.js'
 import { QUEUES, startBoss, type RenderPdfJob, type SyncJob } from './queue.js'
 import { closeBrowser, renderPdf } from './report/pdf.js'
 import { renderReportHtml } from './report/render-html.js'
+import { loadVersioning } from './report/versioning.js'
 import { purgeExpired } from './retention/purge.js'
 import { createSafeAgent } from './stellar/safe-agent.js'
 import { runSync } from './syncs/run-sync.js'
@@ -44,7 +45,10 @@ await boss.work<RenderPdfJob>(QUEUES.renderPdf, { localConcurrency: 2 }, async (
     .where(eq(reportData.id, job.data.reportDataId))
     .limit(1)
   if (!row) return
-  const html = renderReportHtml(row.data, row.details, Template.parse(job.data.template), Locale.parse(job.data.locale), { archImage: row.archImage })
+  const html = renderReportHtml(row.data, row.details, Template.parse(job.data.template), Locale.parse(job.data.locale), {
+    archImage: row.archImage,
+    versioning: await loadVersioning(job.data.reportDataId),
+  })
   const t0 = performance.now()
   try {
     await renderPdf(html, job.data.outputPath)

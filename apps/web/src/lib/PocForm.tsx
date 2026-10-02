@@ -42,7 +42,7 @@ function Field({ label, children, wide }: { label: string; children: ReactNode; 
 export function PocForm({ value, onChange, readOnly }: { value: PocDetails; onChange: (v: PocDetails) => void; readOnly?: boolean }) {
   const { t } = useI18n()
   const set = <K extends keyof PocDetails>(k: K, v: PocDetails[K]) => onChange({ ...value, [k]: v })
-  const text = (k: 'customerName' | 'department' | 'customerEmail' | 'platformVersion' | 'region' | 'version', label: MessageKey, max: number, type = 'text') => (
+  const text = (k: 'customerName' | 'department' | 'customerEmail' | 'platformVersion' | 'region', label: MessageKey, max: number, type = 'text') => (
     <Field label={t(label)}>
       <input className="input" type={type} maxLength={max} disabled={readOnly} value={value[k]} onChange={(e) => set(k, e.target.value)} required={k === 'customerName'} />
     </Field>
@@ -106,7 +106,6 @@ export function PocForm({ value, onChange, readOnly }: { value: PocDetails; onCh
       <Fieldset title={t('form.sectionScope')}>
         <div className="grid gap-3 sm:grid-cols-3">
           {text('platformVersion', 'form.platformVersion', 40)}
-          {text('version', 'form.version', 20)}
           <Field label={t('form.verdict')}>
             <select className="input" disabled={readOnly} value={value.verdict ?? ''} onChange={(e) => set('verdict', (e.target.value || null) as PocDetails['verdict'])}>
               <option value="">{t('form.verdictNone')}</option>

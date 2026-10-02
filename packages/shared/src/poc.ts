@@ -87,7 +87,12 @@ export const customerNameKey = (name: string) => name.trim().toLowerCase().repla
 export const CreateCustomerInput = z.object({ name: z.string().trim().min(2).max(160), instanceUrl: InstanceUrl.nullable().optional() })
 export const UpdateCustomerInput = CreateCustomerInput.partial()
 
-export const CommentInput = z.object({ body: z.string().trim().min(1).max(4000) })
+export const CommentKind = z.enum(['internal', 'report'])
+export type CommentKind = z.infer<typeof CommentKind>
+export const CommentInput = z
+  .object({ body: z.string().trim().min(1).max(4000), kind: CommentKind.default('internal'), private: z.boolean().default(false) })
+  // A Report comment is printed in the Report the Customer downloads, so it cannot be private.
+  .refine((c) => !(c.private && c.kind === 'report'), { message: 'private_report_comment', path: ['private'] })
 
 /** Architecture image as a data: URL (JPEG or PNG, resized in the browser). */
 export const ArchImageInput = z.object({

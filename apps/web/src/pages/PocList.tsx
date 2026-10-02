@@ -1,5 +1,5 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { Link } from 'react-router'
+import { Link, useSearchParams } from 'react-router'
 import { api } from '../lib/api'
 import { useMe } from '../lib/auth'
 import { useI18n } from '../lib/i18n'
@@ -7,6 +7,9 @@ import { useI18n } from '../lib/i18n'
 interface PocRow {
   id: string
   ownerId: string
+  ownerName: string | null
+  linkedCustomer: string | null
+  reports: number
   draft: boolean
   customerName: string
   tenantName: string
@@ -18,11 +21,35 @@ interface PocRow {
 export function PocListPage() {
   const { t } = useI18n()
   const { data: me } = useMe()
-  const { data = [], isLoading } = useQuery({ queryKey: ['pocs'], queryFn: () => api<PocRow[]>('/pocs') })
+  const [params, setParams] = useSearchParams()
+  const isAdmin = me?.role === 'admin'
+  // Admins see every PoC; the filter narrows to their own or one Owner's.
+  const owner = isAdmin ? (params.get('owner') ?? '') : ''
+  const { data = [], isLoading } = useQuery({ queryKey: ['pocs', owner], queryFn: () => api<PocRow[]>(`/pocs${owner ? `?owner=${owner}` : ''}`) })
+  const all = useQuery({ queryKey: ['pocs', ''], queryFn: () => api<PocRow[]>('/pocs'), enabled: isAdmin })
+  const owners = [...new Map((all.data ?? []).map((p) => [p.ownerId, p.ownerName ?? '—'])).entries()].sort((a, b) => a[1].localeCompare(b[1]))
   return (
     <div className="space-y-4">
       <div className="flex items-center justify-between">
         <h1 className="text-xl font-semibold">{t('poc.list')}</h1>
+        {isAdmin ? (
+          <select
+            className="input mr-auto ml-4 w-auto"
+            aria-label={t('poc.owner')}
+            value={owner}
+            onChange={(e) => setParams(e.target.value ? { owner: e.target.value } : {})}
+          >
+            <option value="">{t('poc.allOwners', { n: all.data?.length ?? 0 })}</option>
+            <option value="me">{t('poc.mine')}</option>
+            {owners
+              .filter(([id]) => id !== me?.id)
+              .map(([id, name]) => (
+                <option key={id} value={id}>
+                  {name} ({(all.data ?? []).filter((p) => p.ownerId === id).length})
+                </option>
+              ))}
+          </select>
+        ) : null}
         {me?.role !== 'customer' ? (
           <Link to="/pocs/new" className="btn">
             {t('poc.create')}
@@ -41,8 +68,14 @@ export function PocListPage() {
               </div>
               <div className="text-sm text-slate-500">{p.tenantName}</div>
               <div className="mt-2 text-xs text-slate-500">
-                {p.periodStart} → {p.periodEnd}
+                {p.periodStart} → {p.periodEnd} · {t('poc.reportsCount', { n: p.reports })}
               </div>
+              {isAdmin || p.linkedCustomer ? (
+                <div className="mt-1 flex flex-wrap gap-x-3 text-xs text-slate-400">
+                  {isAdmin ? <span>{t('poc.ownerIs', { name: p.ownerName ?? '—' })}</span> : null}
+                  {p.linkedCustomer ? <span>{t('poc.customerIs', { name: p.linkedCustomer })}</span> : null}
+                </div>
+              ) : null}
             </Link>
           </li>
         ))}

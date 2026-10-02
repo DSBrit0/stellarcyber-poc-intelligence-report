@@ -1,4 +1,4 @@
-import { LOCALES, TEMPLATES, type Locale, type PocDetails, type StellarCredential, type SyncStatus, type Template } from '@poc-intel/shared'
+import { LOCALES, TEMPLATES, type Locale, type PocDetails, type StellarCredential, type Template } from '@poc-intel/shared'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { useEffect, useState } from 'react'
 import { useNavigate, useParams } from 'react-router'
@@ -6,10 +6,11 @@ import { ApiError, api } from '../lib/api'
 import { CredentialFields } from '../lib/CredentialFields'
 import { CustomerSelect } from '../lib/CustomerSelect'
 import { errorKey } from '../lib/errors'
+import { useMe } from '../lib/auth'
 import { useI18n } from '../lib/i18n'
 import { toReportImage } from '../lib/image'
 import { PocForm } from '../lib/PocForm'
-import { SyncBar } from '../lib/SyncProgress'
+import { SyncBar, type SyncRow } from '../lib/SyncProgress'
 
 interface PocView {
   id: string
@@ -24,14 +25,16 @@ interface PocView {
   canEdit: boolean
   draft: boolean
   reports: ReportRow[]
-  syncs: { id: string; status: SyncStatus; progress: { done: number; total: number } | null; error: string | null; createdAt: string }[]
+  syncs: (Pick<SyncRow, 'id' | 'status' | 'progress' | 'error' | 'createdAt'>)[]
 }
 
 interface ReportRow {
   id: string
   createdAt: string
   expiresAt: string
-  version: number
+  seq: number
+  /** seq.minor: one minor version per Report comment. */
+  version: string
   assetsAvg: number | null
   assetsPeak: number | null
   volumeGb: number | null
@@ -116,10 +119,13 @@ function ReportItem({ poc, r }: { poc: PocView; r: ReportRow }) {
   const [comments, setComments] = useState(false)
   const date = (iso: string) => new Date(iso).toLocaleDateString(locale)
   const num = (n: number | null, digits = 0) => (n == null ? '—' : n.toLocaleString(locale, { maximumFractionDigits: digits }))
-  const url = (kind: 'html' | 'pdf' | 'present') => `/api/report-data/${r.id}/${kind}?template=${template}&locale=${lang}`
+  const url = (kind: 'html' | 'pdf') => `/api/report-data/${r.id}/${kind}?template=${template}&locale=${lang}`
   return (
     <li className="card space-y-3">
       <div className="flex flex-wrap items-center gap-2 text-sm">
+        <span className="rounded bg-brand/10 px-2 py-0.5 text-xs font-semibold text-brand" title={t('report.versionHelp')}>
+          v{r.version}
+        </span>
         <span className="font-medium">{date(r.createdAt)}</span>
         <span className="text-slate-500">
           · {r.periodStart} → {r.periodEnd}
@@ -155,9 +161,6 @@ function ReportItem({ poc, r }: { poc: PocView; r: ReportRow }) {
         <a className="btn" href={url('html')} target="_blank" rel="noopener">
           {t('report.open')}
         </a>
-        <a className="btn-ghost" href={url('present')} target="_blank" rel="noopener">
-          {t('report.present')}
-        </a>
         <a className="btn-ghost" href={url('pdf')}>
           {t('report.pdf')}
         </a>
@@ -165,7 +168,7 @@ function ReportItem({ poc, r }: { poc: PocView; r: ReportRow }) {
           {t('report.comments')}
         </button>
       </div>
-      {comments ? <Comments reportId={r.id} /> : null}
+      {comments ? <Comments pocId={poc.id} reportId={r.id} version={r.version} /> : null}
     </li>
   )
 }
@@ -173,41 +176,80 @@ function ReportItem({ poc, r }: { poc: PocView; r: ReportRow }) {
 interface CommentRow {
   id: string
   body: string
+  kind: 'internal' | 'report'
+  private: boolean
   createdAt: string
   author: string | null
 }
 
-function Comments({ reportId }: { reportId: string }) {
+/**
+ * Comments on one Report. An internal comment stays in the app; a Report comment is a change note:
+ * it makes a new minor version and is printed in the Report's version history (Appendix B).
+ */
+function Comments({ pocId, reportId, version }: { pocId: string; reportId: string; version: string }) {
   const { t, locale } = useI18n()
   const qc = useQueryClient()
   const [body, setBody] = useState('')
+  const [kind, setKind] = useState<CommentRow['kind']>('internal')
+  const [isPrivate, setPrivate] = useState(false)
+  const { data: me } = useMe()
+  const staff = me != null && me.role !== 'customer'
+  const [major, minor] = version.split('.').map(Number)
   const { data = [] } = useQuery({ queryKey: ['comments', reportId], queryFn: () => api<CommentRow[]>(`/report-data/${reportId}/comments`) })
   const add = useMutation({
-    mutationFn: () => api(`/report-data/${reportId}/comments`, { method: 'POST', body: { body } }),
+    mutationFn: () => api(`/report-data/${reportId}/comments`, { method: 'POST', body: { body, kind, private: staff && kind === 'internal' && isPrivate } }),
     onSuccess: () => {
       setBody('')
+      setPrivate(false)
       void qc.invalidateQueries({ queryKey: ['comments', reportId] })
+      if (kind === 'report') void qc.invalidateQueries({ queryKey: ['poc', pocId] })
     },
   })
   return (
     <div className="mt-3 space-y-2 rounded-lg bg-slate-50 p-3 dark:bg-slate-800/50">
       {data.map((c) => (
         <div key={c.id} className="text-sm">
-          <span className="font-medium">{c.author ?? '—'}</span> <span className="text-xs text-slate-500">{new Date(c.createdAt).toLocaleString(locale)}</span>
+          <span className="font-medium">{c.author ?? '—'}</span>{' '}
+          <span className={`rounded px-1.5 py-0.5 text-[11px] font-medium ${c.kind === 'report' ? 'bg-brand/10 text-brand' : 'bg-slate-200 text-slate-600 dark:bg-slate-700 dark:text-slate-300'}`}>
+            {t(c.kind === 'report' ? 'report.commentReport' : 'report.commentInternal')}
+          </span>{' '}
+          {c.private ? (
+            <span className="rounded bg-amber-100 px-1.5 py-0.5 text-[11px] font-medium text-amber-800" title={t('report.commentPrivateHelp')}>
+              {t('report.commentPrivateBadge')}
+            </span>
+          ) : null}{' '}
+          <span className="text-xs text-slate-500">{new Date(c.createdAt).toLocaleString(locale)}</span>
           <p className="whitespace-pre-wrap">{c.body}</p>
         </div>
       ))}
       <form
-        className="flex gap-2"
+        className="space-y-2"
         onSubmit={(e) => {
           e.preventDefault()
           if (body.trim()) add.mutate()
         }}
       >
-        <textarea className="input" rows={2} maxLength={4000} placeholder={t('report.addComment')} value={body} onChange={(e) => setBody(e.target.value)} />
-        <button className="btn self-end" disabled={add.isPending || !body.trim()}>
-          {t('report.send')}
-        </button>
+        <div className="flex flex-wrap gap-4 text-sm" role="radiogroup" aria-label={t('report.commentType')}>
+          {(['internal', 'report'] as const).map((k) => (
+            <label key={k} className="flex items-center gap-2">
+              <input type="checkbox" checked={kind === k} onChange={() => setKind(k)} />
+              {t(k === 'report' ? 'report.commentReport' : 'report.commentInternal')}
+            </label>
+          ))}
+        </div>
+        {staff && kind === 'internal' ? (
+          <label className="flex items-center gap-2 text-sm">
+            <input type="checkbox" checked={isPrivate} onChange={(e) => setPrivate(e.target.checked)} />
+            {t('report.commentPrivate')}
+          </label>
+        ) : null}
+        <p className="text-xs text-slate-500">{kind === 'internal' && staff && isPrivate ? t('report.commentPrivateHelp') : kind === 'report' ? t('report.commentReportHelp', { v: `${major}.${(minor ?? 0) + 1}` }) : t('report.commentInternalHelp')}</p>
+        <div className="flex gap-2">
+          <textarea className="input" rows={2} maxLength={4000} placeholder={t('report.addComment')} value={body} onChange={(e) => setBody(e.target.value)} />
+          <button className="btn self-end" disabled={add.isPending || !body.trim()}>
+            {t('report.send')}
+          </button>
+        </div>
       </form>
     </div>
   )

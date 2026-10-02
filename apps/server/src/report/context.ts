@@ -5,6 +5,7 @@ import mitigations from './mitre-mitigations.json' with { type: 'json' }
 import { deriveReport, type Derived } from './model/derived.js'
 import { recommendations, type Recommendation } from './model/recommendations.js'
 import { buildStory, type Story } from './model/story.js'
+import type { Versioning } from './versioning.js'
 
 /** Everything a Template needs: frozen Report Data, the PoC's current details, derived values and texts. */
 export interface ReportContext {
@@ -26,6 +27,9 @@ export interface ReportContext {
   fmt: ReturnType<typeof formatters>
   mitigation: (techniqueId: string) => string | null
   generatedAt: Date
+  versioning: Versioning | null
+  /** The Report's version: from the stored Reports, else 1.0. */
+  version: string
 }
 
 // Number/date formatting of the previous tool (spec §0.2); the en locale formats as en-US, es as es-MX.
@@ -72,6 +76,7 @@ export function buildReportContext(
   locale: Locale,
   generatedAt = new Date(),
   interactive = false,
+  versioning: Versioning | null = null,
 ): ReportContext {
   const extra = reportExtra(locale)
   const strings = reportStrings(locale)
@@ -93,5 +98,7 @@ export function buildReportContext(
     fmt: formatters(locale),
     mitigation: (id) => byId.get(id)?.[locale] ?? null,
     generatedAt,
+    versioning,
+    version: versioning?.version ?? '1.0',
   }
 }

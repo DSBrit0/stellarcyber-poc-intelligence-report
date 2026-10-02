@@ -37,4 +37,20 @@ describe('renderReportHtml', () => {
   it('translates headings', () => {
     expect(renderReportHtml(data, details, 'technical', 'es')).toContain('Resumen')
   })
+  it('prints the version and its history', () => {
+    const versioning = {
+      version: '2.1',
+      history: [
+        { version: '1.0', date: '2026-09-01T10:00:00Z', author: 'Ana SE', changes: null, first: true, period: null },
+        { version: '2.0', date: '2026-09-10T10:00:00Z', author: 'Ana SE', changes: null, first: false, period: { start: '2026-09-01', end: '2026-09-09' } },
+        { version: '2.1', date: '2026-09-11T10:00:00Z', author: 'Cliente X', changes: 'Ajuste <do> escopo', first: false, period: null },
+      ],
+    }
+    const html = renderReportHtml(data, details, 'technical', 'pt-BR', { versioning })
+    expect(html).toContain('Versão 2.1')
+    expect(html).toContain('Versão inicial')
+    expect(html).toContain('Nova coleta de dados (01/09/26–09/09/26)')
+    expect(html).toContain('Ajuste &lt;do&gt; escopo')
+    expect(renderReportHtml(data, details, 'technical', 'pt-BR')).toContain('Versão 1.0')
+  })
 })
