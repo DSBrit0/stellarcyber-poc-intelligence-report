@@ -26,8 +26,11 @@
 	handle {
 		root * /srv
 		header Content-Security-Policy "default-src 'self'; img-src 'self' data:; style-src 'self'; frame-ancestors 'none'; base-uri 'none'; form-action 'self'"
+		# Hashed assets never change; the page itself must be revalidated, or a deploy stays invisible.
 		@assets path /assets/*
 		header @assets Cache-Control "public, max-age=31536000, immutable"
+		@page not path /assets/*
+		header @page Cache-Control "no-cache"
 		try_files {path} /index.html
 		file_server
 	}
