@@ -37,6 +37,63 @@ const SeverityCounts = z.object({
   low: z.number(),
 })
 
+const Count = z.object({ id: z.string(), name: z.string(), alerts: z.number() })
+
+/** A MITRE ATT&CK or XDR Kill Chain tactic/technique seen in the Alerts of the analysed Cases. */
+const DetectionAggregate = z.object({
+  id: z.string(),
+  name: z.string(),
+  tacticId: z.string().optional(),
+  tacticName: z.string().optional(),
+  caseCount: z.number(),
+  alertCount: z.number(),
+})
+
+const Severity = z.enum(['critical', 'high', 'medium', 'low'])
+
+/** Case fields kept for the Cases whose Alerts are analysed (Critical, High and the most recent Medium). */
+export const CaseSummary = z.object({
+  id: z.string(),
+  name: z.string(),
+  severity: Severity,
+  status: z.string(),
+  resolution: z.string(),
+  score: z.number().nullable(),
+  alerts: z.number(),
+  createdAt: z.number().nullable(),
+  startedAt: z.number().nullable(),
+  acknowledgedAt: z.number().nullable(),
+  closedAt: z.number().nullable(),
+})
+export type CaseSummary = z.infer<typeof CaseSummary>
+
+/** Aggregates over every Case of the period (all Severities), not only the analysed ones. */
+const CaseStats = z.object({
+  cases: z.number(),
+  /** Cases the API reports for the period; larger than `cases` when the collection cap was reached. */
+  total: z.number(),
+  alerts: z.number(),
+  byStatus: z.record(z.string(), z.number()),
+  byResolution: z.record(z.string(), z.number()),
+  handled: z.number(),
+  closed: z.number(),
+  medianCloseHours: z.number().nullable(),
+  acknowledged: z.number(),
+  medianAckMinutes: z.number().nullable(),
+  /** Alerts in the five largest Cases. */
+  top5Alerts: z.number(),
+})
+
+const Tactics = z.object({
+  mitre: z.object({ tactics: z.array(DetectionAggregate), techniques: z.array(DetectionAggregate) }),
+  xdr: z.object({ tactics: z.array(DetectionAggregate), techniques: z.array(DetectionAggregate) }),
+  byCase: z.record(z.string(), z.object({ tactics: z.array(Count), xdr: z.array(Count), techniques: z.array(Count) })),
+  topAlerts: z.record(z.string(), z.array(z.object({ score: z.number(), description: z.string() }))),
+  pages: z.object({ fetched: z.number(), failed: z.number() }),
+})
+
+const IngestionEntry = z.object({ id: z.string(), name: z.string(), type: z.string(), bytes: z.number(), events: z.number() })
+
 export const ReportData = z.object({
   version: z.literal(REPORT_DATA_VERSION),
   collectedAt: z.iso.datetime(),
@@ -48,6 +105,10 @@ export const ReportData = z.object({
   volume: z.object({ dailyGb: z.array(DailyPoint), compliance: LicenseCompliance }),
   connectors: z.array(z.object({ id: z.string(), name: z.string(), type: z.string(), active: z.boolean() })),
   dataSensors: z.array(z.object({ id: z.string(), name: z.string(), kind: z.string(), online: z.boolean() })),
+  caseStats: CaseStats.nullable(),
+  keyCases: z.array(CaseSummary),
+  tactics: Tactics,
+  ingestion: z.object({ bySensor: z.array(IngestionEntry), byConnector: z.array(IngestionEntry) }),
   /** Collectors that failed; the Report shows their sections as unavailable. */
   gaps: z.array(z.object({ collector: z.string(), reason: z.string() })),
 })

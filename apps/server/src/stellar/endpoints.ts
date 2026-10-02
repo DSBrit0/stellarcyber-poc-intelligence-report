@@ -25,6 +25,9 @@ export const PAGING = {
   casesSafeSkip: 1_000,
   caseAlertsPage: 50,
   caseAlertsMaxPerCase: 500,
-  /** Parallel requests per Sync against one Instance (one pooled connection set, HTTP/2 when offered). */
-  concurrency: 8,
+  /**
+   * Parallel requests per Sync against one Instance (one pooled connection set, HTTP/2 when offered).
+   * Measured by the previous tool for 639 alert pages: 6 → 172 s, 12 → 104 s, 24 → 68 s, with no errors.
+   */
+  concurrency: 16,
 } as const

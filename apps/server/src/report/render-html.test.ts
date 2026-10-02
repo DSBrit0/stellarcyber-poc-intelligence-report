@@ -16,6 +16,10 @@ const data: ReportData = {
   volume: { dailyGb: daily.map((d) => ({ ...d, value: d.value / 10 })), compliance: licenseCompliance(daily, { integer: false }) },
   connectors: [{ id: 'c1', name: 'O365', type: 'office365', active: true }],
   dataSensors: [{ id: 's1', name: 'ds-01', kind: 'Modular Sensor', online: true }],
+  caseStats: null,
+  keyCases: [],
+  tactics: { mitre: { tactics: [], techniques: [] }, xdr: { tactics: [], techniques: [] }, byCase: {}, topAlerts: {}, pages: { fetched: 0, failed: 0 } },
+  ingestion: { bySensor: [], byConnector: [] },
   gaps: [],
 }
 const details = PocDetails.parse({ customerName: 'ACME <Corp>', verdict: 'approved', comments: 'Great results' })

@@ -60,3 +60,13 @@ export const DataSensorsResponse = z.union([
   z.object({ data: z.array(DataSensor) }).transform((r) => r.data),
   z.array(DataSensor),
 ])
+
+export const CaseAlertsResponse = z.object({
+  data: z.object({ docs: z.array(z.object({ _source: z.record(z.string(), z.unknown()).default({}) })).default([]) }),
+})
+
+const IngestionRow = z.record(z.string(), z.unknown())
+export const IngestionResponse = z.union([
+  z.object({ data: z.array(IngestionRow) }).transform((r) => r.data),
+  z.array(IngestionRow),
+])
