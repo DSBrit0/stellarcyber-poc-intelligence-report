@@ -1,6 +1,6 @@
 import { C, Donut, Gauge, HBars, Lines } from '../charts.js'
 import type { ReportContext } from '../context.js'
-import { scorecardRows } from '../sections/overview.js'
+import { ScoreBars } from '../sections/overview.js'
 import { Card, Grid, Kpis } from '../ui.js'
 
 // Insight — the new Template, built on the same model as Technical/Executive. Decision-first: the
@@ -45,7 +45,7 @@ export function InsightTemplate({ rc }: { rc: ReportContext }) {
           />
         </Card>
         <Card title={t('t2ChartScore')}>
-          <HBars items={scorecardRows(rc).map((r) => ({ label: t(r.key), value: r.pct, color: r.pct >= 70 ? C.green : r.pct >= 35 ? C.orange : C.red }))} format={(v) => `${v}%`} />
+          <ScoreBars rc={rc} />
         </Card>
       </Grid>
       {d.daily.days.length ? (

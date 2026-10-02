@@ -175,7 +175,8 @@ const clamp = (v: number, lo: number, hi: number) => Math.min(hi, Math.max(lo, v
 export function detectionTypes(cases: CaseSummary[]) {
   const groups = new Map<string, { name: string; total: number; scores: number[] }>()
   for (const c of cases) {
-    const name = (c.name || '—').replace(/ and \d+ other\(s\)$/i, '').trim()
+    // FIX: the API writes "and N others" as well as "and N other(s)"; group both, as the Detection Story does.
+    const name = threatName(c.name || '—')
     const g = groups.get(name) ?? { name, total: 0, scores: [] }
     g.total += c.alerts || 1
     if (typeof c.score === 'number') g.scores.push(c.score)

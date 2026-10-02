@@ -190,7 +190,7 @@ export function scorecardRows(rc: ReportContext) {
 
 const RATING_KEY = { high: 'ratingHigh', medium: 'ratingMed', low: 'ratingLow' } as const
 
-function ScoreBars({ rc }: { rc: ReportContext }) {
+export function ScoreBars({ rc }: { rc: ReportContext }) {
   const { t } = rc
   return (
     <div className="score-bars">
@@ -454,14 +454,21 @@ export function Section3({ rc }: { rc: ReportContext }) {
             <Table
               compact
               head={[t('sensorName'), t('sensorType'), t('sensorVersion'), t('sensorBytes')]}
-              rows={data.ingestion.bySensor.map((s) => {
+              rows={data.ingestion.bySensor.map((s, _i, all) => {
                 const meta = data.dataSensors.find((x) => x.id === s.id)
-                return [fmt.trunc(s.name, 30), s.type || '—', meta?.version || '—', fmt.bytes(s.bytes)]
+                // Hostnames repeat (e.g. several "modular" appliances): add the id prefix to tell them apart.
+                const duplicated = all.filter((o) => o.name === s.name).length > 1
+                const name = !s.known ? `${s.name} (${rc.x('removed')})` : duplicated ? `${s.name} · ${s.id.slice(0, 8)}` : s.name
+                return [fmt.trunc(name, 40), s.type || '—', meta?.version || '—', fmt.bytes(s.bytes)]
               })}
             />
           ) : null}
           {data.ingestion.byConnector.length ? (
-            <Table compact head={[t('connIngName'), t('connIngBytes')]} rows={data.ingestion.byConnector.map((c) => [fmt.trunc(c.name, 40), fmt.bytes(c.bytes)])} />
+            <Table
+              compact
+              head={[t('connIngName'), t('connIngBytes')]}
+              rows={data.ingestion.byConnector.map((c) => [fmt.trunc(c.known ? c.name : `${c.name} (${rc.x('removed')})`, 50), fmt.bytes(c.bytes)])}
+            />
           ) : null}
         </>
       ) : null}

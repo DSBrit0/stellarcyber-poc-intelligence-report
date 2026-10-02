@@ -129,7 +129,7 @@ export function Gauge({ pct, label, color = C.brand }: { pct: number; label: str
         <text x="60" y="58" textAnchor="middle" dominantBaseline="central" className="donut-center">
           {v}%
         </text>
-        <text x="60" y="76" textAnchor="middle" className="donut-sub">
+        <text x="60" y="80" textAnchor="middle" className="donut-sub">
           {label}
         </text>
       </svg>
@@ -181,7 +181,7 @@ function Frame({ height, max, x, children, yFormat = (v: number) => String(Math.
   const ticks = xTicks(x.labels, x.maxTicks)
   const n = x.labels.length
   return (
-    <svg viewBox={`0 0 ${W} ${height}`} className="chart-svg" preserveAspectRatio="none" role="img">
+    <svg viewBox={`0 0 ${W} ${height}`} className="chart-svg" role="img">
       {[0, 0.5, 1].map((f) => {
         const y = pad.t + (1 - f) * (height - pad.t - pad.b)
         return (

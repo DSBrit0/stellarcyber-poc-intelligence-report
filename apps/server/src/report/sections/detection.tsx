@@ -26,7 +26,7 @@ function DetectionMetrics({ rc }: { rc: ReportContext }) {
       />
       {detectionTypes(d.loaded).length ? (
         <Card wide title={t('chartDetectionTypes')}>
-          <HBars items={detectionTypes(d.loaded).map((g) => ({ label: fmt.trunc(g.name, 40), value: g.total, color: TONE[g.tone] }))} format={fmt.num} />
+          <HBars items={detectionTypes(d.loaded).map((g) => ({ label: fmt.trunc(g.name, 60), value: g.total, color: TONE[g.tone] }))} format={fmt.num} />
         </Card>
       ) : null}
     </>
@@ -87,6 +87,7 @@ function AiTriage({ rc }: { rc: ReportContext }) {
         {rc.x('aiCoverage', { n: fmt.num(triaged.length), t: fmt.num(d.loaded.length), p: Math.round((triaged.length / d.loaded.length) * 100), ch: fmt.num(critHighTriaged.length), cht: fmt.num(d.critHigh.length) })}
       </p>
       <P>{rc.x('aiSummary', { fp: Math.round((noise / triaged.length) * 100) })}</P>
+      {triaged.length < 20 ? <Note>{rc.x('aiSmallSample', { n: triaged.length })}</Note> : null}
       <Grid>
         <Card title={rc.x('aiChart')} note={rc.x('aiNote')}>
           <Donut cutout={0.58} slices={slices} />
@@ -417,13 +418,11 @@ function Q3({ rc, n, total }: { rc: ReportContext; n: number; total: number }) {
               />
             )),
         )}
-        {m.points
-          .filter((p) => p.rank != null)
-          .map((p) => (
-            <text key={`r${p.id}`} x={x(p.score) + 7} y={y(p.alerts) - 6} className="tick strong">
-              #{p.rank}
-            </text>
-          ))}
+        {mergeRankLabels(m.points.filter((p) => p.rank != null).map((p) => ({ x: x(p.score), y: y(p.alerts), rank: p.rank! }))).map((l) => (
+          <text key={l.label} x={l.x + 7} y={l.y - 6} className="tick strong">
+            {l.label}
+          </text>
+        ))}
         <text x={(W + pad.l) / 2} y={H - 4} textAnchor="middle" className="tick">
           {t('t2AxisScore')}
         </text>
@@ -583,4 +582,15 @@ function Q5({ rc, n, total, cap }: { rc: ReportContext; n: number; total: number
       </div>
     </Question>
   )
+}
+
+/** Rank labels of points closer than ~12 px share one label ("#2 #4"), as in the previous tool. */
+function mergeRankLabels(points: { x: number; y: number; rank: number }[]) {
+  const groups: { x: number; y: number; ranks: number[] }[] = []
+  for (const p of [...points].sort((a, b) => a.rank - b.rank)) {
+    const g = groups.find((q) => Math.hypot(q.x - p.x, q.y - p.y) < 12)
+    if (g) g.ranks.push(p.rank)
+    else groups.push({ x: p.x, y: p.y, ranks: [p.rank] })
+  }
+  return groups.map((g) => ({ x: g.x, y: g.y, label: g.ranks.map((r) => `#${r}`).join(' ') }))
 }
