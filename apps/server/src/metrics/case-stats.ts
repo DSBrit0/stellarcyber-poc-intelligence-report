@@ -33,6 +33,7 @@ export function toCaseSummary(c: RawCase): CaseSummary {
     alerts: num(c.size) ?? 0,
     createdAt: num(c.created_at),
     startedAt: num(c.start_timestamp),
+    endedAt: num(c.end_timestamp),
     // 0 means "not yet" in the API.
     acknowledgedAt: num(c.acknowledged) || null,
     closedAt: num(c.closed) || null,

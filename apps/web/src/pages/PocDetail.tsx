@@ -9,6 +9,7 @@ import { errorKey } from '../lib/errors'
 import { useMe } from '../lib/auth'
 import { useI18n } from '../lib/i18n'
 import { toReportImage } from '../lib/image'
+import { PeriodFields, periodOk } from '../lib/PeriodFields'
 import { PocForm } from '../lib/PocForm'
 import { SyncBar, type SyncRow } from '../lib/SyncProgress'
 
@@ -25,7 +26,7 @@ interface PocView {
   canEdit: boolean
   draft: boolean
   reports: ReportRow[]
-  syncs: (Pick<SyncRow, 'id' | 'status' | 'progress' | 'error' | 'createdAt'>)[]
+  syncs: (Pick<SyncRow, 'id' | 'status' | 'progress' | 'error' | 'createdAt'> & { periodStart: string; periodEnd: string })[]
 }
 
 interface ReportRow {
@@ -322,9 +323,16 @@ function SyncTab({ poc, onStarted }: { poc: PocView; onStarted: () => void }) {
   const [useStored, setUseStored] = useState(true)
   const [remember, setRemember] = useState(true)
   const [credential, setCredential] = useState<StellarCredential>({ method: 'apiKey', apiKey: '' })
+  // The PoC's period by default; other dates re-run the Report for that period only.
+  const [period, setPeriod] = useState({ start: poc.periodStart, end: poc.periodEnd })
+  const custom = period.start !== poc.periodStart || period.end !== poc.periodEnd
   const running = poc.syncs.some((s) => s.status === 'queued' || s.status === 'running')
   const sync = useMutation({
-    mutationFn: () => api(`/pocs/${poc.id}/syncs`, { method: 'POST', body: stored && useStored ? {} : { credential, remember } }),
+    mutationFn: () =>
+      api(`/pocs/${poc.id}/syncs`, {
+        method: 'POST',
+        body: { ...(stored && useStored ? {} : { credential, remember }), ...(custom ? { period } : {}) },
+      }),
     onSuccess: () => {
       setCredential(credential.method === 'apiKey' ? { method: 'apiKey', apiKey: '' } : { method: 'basic', username: '', token: '' })
       void qc.invalidateQueries({ queryKey: ['poc', poc.id] })
@@ -351,7 +359,19 @@ function SyncTab({ poc, onStarted }: { poc: PocView; onStarted: () => void }) {
           </label>
         </>
       )}
-      <button className="btn" disabled={sync.isPending || running} onClick={() => sync.mutate()}>
+      <fieldset className="space-y-2 rounded-lg border border-slate-200 p-3 dark:border-slate-700">
+        <legend className="px-1 text-sm font-semibold">{t('sync.periodTitle')}</legend>
+        <PeriodFields start={period.start} end={period.end} onChange={(start, end) => setPeriod({ start, end })} />
+        <p className="flex flex-wrap items-center gap-3 text-xs text-slate-500">
+          {custom ? t('sync.periodCustom') : t('sync.periodDefault')}
+          {custom ? (
+            <button type="button" className="text-brand underline" onClick={() => setPeriod({ start: poc.periodStart, end: poc.periodEnd })}>
+              {t('sync.periodReset')}
+            </button>
+          ) : null}
+        </p>
+      </fieldset>
+      <button className="btn" disabled={sync.isPending || running || !periodOk(period.start, period.end)} onClick={() => sync.mutate()}>
         {t('wiz.runSync')}
       </button>
       {sync.error ? <p className="text-sm text-red-600">{t(errorKey(sync.error))}</p> : null}
@@ -360,6 +380,9 @@ function SyncTab({ poc, onStarted }: { poc: PocView; onStarted: () => void }) {
           <li key={s.id} className="flex gap-3">
             <span>{new Date(s.createdAt).toLocaleString(locale)}</span>
             <span className="font-medium">{t(`sync.status.${s.status}`)}</span>
+            <span className="text-slate-500">
+              {s.periodStart} → {s.periodEnd}
+            </span>
             {s.error ? <span className="text-red-600">{s.error}</span> : null}
           </li>
         ))}

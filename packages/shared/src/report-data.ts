@@ -65,8 +65,15 @@ export const CaseSummary = z.object({
   alerts: z.number(),
   createdAt: z.number().nullable(),
   startedAt: z.number().nullable(),
+  /** Time of the Case's latest Alert (end_timestamp). */
+  endedAt: z.number().nullable().optional(),
   acknowledgedAt: z.number().nullable(),
   closedAt: z.number().nullable(),
+  /**
+   * Every Alert of the Case when some fall outside the period; `alerts` then counts only the ones
+   * inside it (a Case still open keeps collecting Alerts after the period ends).
+   */
+  alertsAll: z.number().optional(),
 })
 export type CaseSummary = z.infer<typeof CaseSummary>
 
@@ -85,6 +92,10 @@ const CaseStats = z.object({
   medianAckMinutes: z.number().nullable(),
   /** Alerts in the five largest Cases. */
   top5Alerts: z.number(),
+  /** Alerts of the period's Cases dated outside the period, left out of `alerts`. */
+  alertsOutsidePeriod: z.number().optional(),
+  /** Cases whose in-period Alert count could not be verified (a failed page); their full size is counted. */
+  alertsUnverifiedCases: z.number().optional(),
 })
 
 const Tactics = z.object({

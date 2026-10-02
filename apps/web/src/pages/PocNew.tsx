@@ -6,7 +6,7 @@ import { api } from '../lib/api'
 import { CredentialFields } from '../lib/CredentialFields'
 import { CustomerDialog } from '../lib/CustomerForm'
 import { useCustomers } from '../lib/CustomerSelect'
-import { DateInput } from '../lib/DateInput'
+import { PeriodFields, periodOk } from '../lib/PeriodFields'
 import { errorKey } from '../lib/errors'
 import { useI18n } from '../lib/i18n'
 import { PocForm, emptyDetails } from '../lib/PocForm'
@@ -23,11 +23,6 @@ interface Remembered {
   savedAt: string
 }
 
-const DAY = 86_400_000
-const isoDay = (t: number) => new Date(t).toISOString().slice(0, 10)
-const yesterday = () => isoDay(Date.now() - DAY)
-const addDays = (iso: string, n: number) => isoDay(Date.parse(`${iso}T00:00:00Z`) + n * DAY)
-const minIso = (a: string, b: string) => (a < b ? a : b)
 const validUrl = (u: string) => /^https:\/\/[^/\s]+\.[^/\s]+/.test(u.trim())
 const origin = (u: string) => {
   try {
@@ -128,10 +123,10 @@ export function PocNewPage() {
   const shown = useMemo(() => (tenants ?? []).filter((x) => `${x.name} ${x.group}`.toLowerCase().includes(filter.toLowerCase())), [tenants, filter])
   const groups = useMemo(() => [...new Set(shown.map((x) => x.group))].sort(), [shown])
 
-  const periodOk = Boolean(start && end && start <= end && end <= yesterday() && (Date.parse(end) - Date.parse(start)) / DAY + 1 <= 30)
+  const periodValid = periodOk(start, end)
 
   const runSync = async () => {
-    if (!tenant || !periodOk) return
+    if (!tenant || !periodValid) return
     setBusy(true)
     setError(null)
     try {
@@ -289,23 +284,17 @@ export function PocNewPage() {
         </div>
       </Block>
 
-      <Block title={t('wiz.periodTitle')} help={t('wiz.periodHelp')} done={periodOk} locked={!tenant || locked}>
-        <div className="grid gap-3 sm:grid-cols-2">
-          <DateInput
-            label={t('wiz.start')}
-            required
-            value={start}
-            max={yesterday()}
-            onChange={(iso) => {
-              setStart(iso)
-              if (!end || end < iso || (Date.parse(end) - Date.parse(iso)) / DAY + 1 > 30) setEnd(minIso(addDays(iso, 29), yesterday()))
-            }}
-          />
-          <DateInput label={t('wiz.end')} required value={end} min={start || undefined} max={start ? minIso(addDays(start, 29), yesterday()) : yesterday()} onChange={setEnd} />
-        </div>
-        {start && !periodOk ? <p className="text-sm text-red-600">{t('err.period')}</p> : null}
+      <Block title={t('wiz.periodTitle')} help={t('wiz.periodHelp')} done={periodValid} locked={!tenant || locked}>
+        <PeriodFields
+          start={start}
+          end={end}
+          onChange={(s, e) => {
+            setStart(s)
+            setEnd(e)
+          }}
+        />
         {!pocId ? (
-          <button type="button" className="btn" disabled={!periodOk || busy || !tenant} onClick={() => void runSync()}>
+          <button type="button" className="btn" disabled={!periodValid || busy || !tenant} onClick={() => void runSync()}>
             {t('wiz.runSync')}
           </button>
         ) : null}

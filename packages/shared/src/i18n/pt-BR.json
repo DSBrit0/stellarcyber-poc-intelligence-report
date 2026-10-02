@@ -325,5 +325,10 @@
   "report.commentReportHelp": "Cria a versão {v} deste Report e é impresso no controle de versões (Apêndice B).",
   "report.commentPrivate": "Comentário privado (não compartilhar com o cliente)",
   "report.commentPrivateBadge": "Privado",
-  "report.commentPrivateHelp": "Só usuários Stellar Cyber e parceiros veem; o cliente não. Não é impresso."
+  "report.commentPrivateHelp": "Só usuários Stellar Cyber e parceiros veem; o cliente não. Não é impresso.",
+  "sync.periodTitle": "Período da coleta",
+  "sync.periodDefault": "Período da PoC. Altere as datas para gerar o Report de um período específico.",
+  "sync.periodCustom": "Período específico: só esta Sync usa estas datas; a PoC mantém o período dela.",
+  "sync.periodReset": "Voltar ao período da PoC",
+  "err.period_future": "O período deve terminar no máximo ontem."
 }

@@ -122,6 +122,9 @@ export const syncs = pgTable('syncs', {
   error: text('error'),
   reportDataId: uuid('report_data_id'),
   metrics: jsonb('metrics').$type<SyncMetrics>(),
+  /** Period this Sync collects when it differs from the PoC's; both NULL otherwise. */
+  periodStart: date('period_start'),
+  periodEnd: date('period_end'),
   createdAt: ts('created_at').notNull().defaultNow(),
   startedAt: ts('started_at'),
   finishedAt: ts('finished_at'),

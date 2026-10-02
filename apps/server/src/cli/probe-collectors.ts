@@ -38,7 +38,7 @@ const pages = alertPageCount(cases.keyCases)
 const tactics = await time(`tactics(${pages}p)`, () => collectTactics(ctx, cases.keyCases))
 
 console.log('\ncounts     ', JSON.stringify(counts))
-console.log('caseStats  ', JSON.stringify(cases.caseStats))
+console.log('cases      ', cases.cases.length, 'of', cases.total)
 console.log('keyCases   ', cases.keyCases.length, 'first:', JSON.stringify(cases.keyCases[0]))
 console.log('pages      ', JSON.stringify(tactics.pages))
 console.log('MITRE      ', tactics.mitre.tactics.slice(0, 6).map((t) => `${t.id} ${t.name} (${t.caseCount}c/${t.alertCount}a)`).join(' | '))

@@ -1,5 +1,14 @@
 import { REPORT_DATA_VERSION, ReportData, SYNC_PHASES, type SyncProgress } from '@poc-intel/shared'
-import { alertPageCount, collectAiTriage, collectCases, collectIngestion, collectTactics } from '../stellar/case-collectors.js'
+import {
+  alertPageCount,
+  collectAiTriage,
+  collectCases,
+  collectIngestion,
+  collectTactics,
+  countAlertsInPeriod,
+  exactPageCount,
+  periodCaseStats,
+} from '../stellar/case-collectors.js'
 import { StellarApiError, type StellarClient } from '../stellar/client.js'
 import { PAGING } from '../stellar/endpoints.js'
 import type { SyncMetrics } from '../stellar/request-stats.js'
@@ -100,15 +109,24 @@ const ctx: CollectContext = { client, tenantId: target.tenant.id, period: target
   if (gaps.length === names.length) throw new StellarApiError('unavailable', 'every collector failed')
 
   const keyCases = results.cases?.keyCases ?? []
-  progress.pageTotal = alertPageCount(keyCases)
-  if (keyCases.length) await report('alerts', true)
+  const allCases = results.cases?.cases ?? []
+  const from = Date.parse(`${ctx.period.start}T00:00:00.000Z`)
+  const to = Date.parse(`${ctx.period.end}T23:59:59.999Z`)
+  progress.pageTotal = alertPageCount(keyCases) + exactPageCount(allCases, from, to)
+  if (progress.pageTotal) await report('alerts', true)
+  const onPage = () => {
+    progress.pages++
+    void report('alerts')
+  }
   const emptyTactics: ReportData['tactics'] = { mitre: { tactics: [], techniques: [] }, xdr: { tactics: [], techniques: [] }, byCase: {}, topAlerts: {}, pages: { fetched: 0, failed: 0, forbidden: 0 }, alertsMissing: 0, casesWithoutAlertAccess: 0 }
-  const tactics = keyCases.length
-    ? ((await guard('tactics', () => timed('tactics', () => collectTactics(ctx, keyCases, () => {
-            progress.pages++
-            void report('alerts')
-          })))) ?? emptyTactics)
-    : emptyTactics
+  // The key Cases' tactics and the exact Alert count of the period run side by side. collectTactics
+  // plans its pages from the full Case sizes before the count changes them.
+  const [tacticsResult, exact] = await Promise.all([
+    keyCases.length ? guard('tactics', () => timed('tactics', () => collectTactics(ctx, keyCases, onPage))) : null,
+    allCases.length ? guard('alertCount', () => timed('alertCount', () => countAlertsInPeriod(ctx, allCases, from, to, onPage))) : null,
+  ])
+  const tactics = tacticsResult ?? emptyTactics
+  const stats = results.cases ? periodCaseStats(allCases, results.cases.total, exact) : null
 
   // /ingestion-stats/sensor only carries sensor ids: name them from /data_sensors.
   const sensorNames = new Map((results.dataSensors ?? []).map((s) => [s.id, s]))
@@ -136,7 +154,7 @@ const ctx: CollectContext = { client, tenantId: target.tenant.id, period: target
     concurrency: PAGING.concurrency,
     peakInFlight: client.stats.peakInFlight,
     counts: {
-      cases: results.cases?.caseStats?.cases ?? 0,
+      cases: stats?.cases ?? 0,
       keyCases: keyCases.length,
       alertPages: tactics.pages.fetched + tactics.pages.failed + tactics.pages.forbidden,
       alertPagesFailed: tactics.pages.failed,
@@ -155,7 +173,7 @@ const ctx: CollectContext = { client, tenantId: target.tenant.id, period: target
     volume: results.volume ?? { dailyGb: [], compliance: emptyCompliance },
     connectors: results.connectors ?? [],
     dataSensors: results.dataSensors ?? [],
-    caseStats: results.cases?.caseStats ?? null,
+    caseStats: stats,
     keyCases,
     tactics,
     ingestion,

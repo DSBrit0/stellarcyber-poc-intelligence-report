@@ -33,14 +33,15 @@ export async function runSync(syncId: string, credential: StellarCredential, dis
 
   try {
     const client = new StellarClient(poc.instanceUrl, credential, dispatcher, apiCallRecorder({ syncId, userId: row.sync.requestedBy }))
-    appLog('info', 'sync', 'Sync started', { userId: row.sync.requestedBy, context: { syncId, pocId: poc.id, tenant: poc.tenantName, instance: poc.instanceUrl, period: [poc.periodStart, poc.periodEnd] } })
+    appLog('info', 'sync', 'Sync started', { userId: row.sync.requestedBy, context: { syncId, pocId: poc.id, tenant: poc.tenantName, instance: poc.instanceUrl, period: [row.sync.periodStart ?? poc.periodStart, row.sync.periodEnd ?? poc.periodEnd] } })
     await setProgress(syncId, { step: 'connect', phase: 1, done: 2, total: 100 })
     await client.authenticate()
 
     const target = {
       instanceUrl: poc.instanceUrl,
       tenant: { id: poc.tenantId, name: poc.tenantName },
-      period: { start: poc.periodStart, end: poc.periodEnd },
+      // A Sync may carry its own period (New Sync with other dates); otherwise the PoC's.
+      period: { start: row.sync.periodStart ?? poc.periodStart, end: row.sync.periodEnd ?? poc.periodEnd },
       aiTriage: poc.details.aiTriageTested === true,
     }
     let metrics: SyncMetrics | null = null

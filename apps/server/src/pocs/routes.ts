@@ -1,4 +1,4 @@
-import { ArchImageInput, CreatePocInput, InstanceUrl, StellarCredential, UpdatePocInput } from '@poc-intel/shared'
+import { ArchImageInput, CreatePocInput, InstanceUrl, PocPeriod, StellarCredential, UpdatePocInput } from '@poc-intel/shared'
 import { and, desc, eq, inArray, sql as dsql } from 'drizzle-orm'
 import type { FastifyInstance } from 'fastify'
 import { z } from 'zod'
@@ -155,8 +155,19 @@ export async function pocRoutes(app: FastifyInstance, { dispatcher }: StellarDep
         .where(eq(reportData.pocId, poc.id))
         .orderBy(desc(reportData.createdAt)),
       db
-        .select({ id: syncs.id, status: syncs.status, progress: syncs.progress, error: syncs.error, createdAt: syncs.createdAt, finishedAt: syncs.finishedAt, reportDataId: syncs.reportDataId })
+        .select({
+          id: syncs.id,
+          status: syncs.status,
+          progress: syncs.progress,
+          error: syncs.error,
+          createdAt: syncs.createdAt,
+          finishedAt: syncs.finishedAt,
+          reportDataId: syncs.reportDataId,
+          periodStart: dsql<string>`coalesce(${syncs.periodStart}, ${pocs.periodStart})`,
+          periodEnd: dsql<string>`coalesce(${syncs.periodEnd}, ${pocs.periodEnd})`,
+        })
         .from(syncs)
+        .innerJoin(pocs, eq(pocs.id, syncs.pocId))
         .where(eq(syncs.pocId, poc.id))
         .orderBy(desc(syncs.createdAt))
         .limit(10),
@@ -207,7 +218,9 @@ export async function pocRoutes(app: FastifyInstance, { dispatcher }: StellarDep
   app.post('/pocs/:id/syncs', { config: { rateLimit: { max: 10, timeWindow: '1 minute' } } }, async (req, reply) => {
     const auth = requireAuth(req)
     const poc = await loadPoc(auth, parse(IdParam, req.params).id, 'edit')
-    const input = parse(z.object({ credential: StellarCredential.optional(), remember: z.boolean().optional() }), req.body)
+    const input = parse(z.object({ credential: StellarCredential.optional(), remember: z.boolean().optional(), period: PocPeriod.optional() }), req.body)
+    // Data is complete only for past days: the period must end yesterday (UTC) at the latest.
+    if (input.period && input.period.end >= new Date().toISOString().slice(0, 10)) throw new HttpError(400, 'period_future')
     const credential = resolveCredential(req, reply, auth.user.id, poc.instanceUrl, input.credential, input.remember)
 
     const [active] = await db
@@ -217,9 +230,12 @@ export async function pocRoutes(app: FastifyInstance, { dispatcher }: StellarDep
       .limit(1)
     if (active) return reply.code(409).send({ error: 'sync_in_progress', syncId: active.id })
 
-    const [sync] = await db.insert(syncs).values({ pocId: poc.id, requestedBy: auth.user.id }).returning({ id: syncs.id })
+    const [sync] = await db
+      .insert(syncs)
+      .values({ pocId: poc.id, requestedBy: auth.user.id, periodStart: input.period?.start ?? null, periodEnd: input.period?.end ?? null })
+      .returning({ id: syncs.id })
     await app.enqueueSync(sync!.id, credential)
-    await audit({ action: 'sync.requested', userId: auth.user.id, target: poc.id, ip: req.ip, meta: { syncId: sync!.id } })
+    await audit({ action: 'sync.requested', userId: auth.user.id, target: poc.id, ip: req.ip, meta: { syncId: sync!.id, period: input.period ?? null } })
     appLog('info', 'sync', 'Sync requested', { userId: auth.user.id, requestId: req.id, context: { syncId: sync!.id, pocId: poc.id, remembered: !input.credential } })
     return reply.code(202).send({ syncId: sync!.id })
   })

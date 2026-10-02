@@ -11,6 +11,7 @@ const KNOWN: Record<string, MessageKey> = {
   report_data_outdated: 'report.outdated',
   sync_in_progress: 'err.sync_in_progress',
   credential_required: 'err.credential_required',
+  period_future: 'err.period_future',
   stellar_auth_failed: 'err.stellar_auth_failed',
   stellar_forbidden: 'err.stellar_forbidden',
   stellar_not_found: 'err.stellar_network',
