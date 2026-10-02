@@ -7,11 +7,13 @@ import { LOCALES, TEMPLATES, type ReportData } from '@poc-intel/shared'
 import { writeFile } from 'node:fs/promises'
 import { EnvHttpProxyAgent, type Dispatcher } from 'undici'
 import { runPool } from '../lib/pool.js'
+import { PAGING } from '../stellar/endpoints.js'
 import { MEDIUM_ANALYSED } from '../metrics/case-stats.js'
 import { renderReportHtml } from '../report/render-html.js'
 import { StellarClient } from '../stellar/client.js'
 import { createSafeAgent } from '../stellar/safe-agent.js'
 import { listTenants } from '../stellar/tenants.js'
+import type { SyncMetrics } from '../stellar/request-stats.js'
 import { collectReportData } from '../syncs/collect-report-data.js'
 import { PocDetails } from '@poc-intel/shared'
 
@@ -41,6 +43,7 @@ interface Row {
   status: 'ok' | 'failed'
   error?: string
   summary?: Record<string, unknown>
+  metrics?: SyncMetrics
   anomalies: string[]
 }
 
@@ -91,7 +94,8 @@ for (const inst of instances) {
     rows.push({ instance: host, tenant: '-', tenantId: '-', seconds: 0, status: 'failed', error: `auth: ${(err as Error).message}`, anomalies: [] })
     continue
   }
-  const tenants = await listTenants(client)
+  const only = (process.env.TENANTS ?? '').split(',').map((x) => x.trim().toLowerCase()).filter(Boolean)
+  const tenants = (await listTenants(client)).filter((t) => !only.length || only.includes(t.name.toLowerCase()) || only.includes(t.id))
   console.log(`\n== ${host}: ${tenants.length} tenants, period ${period.start} → ${period.end}`)
 
   await runPool(tenants, tenantConcurrency, async (tenant) => {
@@ -101,7 +105,7 @@ for (const inst of instances) {
       const data = await collectReportData(
         client,
         { instanceUrl: inst.url, tenant: { id: tenant.id, name: tenant.name }, period },
-        { log: { warn: (o) => row.anomalies.push(`warn:${JSON.stringify(o).slice(0, 160)}`) }, onProgress: () => {} },
+        { log: { warn: (o) => row.anomalies.push(`warn:${JSON.stringify(o).slice(0, 160)}`) }, onProgress: () => {}, onMetrics: (m) => (row.metrics = m) },
       )
       for (const template of TEMPLATES)
         for (const locale of LOCALES) {
@@ -143,8 +147,33 @@ for (const inst of instances) {
   })
 }
 
+// Performance baseline: one line per Tenant with Cases.
+const perf = rows.filter((r) => r.metrics && (r.metrics.counts.cases ?? 0) > 0).sort((a, b) => (b.metrics!.totalMs ?? 0) - (a.metrics!.totalMs ?? 0))
+if (perf.length) {
+  console.log('\nperformance (s = seconds; alerts p50/p95 in ms)')
+  console.log('tenant'.padEnd(30), 'total', 'cases'.padStart(6), 'tactics', 'pages'.padStart(6), 'req'.padStart(6), 'p50', ' p95', 'peak', 'slowest phase')
+  for (const r of perf) {
+    const m = r.metrics!
+    const alerts = m.endpoints['cases/:id/alerts']
+    const req = Object.values(m.endpoints).reduce((n, e) => n + e.requests, 0)
+    const slow = Object.entries(m.phases).sort((a, b) => b[1] - a[1])[0]
+    console.log(
+      `${r.instance.split('.')[0]}/${r.tenant}`.slice(0, 30).padEnd(30),
+      (m.totalMs / 1000).toFixed(1).padStart(5),
+      String(m.counts.cases).padStart(6),
+      ((m.phases.tactics ?? 0) / 1000).toFixed(1).padStart(7),
+      String(m.counts.alertPages).padStart(6),
+      String(req).padStart(6),
+      String(alerts?.ms.p50 ?? '-').padStart(4),
+      String(alerts?.ms.p95 ?? '-').padStart(4),
+      String(m.peakInFlight).padStart(4),
+      slow ? `${slow[0]} ${(slow[1] / 1000).toFixed(1)}s` : '',
+    )
+  }
+}
+
 const failed = rows.filter((r) => r.status === 'failed').length
 const withAnomalies = rows.filter((r) => r.anomalies.length).length
 console.log(`\n${rows.length} tenants in ${Math.round((Date.now() - started) / 1000)} s: ${failed} failed, ${withAnomalies} with anomalies`)
-if (process.env.OUT) await writeFile(process.env.OUT, JSON.stringify({ period, rows }, null, 2))
+if (process.env.OUT) await writeFile(process.env.OUT, JSON.stringify({ period, concurrency: PAGING.concurrency, runAt: new Date().toISOString(), rows }, null, 2))
 await dispatcher.close()

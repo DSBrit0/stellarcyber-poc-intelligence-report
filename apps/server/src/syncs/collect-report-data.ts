@@ -1,6 +1,8 @@
 import { REPORT_DATA_VERSION, ReportData, type SyncProgress } from '@poc-intel/shared'
 import { alertPageCount, collectAiTriage, collectCases, collectIngestion, collectTactics } from '../stellar/case-collectors.js'
 import { StellarApiError, type StellarClient } from '../stellar/client.js'
+import { PAGING } from '../stellar/endpoints.js'
+import type { SyncMetrics } from '../stellar/request-stats.js'
 import {
   collectAssets,
   collectCaseCounts,
@@ -29,8 +31,18 @@ type Logger = { warn: (obj: object, msg: string) => void }
 export async function collectReportData(
   client: StellarClient,
   target: SyncTarget,
-  { log, onProgress }: { log: Logger; onProgress: (p: SyncProgress) => Promise<void> | void },
+  { log, onProgress, onMetrics }: { log: Logger; onProgress: (p: SyncProgress) => Promise<void> | void; onMetrics?: (m: SyncMetrics) => void },
 ): Promise<ReportData> {
+  const t0 = performance.now()
+  const phases: Record<string, number> = {}
+  const timed = async <T,>(name: string, fn: () => Promise<T>): Promise<T> => {
+    const s = performance.now()
+    try {
+      return await fn()
+    } finally {
+      phases[name] = Math.round(performance.now() - s)
+    }
+  }
 const ctx: CollectContext = { client, tenantId: target.tenant.id, period: target.period }
   const gaps: ReportData['gaps'] = []
   const collectors = {
@@ -68,14 +80,16 @@ const ctx: CollectContext = { client, tenantId: target.tenant.id, period: target
   }
 
   const results = Object.fromEntries(
-    await Promise.all(names.map(async (n) => [n, await guard(n, collectors[n] as () => Promise<unknown>).finally(() => tick(true))] as const)),
+    await Promise.all(names.map(async (n) => [n, await guard(n, () => timed(n, collectors[n] as () => Promise<unknown>)).finally(() => tick(true))] as const)),
   ) as Results
   if (gaps.length === names.length) throw new StellarApiError('unavailable', 'every collector failed')
 
   const keyCases = results.cases?.keyCases ?? []
   progress.total += alertPageCount(keyCases)
   const emptyTactics: ReportData['tactics'] = { mitre: { tactics: [], techniques: [] }, xdr: { tactics: [], techniques: [] }, byCase: {}, topAlerts: {}, pages: { fetched: 0, failed: 0, forbidden: 0 }, alertsMissing: 0, casesWithoutAlertAccess: 0 }
-  const tactics = keyCases.length ? ((await guard('tactics', () => collectTactics(ctx, keyCases, () => void tick()))) ?? emptyTactics) : emptyTactics
+  const tactics = keyCases.length
+    ? ((await guard('tactics', () => timed('tactics', () => collectTactics(ctx, keyCases, () => void tick())))) ?? emptyTactics)
+    : emptyTactics
 
   // /ingestion-stats/sensor only carries sensor ids: name them from /data_sensors.
   const sensorNames = new Map((results.dataSensors ?? []).map((s) => [s.id, s]))
@@ -93,7 +107,22 @@ const ctx: CollectContext = { client, tenantId: target.tenant.id, period: target
     : { bySensor: [], byConnector: [] }
 
   const emptyCompliance = { stats: null, recommended: null, recommendedWindow: null, scenarios: [] }
-  const aiTriage = target.aiTriage && keyCases.length ? await guard('aiTriage', () => collectAiTriage(ctx, keyCases)) : null
+  const aiTriage = target.aiTriage && keyCases.length ? await guard('aiTriage', () => timed('aiTriage', () => collectAiTriage(ctx, keyCases))) : null
+
+  onMetrics?.({
+    totalMs: Math.round(performance.now() - t0),
+    phases,
+    endpoints: client.stats.endpoints(),
+    concurrency: PAGING.concurrency,
+    peakInFlight: client.stats.peakInFlight,
+    counts: {
+      cases: results.cases?.caseStats?.cases ?? 0,
+      keyCases: keyCases.length,
+      alertPages: tactics.pages.fetched + tactics.pages.failed + tactics.pages.forbidden,
+      alertPagesFailed: tactics.pages.failed,
+      alertPagesForbidden: tactics.pages.forbidden,
+    },
+  })
 
   return ReportData.parse({
     version: REPORT_DATA_VERSION,

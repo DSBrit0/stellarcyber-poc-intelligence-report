@@ -2,6 +2,7 @@ import type { StellarCredential } from '@poc-intel/shared'
 import { request, type Dispatcher } from 'undici'
 import type { z } from 'zod'
 import { ENDPOINTS } from './endpoints.js'
+import { RequestStats } from './request-stats.js'
 
 const RETRYABLE = new Set([429, 502, 503, 504])
 const MAX_RETRIES = 3
@@ -40,6 +41,8 @@ export class StellarClient {
   #token: string | null = null
   #tokenExpiresAt = 0
   #renewing: Promise<void> | null = null
+  /** Request statistics for this client's lifetime (one Sync). */
+  readonly stats = new RequestStats()
 
   constructor(
     readonly instanceUrl: string,
@@ -76,7 +79,7 @@ export class StellarClient {
   async #call<S extends z.ZodType>(method: 'GET' | 'POST', path: string, query: Query | undefined, body: unknown, schema: S, timeoutMs: number): Promise<z.output<S>> {
     for (let attempt = 0, reauthed = false; ; attempt++) {
       await this.#ensureToken()
-      const res = await this.#send(method, path, query, { authorization: `Bearer ${this.#token}` }, timeoutMs, body)
+      const res = await this.#send(method, path, query, { authorization: `Bearer ${this.#token}` }, timeoutMs, body, attempt > 0)
       if (res.status === 401 && !reauthed) {
         reauthed = true
         this.#token = null
@@ -112,8 +115,11 @@ export class StellarClient {
     headers: Record<string, string>,
     timeoutMs: number,
     payload?: unknown,
+    retry = false,
   ): Promise<{ status: number; body: unknown }> {
     const url = new URL(path, this.instanceUrl)
+    const t0 = performance.now()
+    const done = this.stats.start()
     for (const [k, v] of Object.entries(query ?? {})) if (v !== undefined) url.searchParams.set(k, String(v))
     try {
       const res = await request(url, {
@@ -131,10 +137,14 @@ export class StellarClient {
       } catch {
         body = null
       }
+      this.stats.record(url.pathname, res.statusCode, performance.now() - t0, text.length, retry)
       return { status: res.statusCode, body }
     } catch (err) {
+      this.stats.record(url.pathname, 'network', performance.now() - t0, 0, retry)
       // Never include headers here: they carry the credential.
       throw new StellarApiError('network', `${method} ${url.pathname}: ${(err as Error).message}`)
+    } finally {
+      done()
     }
   }
 }

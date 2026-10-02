@@ -1,5 +1,6 @@
 // Mirrors migrations/*.sql — the SQL files are the source of truth; keep both in step.
 import type { PocDetails, ReportData, Role, SyncProgress, SyncStatus, UserStatus, Locale } from '@poc-intel/shared'
+import type { SyncMetrics } from '../stellar/request-stats.js'
 import { bigint, boolean, date, integer, jsonb, pgTable, primaryKey, text, timestamp, uuid } from 'drizzle-orm/pg-core'
 
 const ts = (name: string) => timestamp(name, { withTimezone: true })
@@ -111,6 +112,7 @@ export const syncs = pgTable('syncs', {
   progress: jsonb('progress').$type<SyncProgress>(),
   error: text('error'),
   reportDataId: uuid('report_data_id'),
+  metrics: jsonb('metrics').$type<SyncMetrics>(),
   createdAt: ts('created_at').notNull().defaultNow(),
   startedAt: ts('started_at'),
   finishedAt: ts('finished_at'),

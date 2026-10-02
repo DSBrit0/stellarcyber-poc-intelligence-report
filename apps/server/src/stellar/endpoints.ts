@@ -31,5 +31,5 @@ export const PAGING = {
    * Parallel requests per Sync against one Instance (one pooled connection set, HTTP/2 when offered).
    * Measured by the previous tool for 639 alert pages: 6 → 172 s, 12 → 104 s, 24 → 68 s, with no errors.
    */
-  concurrency: 16,
+  concurrency: Math.max(1, Math.min(64, Number(process.env.STELLAR_CONCURRENCY ?? 16) || 16)),
 } as const
