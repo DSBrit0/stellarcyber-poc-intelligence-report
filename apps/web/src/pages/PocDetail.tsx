@@ -1,4 +1,4 @@
-import { TEMPLATES, type PocDetails, type StellarCredential, type SyncStatus, type Template } from '@poc-intel/shared'
+import { LOCALES, TEMPLATES, type Locale, type PocDetails, type StellarCredential, type SyncStatus, type Template } from '@poc-intel/shared'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { useEffect, useState } from 'react'
 import { useNavigate, useParams } from 'react-router'
@@ -9,6 +9,7 @@ import { errorKey } from '../lib/errors'
 import { useI18n } from '../lib/i18n'
 import { toReportImage } from '../lib/image'
 import { PocForm } from '../lib/PocForm'
+import { SyncBar } from '../lib/SyncProgress'
 
 interface PocView {
   id: string
@@ -21,8 +22,23 @@ interface PocView {
   customerName: string | null
   hasArchImage: boolean
   canEdit: boolean
-  reports: { id: string; createdAt: string; expiresAt: string; version: number }[]
+  draft: boolean
+  reports: ReportRow[]
   syncs: { id: string; status: SyncStatus; progress: { done: number; total: number } | null; error: string | null; createdAt: string }[]
+}
+
+interface ReportRow {
+  id: string
+  createdAt: string
+  expiresAt: string
+  version: number
+  assetsAvg: number | null
+  assetsPeak: number | null
+  volumeGb: number | null
+  cases: number | null
+  alerts: number | null
+  periodStart: string
+  periodEnd: string
 }
 
 type Tab = 'reports' | 'details' | 'sync'
@@ -37,85 +53,120 @@ export function PocDetailPage() {
     refetchInterval: (q) => (q.state.data?.syncs.some((s) => s.status === 'queued' || s.status === 'running') ? 2000 : false),
   })
   if (!poc) return null
-  const tabs: Tab[] = poc.canEdit ? ['reports', 'details', 'sync'] : ['reports']
-  const tabLabel: Record<Tab, string> = { reports: 'Reports', details: t('poc.details'), sync: 'Sync' }
+  const running = poc.syncs.find((x) => x.status === 'queued' || x.status === 'running')
+  const latest = poc.syncs[0]
   return (
-    <div className="space-y-6">
-      <div className="flex items-start gap-3">
-        <div className="flex-1">
-        <h1 className="text-xl font-semibold">{poc.details.customerName}</h1>
-        <p className="text-sm text-slate-500">
-          {poc.tenantName} · {poc.periodStart} → {poc.periodEnd}
-          {poc.customerName ? ` · ${t('nav.customers')}: ${poc.customerName}` : ''}
-        </p>
+    <div className="space-y-5">
+      <div className="flex flex-wrap items-start gap-3">
+        <div className="min-w-0 flex-1">
+          <h1 className="flex items-center gap-2 text-xl font-semibold">
+            {poc.details.customerName}
+            {poc.draft ? <span className="rounded bg-amber-100 px-2 py-0.5 text-xs font-medium text-amber-800">{t('poc.draft')}</span> : null}
+          </h1>
+          <p className="text-sm text-slate-500">
+            {poc.tenantName} · {poc.periodStart} → {poc.periodEnd}
+            {poc.customerName ? ` · ${t('nav.customers')}: ${poc.customerName}` : ''}
+          </p>
         </div>
-        {poc.canEdit ? <DeletePocButton id={poc.id} /> : null}
-      </div>
-      {tabs.length > 1 ? (
-        <div className="flex gap-1 border-b border-slate-200 dark:border-slate-800" role="tablist">
-          {tabs.map((x) => (
-            <button
-              key={x}
-              role="tab"
-              aria-selected={tab === x}
-              className={`-mb-px border-b-2 px-4 py-2 text-sm ${tab === x ? 'border-brand font-semibold text-brand' : 'border-transparent text-slate-500'}`}
-              onClick={() => setTab(x)}
-            >
-              {tabLabel[x]}
+        {poc.canEdit ? (
+          <div className="flex flex-wrap gap-2">
+            <button className={tab === 'sync' ? 'btn' : 'btn-ghost'} onClick={() => setTab(tab === 'sync' ? 'reports' : 'sync')}>
+              {t('sync.new')}
             </button>
-          ))}
-        </div>
-      ) : null}
-      {tab === 'reports' ? <ReportsTab poc={poc} /> : tab === 'details' ? <DetailsTab poc={poc} /> : <SyncTab poc={poc} />}
+            <button className={tab === 'details' ? 'btn' : 'btn-ghost'} onClick={() => setTab(tab === 'details' ? 'reports' : 'details')}>
+              {t('poc.editDetails')}
+            </button>
+            <DeletePocButton id={poc.id} />
+          </div>
+        ) : null}
+      </div>
+      {running || latest?.status === 'failed' ? <SyncBar sync={running ?? latest} /> : null}
+      {tab === 'reports' ? <ReportsTab poc={poc} /> : tab === 'details' ? <DetailsTab poc={poc} onSaved={() => setTab('reports')} /> : <SyncTab poc={poc} onStarted={() => setTab('reports')} />}
+    </div>
+  )
+}
+
+function Widget({ label, value, sub }: { label: string; value: string; sub?: string }) {
+  return (
+    <div className="rounded-lg bg-slate-50 px-3 py-2 dark:bg-slate-800/60">
+      <div className="text-lg font-semibold tabular-nums">{value}</div>
+      <div className="text-xs text-slate-500">{label}</div>
+      {sub ? <div className="text-[11px] text-slate-400">{sub}</div> : null}
     </div>
   )
 }
 
 function ReportsTab({ poc }: { poc: PocView }) {
+  const { t } = useI18n()
+  if (poc.reports.length === 0) return <p className="card text-sm text-slate-500">{t('report.empty')}</p>
+  return (
+    <ul className="space-y-3">
+      {poc.reports.map((r) => (
+        <ReportItem key={r.id} poc={poc} r={r} />
+      ))}
+    </ul>
+  )
+}
+
+/** One Report per Sync: its own widgets, Template/language, open/present/PDF, comments and trash. */
+function ReportItem({ poc, r }: { poc: PocView; r: ReportRow }) {
   const { t, locale } = useI18n()
   const [template, setTemplate] = useState<Template>('executive')
-  const [open, setOpen] = useState<string | null>(poc.reports[0]?.id ?? null)
+  const [lang, setLang] = useState<Locale>(locale)
+  const [comments, setComments] = useState(false)
   const date = (iso: string) => new Date(iso).toLocaleDateString(locale)
-  const url = (rid: string, kind: 'html' | 'pdf' | 'present') => `/api/report-data/${rid}/${kind}?template=${template}&locale=${locale}`
+  const num = (n: number | null, digits = 0) => (n == null ? '—' : n.toLocaleString(locale, { maximumFractionDigits: digits }))
+  const url = (kind: 'html' | 'pdf' | 'present') => `/api/report-data/${r.id}/${kind}?template=${template}&locale=${lang}`
   return (
-    <section className="card space-y-3">
-      <div className="flex flex-wrap items-center gap-3">
-        <h2 className="font-semibold">Reports</h2>
-        <select className="input ml-auto w-auto" value={template} onChange={(e) => setTemplate(e.target.value as Template)}>
+    <li className="card space-y-3">
+      <div className="flex flex-wrap items-center gap-2 text-sm">
+        <span className="font-medium">{date(r.createdAt)}</span>
+        <span className="text-slate-500">
+          · {r.periodStart} → {r.periodEnd}
+        </span>
+        <span className="text-xs text-slate-400">{t('report.expiresOn', { date: date(r.expiresAt) })}</span>
+        {poc.canEdit ? (
+          <span className="ml-auto">
+            <DeleteReportButton pocId={poc.id} reportId={r.id} />
+          </span>
+        ) : null}
+      </div>
+      <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
+        <Widget label={t('widget.assets')} value={num(r.assetsAvg)} sub={r.assetsPeak != null ? t('widget.assetsPeak', { n: num(r.assetsPeak) }) : undefined} />
+        <Widget label={t('widget.ingestion')} value={r.volumeGb == null ? '—' : `${num(r.volumeGb, 2)} GB`} />
+        <Widget label={t('widget.cases')} value={num(r.cases)} />
+        <Widget label={t('widget.alerts')} value={num(r.alerts)} />
+      </div>
+      <div className="flex flex-wrap items-center gap-2">
+        <select className="input w-auto py-1.5" value={template} onChange={(e) => setTemplate(e.target.value as Template)} aria-label="Template">
           {TEMPLATES.map((tpl) => (
             <option key={tpl} value={tpl}>
               {t(`template.${tpl}`)}
             </option>
           ))}
         </select>
+        <select className="input w-auto py-1.5" value={lang} onChange={(e) => setLang(e.target.value as Locale)} aria-label="Language">
+          {LOCALES.map((l) => (
+            <option key={l} value={l}>
+              {l}
+            </option>
+          ))}
+        </select>
+        <a className="btn" href={url('html')} target="_blank" rel="noopener">
+          {t('report.open')}
+        </a>
+        <a className="btn-ghost" href={url('present')} target="_blank" rel="noopener">
+          {t('report.present')}
+        </a>
+        <a className="btn-ghost" href={url('pdf')}>
+          {t('report.pdf')}
+        </a>
+        <button className="btn-ghost" onClick={() => setComments(!comments)}>
+          {t('report.comments')}
+        </button>
       </div>
-      <ul className="divide-y divide-slate-200 dark:divide-slate-800">
-        {poc.reports.map((r) => (
-          <li key={r.id} className="py-3 text-sm">
-            <div className="flex flex-wrap items-center gap-3">
-              <span>{date(r.createdAt)}</span>
-              <span className="text-xs text-slate-500">{t('report.expiresOn', { date: date(r.expiresAt) })}</span>
-              <span className="ml-auto flex flex-wrap gap-2">
-                <a className="btn" href={url(r.id, 'present')} target="_blank" rel="noopener">
-                  {t('report.present')}
-                </a>
-                <a className="btn-ghost" href={url(r.id, 'html')} target="_blank" rel="noopener">
-                  {t('report.view')}
-                </a>
-                <a className="btn-ghost" href={url(r.id, 'pdf')}>
-                  {t('report.pdf')}
-                </a>
-                <button className="btn-ghost" onClick={() => setOpen(open === r.id ? null : r.id)}>
-                  {t('report.comments')}
-                </button>
-                {poc.canEdit ? <DeleteReportButton pocId={poc.id} reportId={r.id} /> : null}
-              </span>
-            </div>
-            {open === r.id ? <Comments reportId={r.id} /> : null}
-          </li>
-        ))}
-      </ul>
-    </section>
+      {comments ? <Comments reportId={r.id} /> : null}
+    </li>
   )
 }
 
@@ -162,7 +213,7 @@ function Comments({ reportId }: { reportId: string }) {
   )
 }
 
-function DetailsTab({ poc }: { poc: PocView }) {
+function DetailsTab({ poc, onSaved }: { poc: PocView; onSaved: () => void }) {
   const { t } = useI18n()
   const qc = useQueryClient()
   const [details, setDetails] = useState<PocDetails>(poc.details)
@@ -170,10 +221,11 @@ function DetailsTab({ poc }: { poc: PocView }) {
   const [saved, setSaved] = useState(false)
   useEffect(() => setDetails(poc.details), [poc.details])
   const save = useMutation({
-    mutationFn: () => api(`/pocs/${poc.id}`, { method: 'PATCH', body: { customerId, details: { ...details, analysts: details.analysts.map((a) => a.trim()).filter(Boolean) } } }),
+    mutationFn: () => api(`/pocs/${poc.id}`, { method: 'PATCH', body: { customerId, finalize: true, details: { ...details, analysts: details.analysts.map((a) => a.trim()).filter(Boolean) } } }),
     onSuccess: () => {
       setSaved(true)
       void qc.invalidateQueries({ queryKey: ['poc', poc.id] })
+      onSaved()
     },
   })
   const image = useMutation({
@@ -220,46 +272,56 @@ function DetailsTab({ poc }: { poc: PocView }) {
   )
 }
 
-function SyncTab({ poc }: { poc: PocView }) {
+function SyncTab({ poc, onStarted }: { poc: PocView; onStarted: () => void }) {
   const { t, locale } = useI18n()
   const qc = useQueryClient()
+  const remembered = useQuery({ queryKey: ['remembered'], queryFn: () => api<{ instanceUrl: string }[]>('/stellar/credentials') })
+  const stored = (remembered.data ?? []).some((r) => r.instanceUrl === poc.instanceUrl)
+  const [useStored, setUseStored] = useState(true)
+  const [remember, setRemember] = useState(true)
   const [credential, setCredential] = useState<StellarCredential>({ method: 'apiKey', apiKey: '' })
+  const running = poc.syncs.some((s) => s.status === 'queued' || s.status === 'running')
   const sync = useMutation({
-    mutationFn: () => api(`/pocs/${poc.id}/syncs`, { method: 'POST', body: { credential } }),
+    mutationFn: () => api(`/pocs/${poc.id}/syncs`, { method: 'POST', body: stored && useStored ? {} : { credential, remember } }),
     onSuccess: () => {
       setCredential(credential.method === 'apiKey' ? { method: 'apiKey', apiKey: '' } : { method: 'basic', username: '', token: '' })
       void qc.invalidateQueries({ queryKey: ['poc', poc.id] })
+      void remembered.refetch()
+      onStarted()
     },
   })
   return (
     <section className="card space-y-4">
-      <ul className="space-y-1 text-sm">
+      <p className="text-sm text-slate-500">{poc.instanceUrl}</p>
+      {stored && useStored ? (
+        <p className="flex flex-wrap items-center gap-3 text-sm">
+          <span className="rounded bg-green-100 px-2 py-1 text-green-800">✓ {t('wiz.remembered')}</span>
+          <button type="button" className="text-brand underline" onClick={() => setUseStored(false)}>
+            {t('wiz.useOther')}
+          </button>
+        </p>
+      ) : (
+        <>
+          <CredentialFields value={credential} onChange={setCredential} />
+          <label className="flex items-center gap-2 text-sm">
+            <input type="checkbox" checked={remember} onChange={(e) => setRemember(e.target.checked)} />
+            {t('wiz.remember')}
+          </label>
+        </>
+      )}
+      <button className="btn" disabled={sync.isPending || running} onClick={() => sync.mutate()}>
+        {t('wiz.runSync')}
+      </button>
+      {sync.error ? <p className="text-sm text-red-600">{t(errorKey(sync.error))}</p> : null}
+      <ul className="space-y-1 border-t border-slate-200 pt-3 text-sm dark:border-slate-800">
         {poc.syncs.map((s) => (
           <li key={s.id} className="flex gap-3">
             <span>{new Date(s.createdAt).toLocaleString(locale)}</span>
             <span className="font-medium">{t(`sync.status.${s.status}`)}</span>
-            {s.status === 'running' && s.progress ? (
-              <span className="text-slate-500">
-                {Math.round((s.progress.done / Math.max(1, s.progress.total)) * 100)}%
-              </span>
-            ) : null}
             {s.error ? <span className="text-red-600">{s.error}</span> : null}
           </li>
         ))}
       </ul>
-      <form
-        className="space-y-3"
-        onSubmit={(e) => {
-          e.preventDefault()
-          sync.mutate()
-        }}
-      >
-        <CredentialFields value={credential} onChange={setCredential} />
-        <button className="btn" disabled={sync.isPending}>
-          {t('sync.start')}
-        </button>
-        {sync.error instanceof ApiError ? <p className="text-sm text-red-600">{t(errorKey(sync.error))}</p> : null}
-      </form>
     </section>
   )
 }

@@ -50,3 +50,29 @@ Findings:
 - **Throughput depends only on concurrency.** On poc, the time follows pages × p50 ÷ 16 (NetUno: 1,023 × ~1.4 s ÷ 16 ≈ 90 s). The peak in flight always reached 16, the configured limit. With no 429 or 5xx, more concurrency should scale almost linearly until the Instance's latency starts to rise.
 - **HTTP 403 does not slow anything.** It only marks Cases whose alerts the key cannot read (salesdemo).
 - **Next experiment:** concurrency 32 and 64 on the same Tenants, then incremental Sync.
+
+### v1 — concurrency 16 vs 32 vs 64 (2026-10-01 23:51 – 2026-10-02 00:01)
+
+Same 9 Tenants, run one after another (`v1-c16`, `v1-c32`, `v1-c64`), with correct per-Tenant statistics.
+
+| Tenant | c16 total | c32 total | c64 total | c64 vs c16 | Alert p50 c16 → c64 |
+|---|---|---|---|---|---|
+| poc / NetUno | 99.3 s | 111.2 s | 56.0 s | −44% | 1.3 s → 2.4 s |
+| poc / BSmart | 72.9 s | 58.5 s | 44.5 s | −39% | 1.7 s → 3.4 s |
+| poc / Gob de Oaxaca | 70.9 s | 64.3 s | 43.9 s | −38% | 1.8 s → 3.0 s |
+| poc / salesdemo | 45.4 s | 33.5 s | 27.7 s | −39% | 1.1 s → 2.0 s |
+| clearwater / Clearwater_Security | 14.0 s | 12.2 s | 12.1 s | −14% | 0.17 s → 0.55 s |
+| poc / EmberIT | 10.8 s | 9.4 s | 9.0 s | −17% | |
+| poc-eu (3 Tenants) | 5.5–6.5 s | 4.4–4.7 s | 3.9–4.0 s | −30% | |
+
+Findings:
+
+- **Concurrency 64 cuts the large poc Tenants by about 40%, not 75%.** The Instance's latency per page roughly doubles as concurrency rises, so it is saturating on its side.
+- **c32 was noisy.** On NetUno, the p95 reached 11 s in that run, so it took longer than c16. Instance load varies between runs.
+- **Failed pages are network timeouts:** 2 at c16, 27 at c32 and 12 at c64. The 20 s per-page timeout is too short when the p95 reaches 8–14 s, and the client retries HTTP 429/5xx but not network errors. Those pages lose their tactics.
+- **Recommended change:**
+  - concurrency 48–64;
+  - one retry on a network error or timeout;
+  - an alert-page timeout of 45 s.
+
+  The structural gain (incremental Sync) is still the bigger lever for repeated Syncs.

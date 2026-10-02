@@ -10,6 +10,8 @@ import { audit } from '../lib/audit.js'
 import { HttpError, notFound, parse } from '../lib/http.js'
 import { getSettings } from '../settings.js'
 import { deleteRenders } from '../report/render-cache.js'
+import { forgetCredential, rememberCredential, rememberedCredential, rememberedInstances } from '../credentials/remembered.js'
+import type { FastifyReply, FastifyRequest } from 'fastify'
 import type { StellarDeps } from '../app.js'
 import { StellarClient } from '../stellar/client.js'
 import { listTenants } from '../stellar/tenants.js'
@@ -19,6 +21,24 @@ const IdParam = z.object({ id: z.uuid() })
 const staff = (req: Parameters<typeof requireAuth>[0]) => requireRole(req, 'admin', 'sales_engineer', 'partner')
 
 /** A PoC can only be linked to a Customer its Owner manages (an Admin may link any). */
+/** The credential typed now, or the one this browser remembers for the Instance (ADR 0009). */
+function resolveCredential(
+  req: FastifyRequest,
+  reply: FastifyReply,
+  userId: string,
+  instanceUrl: string,
+  typed: z.infer<typeof StellarCredential> | undefined,
+  remember: boolean | undefined,
+) {
+  if (typed) {
+    if (remember) rememberCredential(reply, userId, instanceUrl, typed)
+    return typed
+  }
+  const remembered = rememberedCredential(req, userId, instanceUrl)
+  if (!remembered) throw new HttpError(400, 'credential_required')
+  return remembered
+}
+
 async function checkCustomer(auth: AuthContext, customerId: string | null | undefined) {
   if (!customerId) return
   const [c] = await db.select({ ownerId: customers.ownerId }).from(customers).where(eq(customers.id, customerId)).limit(1)
@@ -30,12 +50,25 @@ const expiresAt = (createdAt: Date, retentionDays: number) => new Date(createdAt
 export async function pocRoutes(app: FastifyInstance, { dispatcher }: StellarDeps): Promise<void> {
   // Lists the Tenants a Stellar Credential can see, so the User can pick one when creating a PoC.
   // The credential is used for this call only.
-  app.post('/stellar/tenants', { config: { rateLimit: { max: 20, timeWindow: '1 minute' } } }, async (req) => {
-    staff(req)
-    const input = parse(z.object({ instanceUrl: InstanceUrl, credential: StellarCredential }), req.body)
-    const client = new StellarClient(input.instanceUrl, input.credential, dispatcher)
+  app.post('/stellar/tenants', { config: { rateLimit: { max: 30, timeWindow: '1 minute' } } }, async (req, reply) => {
+    const auth = staff(req)
+    const input = parse(z.object({ instanceUrl: InstanceUrl, credential: StellarCredential.optional(), remember: z.boolean().optional() }), req.body)
+    const credential = resolveCredential(req, reply, auth.user.id, input.instanceUrl, input.credential, input.remember)
+    const client = new StellarClient(input.instanceUrl, credential, dispatcher)
     await client.authenticate()
+    // Remember only a credential the Instance accepted.
+    if (input.credential && input.remember) rememberCredential(reply, auth.user.id, input.instanceUrl, input.credential)
     return listTenants(client)
+  })
+
+  // Remembered credentials of this User in this browser (ADR 0009): which Instances, never the secret.
+  app.get('/stellar/credentials', async (req) => rememberedInstances(req, staff(req).user.id))
+
+  app.delete('/stellar/credentials', async (req, reply) => {
+    staff(req)
+    const { instanceUrl } = parse(z.object({ instanceUrl: InstanceUrl }), req.query)
+    forgetCredential(reply, instanceUrl)
+    return reply.code(204).send()
   })
 
   app.get('/pocs', async (req) => {
@@ -50,6 +83,7 @@ export async function pocRoutes(app: FastifyInstance, { dispatcher }: StellarDep
         tenantName: pocs.tenantName,
         periodStart: pocs.periodStart,
         periodEnd: pocs.periodEnd,
+        draft: pocs.draft,
         updatedAt: pocs.updatedAt,
       })
       .from(pocs)
@@ -68,6 +102,7 @@ export async function pocRoutes(app: FastifyInstance, { dispatcher }: StellarDep
       .values({
         ownerId: auth.user.id,
         customerId: input.customerId ?? null,
+        draft: input.draft ?? false,
         instanceUrl: input.instanceUrl,
         tenantId: input.tenant.id,
         tenantName: input.tenant.name,
@@ -86,7 +121,20 @@ export async function pocRoutes(app: FastifyInstance, { dispatcher }: StellarDep
     const [{ retentionDays }, reports, recentSyncs] = await Promise.all([
       getSettings(),
       db
-        .select({ id: reportData.id, createdAt: reportData.createdAt, version: reportData.version })
+        .select({
+          id: reportData.id,
+          createdAt: reportData.createdAt,
+          version: reportData.version,
+          // Widget figures read straight from the JSONB, without loading the whole Report Data.
+          assetsAvg: dsql<number | null>`(${reportData.data}->'assets'->'compliance'->'stats'->>'avg')::float`,
+          assetsPeak: dsql<number | null>`(${reportData.data}->'assets'->'compliance'->'stats'->>'max')::float`,
+          volumeGb: dsql<number | null>`(SELECT sum((d->>'value')::float) FROM jsonb_array_elements(${reportData.data}->'volume'->'dailyGb') d)`,
+          cases: dsql<number | null>`(${reportData.data}->'cases'->>'total')::int`,
+          alerts: dsql<number | null>`(${reportData.data}->'caseStats'->>'alerts')::int`,
+          tenantName: dsql<string>`${reportData.data}->'tenant'->>'name'`,
+          periodStart: dsql<string>`${reportData.data}->'period'->>'start'`,
+          periodEnd: dsql<string>`${reportData.data}->'period'->>'end'`,
+        })
         .from(reportData)
         .where(eq(reportData.pocId, poc.id))
         .orderBy(desc(reportData.createdAt)),
@@ -120,6 +168,7 @@ export async function pocRoutes(app: FastifyInstance, { dispatcher }: StellarDep
         ...(input.details ? { details: input.details } : {}),
         ...(input.period ? { periodStart: input.period.start, periodEnd: input.period.end } : {}),
         ...(input.customerId !== undefined ? { customerId: input.customerId } : {}),
+        ...(input.finalize ? { draft: false } : {}),
         updatedAt: dsql`now()`,
       })
       .where(eq(pocs.id, poc.id))
@@ -142,7 +191,8 @@ export async function pocRoutes(app: FastifyInstance, { dispatcher }: StellarDep
   app.post('/pocs/:id/syncs', { config: { rateLimit: { max: 10, timeWindow: '1 minute' } } }, async (req, reply) => {
     const auth = requireAuth(req)
     const poc = await loadPoc(auth, parse(IdParam, req.params).id, 'edit')
-    const { credential } = parse(z.object({ credential: StellarCredential }), req.body)
+    const input = parse(z.object({ credential: StellarCredential.optional(), remember: z.boolean().optional() }), req.body)
+    const credential = resolveCredential(req, reply, auth.user.id, poc.instanceUrl, input.credential, input.remember)
 
     const [active] = await db
       .select({ id: syncs.id })

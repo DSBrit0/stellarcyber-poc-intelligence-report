@@ -7,6 +7,7 @@ import { useI18n } from '../lib/i18n'
 interface PocRow {
   id: string
   ownerId: string
+  draft: boolean
   customerName: string
   tenantName: string
   periodStart: string
@@ -24,7 +25,7 @@ export function PocListPage() {
         <h1 className="text-xl font-semibold">{t('poc.list')}</h1>
         {me?.role !== 'customer' ? (
           <Link to="/pocs/new" className="btn">
-            {t('poc.new')}
+            {t('poc.create')}
           </Link>
         ) : null}
       </div>
@@ -34,7 +35,10 @@ export function PocListPage() {
           <li key={p.id} className="relative">
             {me && (me.role === 'admin' || me.id === p.ownerId) ? <DeletePoc id={p.id} name={p.customerName} /> : null}
             <Link to={`/pocs/${p.id}`} className="card block pr-12 hover:border-brand">
-              <div className="font-semibold">{p.customerName}</div>
+              <div className="flex items-center gap-2 font-semibold">
+                {p.customerName}
+                {p.draft ? <span className="rounded bg-amber-100 px-2 py-0.5 text-xs font-medium text-amber-800">{t('poc.draft')}</span> : null}
+              </div>
               <div className="text-sm text-slate-500">{p.tenantName}</div>
               <div className="mt-2 text-xs text-slate-500">
                 {p.periodStart} → {p.periodEnd}

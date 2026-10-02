@@ -25,7 +25,7 @@ _Avoid_: SE (allowed only as an abbreviation)
 A reseller's staff member who runs PoCs. Sees only the PoCs they own.
 
 **Customer**:
-A company evaluating Stellar Cyber, registered in advance by a Sales Engineer or Partner (its Customer Owner). A PoC can be linked to one Customer.
+A company evaluating Stellar Cyber, registered in advance by a Sales Engineer or Partner (its Customer Owner). Linking a PoC to a Customer is optional; when it is linked, that Customer's Customer Users can reach the PoC's Reports.
 _Avoid_: Client, account, tenant (a Tenant is a data partition in an Instance)
 
 **Customer Owner**:
@@ -103,6 +103,10 @@ The assessment of Asset Count or Licensing Volume against the licensed amount un
 **PoC**:
 One customer's evaluation of Stellar Cyber on one Tenant over a period of up to 30 days. It is owned by a User, and holds the customer details, contacts, success criteria and Verdict.
 _Avoid_: Project, trial, evaluation
+
+**Draft PoC**:
+A PoC whose first Sync was started but whose details were never saved. It shows in the list marked as a draft, so it can be resumed or deleted.
+_Avoid_: Incomplete PoC, pending PoC
 
 **Sync**:
 One collection run that pulls a PoC's period data from the Instance API and condenses it into Report Data.

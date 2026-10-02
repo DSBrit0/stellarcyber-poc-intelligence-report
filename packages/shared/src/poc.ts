@@ -65,6 +65,8 @@ export type PocPeriod = z.infer<typeof PocPeriod>
 export const CreatePocInput = z.object({
   instanceUrl: InstanceUrl,
   customerId: z.uuid().nullable().optional(),
+  /** Created by "Run Sync" before the details are filled in. */
+  draft: z.boolean().optional(),
   tenant: z.object({ id: Text(128).min(1), name: Text(200).default('') }),
   period: PocPeriod,
   details: PocDetails,
@@ -75,12 +77,15 @@ export const UpdatePocInput = z.object({
   period: PocPeriod.optional(),
   details: PocDetails.optional(),
   customerId: z.uuid().nullable().optional(),
+  /** Saving the details completes a Draft PoC. */
+  finalize: z.boolean().optional(),
 })
 
 /** Customer company name: matching ignores case and repeated spaces. */
 export const customerNameKey = (name: string) => name.trim().toLowerCase().replace(/\s+/g, ' ')
 
-export const CreateCustomerInput = z.object({ name: z.string().trim().min(2).max(160) })
+export const CreateCustomerInput = z.object({ name: z.string().trim().min(2).max(160), instanceUrl: InstanceUrl.nullable().optional() })
+export const UpdateCustomerInput = CreateCustomerInput.partial()
 
 export const CommentInput = z.object({ body: z.string().trim().min(1).max(4000) })
 

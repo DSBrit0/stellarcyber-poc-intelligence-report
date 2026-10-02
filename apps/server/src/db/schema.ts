@@ -71,6 +71,7 @@ export const pocs = pgTable('pocs', {
   details: jsonb('details').$type<PocDetails>().notNull(),
   archImage: text('arch_image'),
   customerId: uuid('customer_id'),
+  draft: boolean('draft').notNull().default(false),
   createdAt: ts('created_at').notNull().defaultNow(),
   updatedAt: ts('updated_at').notNull().defaultNow(),
 })
@@ -83,6 +84,7 @@ export const customers = pgTable('customers', {
   nameKey: text('name_key').notNull().unique(),
   ownerId: uuid('owner_id').notNull(),
   accessKeyHash: text('access_key_hash').notNull(),
+  instanceUrl: text('instance_url'),
   createdAt: ts('created_at').notNull().defaultNow(),
   updatedAt: ts('updated_at').notNull().defaultNow(),
 })

@@ -72,7 +72,6 @@ function Shell({ children, adminOnly, staffOnly }: { children: ReactNode; adminO
             {t('app.name')}
           </Link>
           <nav className="flex gap-4 text-sm">
-            <Link to="/">{t('nav.pocs')}</Link>
             {me.role !== 'customer' ? <Link to="/customers">{t('nav.customers')}</Link> : null}
             {me.role === 'admin' ? <Link to="/admin">{t('nav.admin')}</Link> : null}
           </nav>

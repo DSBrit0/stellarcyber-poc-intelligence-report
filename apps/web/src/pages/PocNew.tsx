@@ -1,41 +1,144 @@
 import type { PocDetails, StellarCredential } from '@poc-intel/shared'
-import { useState, type FormEvent } from 'react'
+import { useQuery } from '@tanstack/react-query'
+import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react'
 import { useNavigate } from 'react-router'
 import { api } from '../lib/api'
 import { CredentialFields } from '../lib/CredentialFields'
-import { CustomerSelect } from '../lib/CustomerSelect'
-import { PocForm, emptyDetails } from '../lib/PocForm'
+import { CustomerDialog } from '../lib/CustomerForm'
+import { useCustomers } from '../lib/CustomerSelect'
+import { DateInput } from '../lib/DateInput'
 import { errorKey } from '../lib/errors'
 import { useI18n } from '../lib/i18n'
+import { PocForm, emptyDetails } from '../lib/PocForm'
+import { SyncBar, isRunning, syncPct, useSync } from '../lib/SyncProgress'
 
 interface Tenant {
   id: string
   name: string
   group: string
 }
+interface Remembered {
+  instanceUrl: string
+  method: string
+  savedAt: string
+}
 
-const isoDay = (offsetDays: number) => new Date(Date.now() + offsetDays * 86_400_000).toISOString().slice(0, 10)
+const DAY = 86_400_000
+const isoDay = (t: number) => new Date(t).toISOString().slice(0, 10)
+const yesterday = () => isoDay(Date.now() - DAY)
+const addDays = (iso: string, n: number) => isoDay(Date.parse(`${iso}T00:00:00Z`) + n * DAY)
+const minIso = (a: string, b: string) => (a < b ? a : b)
+const validUrl = (u: string) => /^https:\/\/[^/\s]+\.[^/\s]+/.test(u.trim())
+const origin = (u: string) => {
+  try {
+    return new URL(u.trim()).origin
+  } catch {
+    return ''
+  }
+}
 
-// One flow: credential → list Tenants → pick Tenant and period → create the PoC and start its first Sync
-// with the same credential, which is then dropped.
+function Block({ title, help, done, locked, children }: { title: string; help?: string; done?: boolean; locked?: boolean; children: ReactNode }) {
+  return (
+    <section className={`card space-y-3 transition ${locked ? 'pointer-events-none opacity-40' : ''}`} aria-disabled={locked}>
+      <h2 className="flex items-center gap-2 font-semibold">
+        <span className={`inline-flex h-5 w-5 items-center justify-center rounded-full text-xs ${done ? 'bg-green-600 text-white' : 'bg-slate-200 text-slate-600'}`}>{done ? '✓' : ''}</span>
+        {title}
+      </h2>
+      {help ? <p className="text-sm text-slate-500">{help}</p> : null}
+      {children}
+    </section>
+  )
+}
+
+/**
+ * Create PoC, one page: Customer (optional) → Instance + API key → Tenant (auto) → period → Run Sync.
+ * "Run Sync" creates a Draft PoC; the details form opens while the Sync runs; Save completes the PoC
+ * and opens its Report as soon as the collection ends.
+ */
 export function PocNewPage() {
   const { t } = useI18n()
   const navigate = useNavigate()
+  const customers = useCustomers()
+  const remembered = useQuery({ queryKey: ['remembered'], queryFn: () => api<Remembered[]>('/stellar/credentials') })
+
+  const [customerId, setCustomerId] = useState<string | null>(null)
+  const [dialog, setDialog] = useState(false)
   const [instanceUrl, setInstanceUrl] = useState('https://')
   const [credential, setCredential] = useState<StellarCredential>({ method: 'apiKey', apiKey: '' })
+  const [remember, setRemember] = useState(true)
+  const [useStored, setUseStored] = useState(true)
   const [tenants, setTenants] = useState<Tenant[] | null>(null)
+  const [tenantsError, setTenantsError] = useState<string | null>(null)
+  const [loadingTenants, setLoadingTenants] = useState(false)
+  const [filter, setFilter] = useState('')
   const [tenantId, setTenantId] = useState('')
+  const [start, setStart] = useState('')
+  const [end, setEnd] = useState('')
+  const [pocId, setPocId] = useState<string | null>(null)
+  const [syncId, setSyncId] = useState<string | null>(null)
   const [details, setDetails] = useState<PocDetails>(emptyDetails())
-  const [customerId, setCustomerId] = useState<string | null>(null)
-  const [period, setPeriod] = useState({ start: isoDay(-30), end: isoDay(-1) })
   const [error, setError] = useState<string | null>(null)
   const [busy, setBusy] = useState(false)
+  const [saved, setSaved] = useState(false)
+  const sync = useSync(syncId).data
 
-  const run = async (fn: () => Promise<void>) => {
+  const url = origin(instanceUrl)
+  const stored = (remembered.data ?? []).find((r) => r.instanceUrl === url)
+  const usingStored = Boolean(stored) && useStored
+  const typed = credential.method === 'apiKey' ? credential.apiKey.trim().length >= 8 : credential.username.trim() !== '' && credential.token !== ''
+  const ready = validUrl(instanceUrl) && (usingStored || typed)
+
+  // A Customer with a known Instance prefills the URL.
+  const pickCustomer = (id: string | null) => {
+    setCustomerId(id)
+    const c = customers.data?.find((x) => x.id === id)
+    if (c?.instanceUrl && (!validUrl(instanceUrl) || instanceUrl === 'https://')) setInstanceUrl(c.instanceUrl)
+  }
+
+  // Tenants are looked up automatically once URL and credential are there (1 s after the last keystroke).
+  const lookup = useRef(0)
+  useEffect(() => {
+    if (!ready || pocId) return
+    const n = ++lookup.current
+    const timer = setTimeout(async () => {
+      setLoadingTenants(true)
+      setTenantsError(null)
+      try {
+        const list = await api<Tenant[]>('/stellar/tenants', { method: 'POST', body: { instanceUrl: url, credential: usingStored ? undefined : credential, remember: !usingStored && remember } })
+        if (n !== lookup.current) return
+        setTenants(list)
+        if (list.length === 1) setTenantId(list[0]!.id)
+        if (!usingStored && remember) void remembered.refetch()
+      } catch (err) {
+        if (n === lookup.current) {
+          setTenants(null)
+          setTenantsError(t(errorKey(err)))
+        }
+      } finally {
+        if (n === lookup.current) setLoadingTenants(false)
+      }
+    }, 1000)
+    return () => clearTimeout(timer)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [ready, url, usingStored, credential, remember, pocId])
+
+  const tenant = tenants?.find((x) => x.id === tenantId)
+  const shown = useMemo(() => (tenants ?? []).filter((x) => `${x.name} ${x.group}`.toLowerCase().includes(filter.toLowerCase())), [tenants, filter])
+  const groups = useMemo(() => [...new Set(shown.map((x) => x.group))].sort(), [shown])
+
+  const periodOk = Boolean(start && end && start <= end && end <= yesterday() && (Date.parse(end) - Date.parse(start)) / DAY + 1 <= 30)
+
+  const runSync = async () => {
+    if (!tenant || !periodOk) return
     setBusy(true)
     setError(null)
     try {
-      await fn()
+      const draft = { ...details, customerName: details.customerName || tenant.name }
+      const poc = await api<{ id: string }>('/pocs', { method: 'POST', body: { instanceUrl: url, customerId, draft: true, tenant: { id: tenant.id, name: tenant.name }, period: { start, end }, details: draft } })
+      setPocId(poc.id)
+      setDetails(draft)
+      const s = await api<{ syncId: string }>(`/pocs/${poc.id}/syncs`, { method: 'POST', body: { credential: usingStored ? undefined : credential, remember: !usingStored && remember } })
+      setSyncId(s.syncId)
     } catch (err) {
       setError(t(errorKey(err)))
     } finally {
@@ -43,76 +146,154 @@ export function PocNewPage() {
     }
   }
 
-  const loadTenants = (e: FormEvent) => {
-    e.preventDefault()
-    void run(async () => {
-      const list = await api<Tenant[]>('/stellar/tenants', { method: 'POST', body: { instanceUrl, credential } })
-      setTenants(list)
-      setTenantId(list[0]?.id ?? '')
-      setDetails((d) => (d.customerName ? d : { ...d, customerName: list[0]?.name ?? '' }))
-    })
+  const save = async () => {
+    if (!pocId) return
+    setBusy(true)
+    setError(null)
+    try {
+      await api(`/pocs/${pocId}`, { method: 'PATCH', body: { finalize: true, details: { ...details, analysts: details.analysts.map((a) => a.trim()).filter(Boolean) } } })
+      setSaved(true)
+    } catch (err) {
+      setError(t(errorKey(err)))
+    } finally {
+      setBusy(false)
+    }
   }
 
-  const create = (e: FormEvent) => {
-    e.preventDefault()
-    const tenant = tenants?.find((x) => x.id === tenantId)
-    if (!tenant) return
-    void run(async () => {
-      const poc = await api<{ id: string }>('/pocs', {
-        method: 'POST',
-        body: { instanceUrl, customerId, tenant: { id: tenant.id, name: tenant.name }, period, details: { ...details, analysts: details.analysts.map((a) => a.trim()).filter(Boolean) } },
-      })
-      await api(`/pocs/${poc.id}/syncs`, { method: 'POST', body: { credential } })
-      navigate(`/pocs/${poc.id}`)
-    })
+  // After Save, open the Report as soon as the collection is over.
+  useEffect(() => {
+    if (saved && pocId && sync && !isRunning(sync)) navigate(`/pocs/${pocId}`)
+  }, [saved, pocId, sync, navigate])
+
+  const forget = async () => {
+    await api(`/stellar/credentials?instanceUrl=${encodeURIComponent(url)}`, { method: 'DELETE' })
+    void remembered.refetch()
   }
 
+  const locked = Boolean(pocId)
   return (
-    <div className="mx-auto max-w-3xl space-y-6">
-      <h1 className="text-xl font-semibold">{t('poc.new')}</h1>
-      <form className="card space-y-4" onSubmit={loadTenants}>
+    <div className="mx-auto max-w-3xl space-y-4">
+      <h1 className="text-xl font-semibold">{t('poc.create')}</h1>
+
+      <Block title={t('wiz.customerTitle')} help={t('wiz.customerHelp')} done={Boolean(customerId)} locked={locked}>
+        <div className="flex gap-2">
+          <select className="input" value={customerId ?? ''} onChange={(e) => pickCustomer(e.target.value || null)}>
+            <option value="">{t('form.noCustomer')}</option>
+            {(customers.data ?? []).map((c) => (
+              <option key={c.id} value={c.id}>
+                {c.name}
+              </option>
+            ))}
+          </select>
+          <button type="button" className="btn shrink-0" onClick={() => setDialog(true)} aria-label={t('wiz.newCustomer')} title={t('wiz.newCustomer')}>
+            +
+          </button>
+        </div>
+        <CustomerDialog
+          open={dialog}
+          onClose={() => setDialog(false)}
+          onCreated={(c) => {
+            setCustomerId(c.id)
+            if (c.instanceUrl && !validUrl(instanceUrl)) setInstanceUrl(c.instanceUrl)
+          }}
+        />
+      </Block>
+
+      <Block title={t('wiz.instanceTitle')} done={Boolean(tenants)} locked={locked}>
         <label className="block">
           <span className="label">{t('poc.instance')}</span>
-          <input className="input" type="url" required value={instanceUrl} onChange={(e) => setInstanceUrl(e.target.value)} />
+          <input className="input" type="url" list="known-instances" required value={instanceUrl} onChange={(e) => setInstanceUrl(e.target.value)} />
+          <datalist id="known-instances">
+            {[...new Set([...(remembered.data ?? []).map((r) => r.instanceUrl), ...(customers.data ?? []).flatMap((c) => (c.instanceUrl ? [c.instanceUrl] : []))])].map((u) => (
+              <option key={u} value={u} />
+            ))}
+          </datalist>
         </label>
-        <CredentialFields value={credential} onChange={setCredential} />
-        <button className="btn" disabled={busy}>
-          {t('common.continue')}
-        </button>
-      </form>
+        {stored && useStored ? (
+          <p className="flex flex-wrap items-center gap-3 text-sm">
+            <span className="rounded bg-green-100 px-2 py-1 text-green-800">✓ {t('wiz.remembered')}</span>
+            <button type="button" className="text-brand underline" onClick={() => setUseStored(false)}>
+              {t('wiz.useOther')}
+            </button>
+            <button type="button" className="text-red-600 underline" onClick={() => void forget()}>
+              {t('wiz.forget')}
+            </button>
+          </p>
+        ) : (
+          <>
+            <CredentialFields value={credential} onChange={setCredential} />
+            <label className="flex items-center gap-2 text-sm">
+              <input type="checkbox" checked={remember} onChange={(e) => setRemember(e.target.checked)} />
+              {t('wiz.remember')}
+            </label>
+          </>
+        )}
+        {loadingTenants ? <p className="text-sm text-slate-500">{t('wiz.loadingTenants')}</p> : null}
+        {tenantsError ? <p className="text-sm text-red-600" role="alert">{tenantsError}</p> : null}
+      </Block>
 
-      {tenants ? (
-        <form className="card space-y-4" onSubmit={create}>
-          <label className="block">
-            <span className="label">{t('poc.tenant')}</span>
-            <select className="input" value={tenantId} onChange={(e) => setTenantId(e.target.value)}>
-              {tenants.map((x) => (
-                <option key={x.id} value={x.id}>
-                  {x.group ? `${x.group} / ` : ''}
-                  {x.name}
-                </option>
-              ))}
-            </select>
-          </label>
-          <CustomerSelect value={customerId} onChange={setCustomerId} />
-          <div className="grid gap-3 sm:grid-cols-2">
-            <label className="block">
-              <span className="label">{t('poc.period')}</span>
-              <input className="input" type="date" required value={period.start} onChange={(e) => setPeriod((p) => ({ ...p, start: e.target.value }))} />
-            </label>
-            <label className="block">
-              <span className="label">&nbsp;</span>
-              <input className="input" type="date" required value={period.end} onChange={(e) => setPeriod((p) => ({ ...p, end: e.target.value }))} />
-            </label>
-          </div>
-          <PocForm value={details} onChange={setDetails} />
-          <button className="btn" disabled={busy}>
-            {t('sync.start')}
+      <Block title={t('wiz.tenantTitle')} done={Boolean(tenant)} locked={!tenants || locked}>
+        {tenants && tenants.length > 8 ? <input className="input" placeholder={t('wiz.searchTenant')} value={filter} onChange={(e) => setFilter(e.target.value)} /> : null}
+        <select className="input" size={Math.min(8, Math.max(2, shown.length + groups.length))} value={tenantId} onChange={(e) => setTenantId(e.target.value)}>
+          {groups.map((g) => (
+            <optgroup key={g || '-'} label={g || '—'}>
+              {shown
+                .filter((x) => x.group === g)
+                .map((x) => (
+                  <option key={x.id} value={x.id}>
+                    {x.name}
+                  </option>
+                ))}
+            </optgroup>
+          ))}
+        </select>
+      </Block>
+
+      <Block title={t('wiz.periodTitle')} help={t('wiz.periodHelp')} done={periodOk} locked={!tenant || locked}>
+        <div className="grid gap-3 sm:grid-cols-2">
+          <DateInput
+            label={t('wiz.start')}
+            required
+            value={start}
+            max={yesterday()}
+            onChange={(iso) => {
+              setStart(iso)
+              if (!end || end < iso || (Date.parse(end) - Date.parse(iso)) / DAY + 1 > 30) setEnd(minIso(addDays(iso, 29), yesterday()))
+            }}
+          />
+          <DateInput label={t('wiz.end')} required value={end} min={start || undefined} max={start ? minIso(addDays(start, 29), yesterday()) : yesterday()} onChange={setEnd} />
+        </div>
+        {start && !periodOk ? <p className="text-sm text-red-600">{t('err.period')}</p> : null}
+        {!pocId ? (
+          <button type="button" className="btn" disabled={!periodOk || busy || !tenant} onClick={() => void runSync()}>
+            {t('wiz.runSync')}
           </button>
-        </form>
+        ) : null}
+      </Block>
+
+      {syncId ? <SyncBar sync={sync} label={saved ? t('wiz.waiting', { p: syncPct(sync) }) : undefined} /> : null}
+      {error ? (
+        <p className="text-sm text-red-600" role="alert">
+          {error}
+        </p>
       ) : null}
 
-      {error ? <p className="text-sm text-red-600" role="alert">{error}</p> : null}
+      {pocId ? (
+        <Block title={t('wiz.detailsTitle')} help={t('wiz.detailsHelp')} done={saved}>
+          <PocForm value={details} onChange={setDetails} />
+          <div className="flex items-center gap-3">
+            <button type="button" className="btn" disabled={busy} onClick={() => void save()}>
+              {t('common.save')}
+            </button>
+            {saved && isRunning(sync) ? <span className="text-sm text-slate-500">{t('wiz.waiting', { p: syncPct(sync) })}</span> : null}
+            {saved && sync?.status === 'failed' ? (
+              <button type="button" className="btn-ghost" onClick={() => navigate(`/pocs/${pocId}`)}>
+                {t('report.view')}
+              </button>
+            ) : null}
+          </div>
+        </Block>
+      ) : null}
     </div>
   )
 }

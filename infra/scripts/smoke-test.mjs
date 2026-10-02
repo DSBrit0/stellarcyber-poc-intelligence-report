@@ -68,6 +68,20 @@ try {
   })
   check('SSRF guard blocks private Instance', ssrf.status === 502 && ssrf.data.error === 'stellar_network', JSON.stringify(ssrf.data))
 
+  // Create-PoC flow: a Draft PoC is created by "Run Sync" and completed by Save.
+  const draft = await call('/pocs', {
+    method: 'POST',
+    body: { instanceUrl: 'https://smoke.example.com', draft: true, tenant: { id: 't-draft', name: 'Draft Tenant' }, period: { start: '2026-09-01', end: '2026-09-10' }, details: { customerName: 'Draft Tenant' } },
+  })
+  check('Run Sync creates a Draft PoC', draft.status === 201 && draft.data.draft === true)
+  check('the list marks the Draft', (await call('/pocs')).data.some((p) => p.id === draft.data.id && p.draft === true))
+  const noCred = await call(`/pocs/${draft.data.id}/syncs`, { method: 'POST', body: {} })
+  check('Sync without a typed or remembered key asks for one', noCred.status === 400 && noCred.data.error === 'credential_required')
+  check('no remembered credentials in a new browser', JSON.stringify((await call('/stellar/credentials')).data) === '[]')
+  await call(`/pocs/${draft.data.id}`, { method: 'PATCH', body: { finalize: true, details: { customerName: 'Draft Saved' } } })
+  check('Save completes the Draft', (await call(`/pocs/${draft.data.id}`)).data.draft === false)
+  await call(`/pocs/${draft.data.id}`, { method: 'DELETE' })
+
   const poc = await call('/pocs', {
     method: 'POST',
     body: {
@@ -100,6 +114,10 @@ try {
     gaps: [],
   }
   const [report] = await sql`INSERT INTO report_data (poc_id, version, data) VALUES (${poc.data.id}, ${data.version}, ${sql.json(data)}) RETURNING id`
+
+  const withReports = await call(`/pocs/${poc.data.id}`)
+  const w = withReports.data.reports[0]
+  check('Report row carries its widgets', w && w.cases === 30 && w.alerts === 300 && w.assetsAvg === 114 && w.assetsPeak === 127 && Math.abs(w.volumeGb - daily.reduce((n, d) => n + d.value, 0)) < 1e-6, JSON.stringify(w))
 
   for (const template of ['technical', 'executive', 'insight']) {
     const html = await call(`/report-data/${report.id}/html?template=${template}&locale=pt-BR`)
@@ -136,7 +154,8 @@ try {
   check('presentation mode has a nonce-bound script', present.status === 200 && /<script nonce="[^"]+">/.test(String(present.data)) && /script-src 'nonce-/.test(present.headers.get('content-security-policy') ?? ''))
 
   // Customer access: registered in advance, linked by company name + Access Key, approved by the owner.
-  const customer = await call('/customers', { method: 'POST', body: { name: `Smoke Customer ${Date.now()}` } })
+  const customer = await call('/customers', { method: 'POST', body: { name: `Smoke Customer ${Date.now()}`, instanceUrl: 'https://smoke.example.com/' } })
+  check('Customer keeps its Instance URL', customer.data.instanceUrl === 'https://smoke.example.com')
   check('create Customer returns an access key once', customer.status === 201 && /^\w{4}-\w{4}-\w{4}$/.test(customer.data.accessKey))
   customerId = customer.data.id
   check('link PoC to Customer', (await call(`/pocs/${poc.data.id}`, { method: 'PATCH', body: { customerId } })).status === 200)

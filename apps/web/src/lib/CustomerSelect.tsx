@@ -5,6 +5,7 @@ import { useI18n } from './i18n'
 export interface CustomerRow {
   id: string
   name: string
+  instanceUrl: string | null
   pocs: number
   users: number
   pending: number

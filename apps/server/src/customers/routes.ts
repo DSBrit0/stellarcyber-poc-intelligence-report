@@ -1,4 +1,4 @@
-import { CreateCustomerInput, customerNameKey } from '@poc-intel/shared'
+import { CreateCustomerInput, UpdateCustomerInput, customerNameKey } from '@poc-intel/shared'
 import { and, desc, eq, sql as dsql } from 'drizzle-orm'
 import type { FastifyInstance, FastifyRequest } from 'fastify'
 import { z } from 'zod'
@@ -29,6 +29,7 @@ export async function customerRoutes(app: FastifyInstance): Promise<void> {
       .select({
         id: customers.id,
         name: customers.name,
+        instanceUrl: customers.instanceUrl,
         ownerId: customers.ownerId,
         createdAt: customers.createdAt,
         pocs: dsql<number>`(SELECT count(*)::int FROM ${pocs} WHERE ${pocs.customerId} = ${customers.id})`,
@@ -44,16 +45,31 @@ export async function customerRoutes(app: FastifyInstance): Promise<void> {
   // The Access Key is returned once; only its hash is stored.
   app.post('/customers', async (req, reply) => {
     const { user } = staff(req)
-    const { name } = parse(CreateCustomerInput, req.body)
+    const { name, instanceUrl } = parse(CreateCustomerInput, req.body)
     const accessKey = newAccessKey()
     const [c] = await db
       .insert(customers)
-      .values({ name, nameKey: customerNameKey(name), ownerId: user.id, accessKeyHash: sha256(normalizeAccessKey(accessKey)) })
+      .values({ name, nameKey: customerNameKey(name), instanceUrl: instanceUrl ?? null, ownerId: user.id, accessKeyHash: sha256(normalizeAccessKey(accessKey)) })
       .onConflictDoNothing({ target: customers.nameKey })
-      .returning({ id: customers.id, name: customers.name })
+      .returning({ id: customers.id, name: customers.name, instanceUrl: customers.instanceUrl })
     if (!c) throw new HttpError(409, 'customer_exists')
     await audit({ action: 'customer.created', userId: user.id, target: c.id, ip: req.ip })
     return reply.code(201).send({ ...c, accessKey })
+  })
+
+  app.patch('/customers/:id', async (req) => {
+    const c = await loadOwnCustomer(req, parse(IdParam, req.params).id)
+    const patch = parse(UpdateCustomerInput, req.body)
+    const [updated] = await db
+      .update(customers)
+      .set({
+        ...(patch.name ? { name: patch.name, nameKey: customerNameKey(patch.name) } : {}),
+        ...(patch.instanceUrl !== undefined ? { instanceUrl: patch.instanceUrl } : {}),
+        updatedAt: dsql`now()`,
+      })
+      .where(eq(customers.id, c.id))
+      .returning({ id: customers.id, name: customers.name, instanceUrl: customers.instanceUrl })
+    return updated
   })
 
   app.post('/customers/:id/access-key', async (req) => {
