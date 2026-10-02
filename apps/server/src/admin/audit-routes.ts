@@ -124,7 +124,7 @@ function csv(rows: Record<string, unknown>[]): string {
 
 /** The old app's text log format: [LEVEL] time [source/category] message, then the context. */
 const txtLine = (r: Record<string, unknown>) => {
-  const head = `[${String(r.level ?? '').toUpperCase()}] ${(r.at as Date).toISOString().replace('T', ' ').slice(0, 19)} [${r.source ?? ''}/${r.category ?? ''}] ${r.message ?? ''}`
+  const head = `[${String(r.level ?? '').toUpperCase()}] ${new Date(r.at as string).toISOString().replace('T', ' ').slice(0, 19)} [${r.source ?? ''}/${r.category ?? ''}] ${r.message ?? ''}`
   return r.context == null ? head : `${head}\n${JSON.stringify(r.context, null, 2)}`
 }
 

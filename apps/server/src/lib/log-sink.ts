@@ -32,7 +32,8 @@ export async function flush(): Promise<void> {
     for (let i = 0; i < l.length; i += 500) await db.insert(appLogs).values(l.slice(i, i + 500))
     for (let i = 0; i < c.length; i += 500) await db.insert(apiCalls).values(c.slice(i, i + 500))
   } catch (err) {
-    console.error('[log-sink] could not persist', l.length, 'log lines and', c.length, 'API calls:', (err as Error).message)
+    const cause = (err as { cause?: Error }).cause?.message ?? (err as Error).message.split('\n')[0]
+    console.error('[log-sink] could not persist', l.length, 'log lines and', c.length, 'API calls:', cause)
   }
 }
 
