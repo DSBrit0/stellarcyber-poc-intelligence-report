@@ -102,8 +102,11 @@ for (const inst of instances) {
     const t0 = Date.now()
     const row: Row = { instance: host, tenant: tenant.name, tenantId: tenant.id, seconds: 0, status: 'ok', anomalies: [] }
     try {
+      // One client per Tenant, as a real Sync has: its request statistics must not mix Tenants.
+      const tenantClient = new StellarClient(inst.url, { method: 'apiKey', apiKey: inst.key }, dispatcher)
+      await tenantClient.authenticate()
       const data = await collectReportData(
-        client,
+        tenantClient,
         { instanceUrl: inst.url, tenant: { id: tenant.id, name: tenant.name }, period },
         { log: { warn: (o) => row.anomalies.push(`warn:${JSON.stringify(o).slice(0, 160)}`) }, onProgress: () => {}, onMetrics: (m) => (row.metrics = m) },
       )

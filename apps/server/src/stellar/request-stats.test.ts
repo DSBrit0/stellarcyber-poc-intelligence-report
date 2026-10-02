@@ -24,4 +24,12 @@ describe('request stats', () => {
     s.start()
     expect(s.peakInFlight).toBe(2)
   })
+
+  it('returns a snapshot that later requests do not change', () => {
+    const s = new RequestStats()
+    s.record('/connect/api/v1/cases', 200, 5, 1, false)
+    const first = s.endpoints()
+    s.record('/connect/api/v1/cases', 500, 5, 1, false)
+    expect(first.cases).toMatchObject({ requests: 1, status: { '200': 1 } })
+  })
 })

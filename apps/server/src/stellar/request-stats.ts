@@ -64,7 +64,7 @@ export class RequestStats {
     return Object.fromEntries(
       [...this.#stats].map(([group, s]) => {
         const l = [...(this.#latencies.get(group) ?? [])].sort((a, b) => a - b)
-        return [group, { ...s, ms: { total: Math.round(l.reduce((a, b) => a + b, 0)), p50: Math.round(quantile(l, 0.5)), p95: Math.round(quantile(l, 0.95)), max: Math.round(l[l.length - 1] ?? 0) } }]
+        return [group, { ...s, status: { ...s.status }, ms: { total: Math.round(l.reduce((a, b) => a + b, 0)), p50: Math.round(quantile(l, 0.5)), p95: Math.round(quantile(l, 0.95)), max: Math.round(l[l.length - 1] ?? 0) } }]
       }),
     )
   }
