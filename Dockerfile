@@ -33,7 +33,9 @@ CMD ["node", "--enable-source-maps", "dist/main.js"]
 FROM api AS worker
 USER root
 ENV PLAYWRIGHT_BROWSERS_PATH=/ms-playwright
+# fonts-liberation: metric-compatible Helvetica/Arial, the Reports' typeface (the previous PDF used Helvetica).
 RUN node /app/node_modules/playwright/cli.js install --with-deps chromium \
+  && apt-get update && apt-get install -y --no-install-recommends fonts-liberation fonts-liberation2 \
   && rm -rf /var/lib/apt/lists/*
 USER node
 CMD ["node", "--enable-source-maps", "dist/worker.js"]

@@ -65,11 +65,11 @@ export function Table({ head, rows, compact, className }: { head: ReactNode[]; r
 export type Tone = 'navy' | 'brand' | 'mid' | 'cyan' | 'crit' | 'high' | 'med' | 'ok' | 'muted'
 
 /** Solid KPI cards (Technical) or light tiles with a colored edge (Executive). */
-export function Kpis({ rc, items }: { rc: ReportContext; items: { label: string; value: string; tone: Tone }[] }) {
+export function Kpis({ rc, items }: { rc: ReportContext; items: { label: string; value: string; tone: Tone; tip?: string }[] }) {
   return (
     <div className={`kpis ${rc.template === 'executive' ? 'tiles' : 'solid'}`}>
       {items.map((k) => (
-        <div key={k.label} className={`kpi tone-${k.tone}`}>
+        <div key={k.label} className={`kpi tone-${k.tone}`} data-tip={k.tip ? `${k.label}: ${k.value} — ${k.tip}` : undefined}>
           <div className="kpi-value">{k.value}</div>
           <div className="kpi-label">{k.label}</div>
         </div>

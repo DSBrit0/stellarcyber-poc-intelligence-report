@@ -1,8 +1,10 @@
-import type { StellarCredential } from '@poc-intel/shared'
+import type { PocDetails, StellarCredential } from '@poc-intel/shared'
 import { useState, type FormEvent } from 'react'
 import { useNavigate } from 'react-router'
 import { api } from '../lib/api'
 import { CredentialFields } from '../lib/CredentialFields'
+import { CustomerSelect } from '../lib/CustomerSelect'
+import { PocForm, emptyDetails } from '../lib/PocForm'
 import { errorKey } from '../lib/errors'
 import { useI18n } from '../lib/i18n'
 
@@ -23,7 +25,8 @@ export function PocNewPage() {
   const [credential, setCredential] = useState<StellarCredential>({ method: 'apiKey', apiKey: '' })
   const [tenants, setTenants] = useState<Tenant[] | null>(null)
   const [tenantId, setTenantId] = useState('')
-  const [customerName, setCustomerName] = useState('')
+  const [details, setDetails] = useState<PocDetails>(emptyDetails())
+  const [customerId, setCustomerId] = useState<string | null>(null)
   const [period, setPeriod] = useState({ start: isoDay(-30), end: isoDay(-1) })
   const [error, setError] = useState<string | null>(null)
   const [busy, setBusy] = useState(false)
@@ -46,6 +49,7 @@ export function PocNewPage() {
       const list = await api<Tenant[]>('/stellar/tenants', { method: 'POST', body: { instanceUrl, credential } })
       setTenants(list)
       setTenantId(list[0]?.id ?? '')
+      setDetails((d) => (d.customerName ? d : { ...d, customerName: list[0]?.name ?? '' }))
     })
   }
 
@@ -56,7 +60,7 @@ export function PocNewPage() {
     void run(async () => {
       const poc = await api<{ id: string }>('/pocs', {
         method: 'POST',
-        body: { instanceUrl, tenant: { id: tenant.id, name: tenant.name }, period, details: { customerName } },
+        body: { instanceUrl, customerId, tenant: { id: tenant.id, name: tenant.name }, period, details: { ...details, analysts: details.analysts.map((a) => a.trim()).filter(Boolean) } },
       })
       await api(`/pocs/${poc.id}/syncs`, { method: 'POST', body: { credential } })
       navigate(`/pocs/${poc.id}`)
@@ -64,7 +68,7 @@ export function PocNewPage() {
   }
 
   return (
-    <div className="mx-auto max-w-2xl space-y-6">
+    <div className="mx-auto max-w-3xl space-y-6">
       <h1 className="text-xl font-semibold">{t('poc.new')}</h1>
       <form className="card space-y-4" onSubmit={loadTenants}>
         <label className="block">
@@ -90,10 +94,7 @@ export function PocNewPage() {
               ))}
             </select>
           </label>
-          <label className="block">
-            <span className="label">{t('poc.customer')}</span>
-            <input className="input" required value={customerName} onChange={(e) => setCustomerName(e.target.value)} />
-          </label>
+          <CustomerSelect value={customerId} onChange={setCustomerId} />
           <div className="grid gap-3 sm:grid-cols-2">
             <label className="block">
               <span className="label">{t('poc.period')}</span>
@@ -104,6 +105,7 @@ export function PocNewPage() {
               <input className="input" type="date" required value={period.end} onChange={(e) => setPeriod((p) => ({ ...p, end: e.target.value }))} />
             </label>
           </div>
+          <PocForm value={details} onChange={setDetails} />
           <button className="btn" disabled={busy}>
             {t('sync.start')}
           </button>

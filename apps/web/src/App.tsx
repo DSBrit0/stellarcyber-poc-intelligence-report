@@ -7,6 +7,7 @@ import { api } from './lib/api'
 import { useMe } from './lib/auth'
 import { useI18n } from './lib/i18n'
 import { AdminPage } from './pages/Admin'
+import { CustomersPage } from './pages/Customers'
 import { LoginPage } from './pages/Login'
 import { PocDetailPage } from './pages/PocDetail'
 import { PocListPage } from './pages/PocList'
@@ -23,6 +24,7 @@ export function App() {
         <Route path="/pocs/new" element={<Shell><PocNewPage /></Shell>} />
         <Route path="/pocs/:id" element={<Shell><PocDetailPage /></Shell>} />
         <Route path="/admin" element={<Shell adminOnly><AdminPage /></Shell>} />
+        <Route path="/customers" element={<Shell staffOnly><CustomersPage /></Shell>} />
         <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>
     </BrowserRouter>
@@ -47,7 +49,7 @@ export function LocaleSwitch() {
   )
 }
 
-function Shell({ children, adminOnly }: { children: ReactNode; adminOnly?: boolean }) {
+function Shell({ children, adminOnly, staffOnly }: { children: ReactNode; adminOnly?: boolean; staffOnly?: boolean }) {
   const { data: me, isLoading } = useMe()
   const { t } = useI18n()
   const qc = useQueryClient()
@@ -55,6 +57,7 @@ function Shell({ children, adminOnly }: { children: ReactNode; adminOnly?: boole
   if (isLoading) return null
   if (!me) return <Navigate to="/login" replace />
   if (adminOnly && me.role !== 'admin') return <Navigate to="/" replace />
+  if (staffOnly && me.role === 'customer') return <Navigate to="/" replace />
 
   const signOut = async () => {
     await api('/auth/logout', { method: 'POST' })
@@ -70,6 +73,7 @@ function Shell({ children, adminOnly }: { children: ReactNode; adminOnly?: boole
           </Link>
           <nav className="flex gap-4 text-sm">
             <Link to="/">{t('nav.pocs')}</Link>
+            {me.role !== 'customer' ? <Link to="/customers">{t('nav.customers')}</Link> : null}
             {me.role === 'admin' ? <Link to="/admin">{t('nav.admin')}</Link> : null}
           </nav>
           <div className="ml-auto flex items-center gap-3 text-sm">

@@ -34,7 +34,7 @@ export function Section5({ rc }: { rc: ReportContext }) {
               const r = e ? Math.log(1 + e.alertCount) / Math.log(1 + maxAlerts) : -1
               const level = r < 0 ? 'none' : r > 0.75 ? 'high' : r > 0.4 ? 'mid' : 'low'
               return (
-                <div key={tac.id} className={`tactic heat-${level}`}>
+                <div key={tac.id} className={`tactic heat-${level}`} data-tip={`${tac.id} ${tac.name}: ${e ? rc.x('tipTacticDetected', { c: fmt.num(e.caseCount), a: fmt.num(e.alertCount) }) : rc.x('tipTacticNone')}`}>
                   <b>{tac.id}</b>
                   <span>{tac.name}</span>
                   <small>{e ? fmt.num(e.alertCount) : '—'}</small>
@@ -72,7 +72,11 @@ export function Section5({ rc }: { rc: ReportContext }) {
       ) : (
         <div className="tactic-grid">
           {ALL_TACTICS.map((tac) => (
-            <div key={tac.id} className={`tactic ${d.detectedTactics.has(tac.id) ? 'on' : 'off'}`}>
+            <div
+              key={tac.id}
+              className={`tactic ${d.detectedTactics.has(tac.id) ? 'on' : 'off'}`}
+              data-tip={`${tac.id} ${tac.name}: ${byId.get(tac.id) ? rc.x('tipTacticDetected', { c: fmt.num(byId.get(tac.id)!.caseCount), a: fmt.num(byId.get(tac.id)!.alertCount) }) : rc.x('tipTacticNone')}`}
+            >
               <b>{tac.id}</b>
               <span>{tac.name}</span>
             </div>

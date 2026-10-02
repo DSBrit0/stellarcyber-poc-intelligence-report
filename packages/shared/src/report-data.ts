@@ -5,7 +5,10 @@ import { z } from 'zod'
  * a Report renders it together with the PoC's current details.
  * Bump REPORT_DATA_VERSION on any breaking change and keep a reader for older versions.
  */
-export const REPORT_DATA_VERSION = 2
+export const REPORT_DATA_VERSION = 3
+
+export const AI_VERDICTS = ['True Positive', 'False Positive', 'Benign True Positive', 'Benign', 'Inconclusive'] as const
+export type AiVerdict = (typeof AI_VERDICTS)[number]
 
 const DailyPoint = z.object({ date: z.iso.date(), value: z.number() })
 
@@ -138,6 +141,13 @@ export const ReportData = z.object({
   tactics: Tactics,
   ingestion: z.object({ bySensor: z.array(IngestionEntry), byConnector: z.array(IngestionEntry) }),
   /** Collectors that failed; the Report shows their sections as unavailable. */
+  /** Present when the Owner marked AI Triage as tested. verdicts maps Key Case id → AI verdict. */
+  aiTriage: z
+    .object({
+      available: z.boolean(),
+      verdicts: z.record(z.string(), z.enum(AI_VERDICTS)),
+    })
+    .nullable(),
   gaps: z.array(z.object({ collector: z.string(), reason: z.string() })),
 })
 export type ReportData = z.infer<typeof ReportData>

@@ -23,6 +23,8 @@ export interface Slice {
   label: string
   value: number
   color?: string
+  /** Extra insight shown on hover in the interactive presentation. */
+  tip?: string
 }
 
 const polar = (cx: number, cy: number, r: number, deg: number) => {
@@ -75,8 +77,12 @@ export function Donut({
           const [lx, ly] = polar(60, 60, r * (cutout ? (1 + cutout) / 2 : 0.62), mid)
           const pct = fmtPct(s.value, total)
           return (
-            <g key={s.label}>
-              <path d={slices.filter((x) => x.value > 0).length === 1 ? arc(60, 60, r, r * cutout, 0, 359.999) : arc(60, 60, r, r * cutout, from, to)} fill={color} />
+            <g key={s.label} data-series={s.label}>
+              <path
+                d={slices.filter((x) => x.value > 0).length === 1 ? arc(60, 60, r, r * cutout, 0, 359.999) : arc(60, 60, r, r * cutout, from, to)}
+                fill={color}
+                data-tip={`${s.label}: ${format(s.value)} (${pct}%)${s.tip ? ` — ${s.tip}` : ''}`}
+              />
               {pct >= 6 && !center ? (
                 <text x={lx} y={ly} className="slice-label" textAnchor="middle" dominantBaseline="central">
                   {pct}%
@@ -101,7 +107,7 @@ export function Donut({
       {legend ? (
         <figcaption className="legend">
           {slices.map((s, i) => (
-            <span key={s.label}>
+            <span key={s.label} data-toggle={s.label}>
               <i style={{ background: s.color ?? PALETTE[i % PALETTE.length] }} />
               {s.label}: {format(s.value)} ({fmtPct(s.value, total)}%)
             </span>
@@ -117,7 +123,7 @@ export function Gauge({ pct, label, color = C.brand }: { pct: number; label: str
   const v = Math.max(0, Math.min(100, pct))
   return (
     <figure className="chart gauge">
-      <svg viewBox="0 0 120 105" role="img" aria-label={`${v}% ${label}`}>
+      <svg viewBox="0 0 120 105" role="img" aria-label={`${v}% ${label}`} data-tip={`${v}% · ${label}`}>
         <path d={arc(60, 60, 50, 32, -135, 135)} fill={C.muted} />
         {v > 0 ? <path d={arc(60, 60, 50, 32, -135, -135 + (270 * v) / 100)} fill={color} /> : null}
         <text x="60" y="58" textAnchor="middle" dominantBaseline="central" className="donut-center">
@@ -132,13 +138,13 @@ export function Gauge({ pct, label, color = C.brand }: { pct: number; label: str
 }
 
 /** Horizontal bars, one row per item, value printed after the bar. */
-export function HBars({ items, format = String }: { items: { label: string; value: number; color?: string }[]; format?: (v: number) => string }) {
+export function HBars({ items, format = String }: { items: { label: string; value: number; color?: string; tip?: string }[]; format?: (v: number) => string }) {
   if (items.length === 0) return null
   const max = Math.max(...items.map((i) => i.value), 1)
   return (
     <div className="hbars" role="list">
       {items.map((it) => (
-        <div className="hbar" role="listitem" key={it.label}>
+        <div className="hbar" role="listitem" key={it.label} data-tip={`${it.label}: ${format(it.value)}${it.tip ? ` — ${it.tip}` : ''}`}>
           <span className="hbar-label" title={it.label}>
             {it.label}
           </span>
@@ -232,7 +238,18 @@ export function Bars({
                 const v = s.values[i] ?? 0
                 const h = (v / max) * ih
                 y -= h
-                return v > 0 ? <rect key={s.name} x={i * bw + bw * 0.15} y={y} width={bw * 0.7} height={h} fill={colorAt?.(i) ?? s.color} /> : null
+                return v > 0 ? (
+                  <rect
+                    key={s.name}
+                    data-series={s.name}
+                    data-tip={`${labels[i]} · ${s.name}: ${yFormat ? yFormat(v) : v}`}
+                    x={i * bw + bw * 0.15}
+                    y={y}
+                    width={bw * 0.7}
+                    height={h}
+                    fill={colorAt?.(i) ?? s.color}
+                  />
+                ) : null
               })}
               {showValues && totals[i] ? (
                 <text x={i * bw + bw / 2} y={ih - (totals[i]! / max) * ih - 3} textAnchor="middle" className="tick strong">
@@ -274,9 +291,12 @@ export function Lines({
         {series.map((s) => {
           const pts = s.values.map((v, i) => `${x(i)},${y(v)}`).join(' ')
           return (
-            <g key={s.name}>
+            <g key={s.name} data-series={s.name}>
               <polygon points={`${x(0)},${ih} ${pts} ${x(s.values.length - 1)},${ih}`} fill={s.color} opacity="0.15" />
               <polyline points={pts} fill="none" stroke={s.color} strokeWidth="2" vectorEffect="non-scaling-stroke" />
+              {s.values.map((v, i) => (
+                <circle key={i} className="pt" cx={x(i)} cy={y(v)} r="4" fill={s.color} data-tip={`${labels[i]} · ${s.name}: ${yFormat ? yFormat(v) : v}`} />
+              ))}
             </g>
           )
         })}
@@ -292,7 +312,7 @@ export function Legend({ items }: { items: { label: string; color: string; dashe
   return (
     <div className="legend">
       {items.map((i) => (
-        <span key={i.label}>
+        <span key={i.label} data-toggle={i.label}>
           <i className={i.dashed ? 'dashed' : ''} style={i.dashed ? { borderColor: i.color } : { background: i.color }} />
           {i.label}
         </span>
@@ -323,13 +343,17 @@ export function Radar({ axes }: { axes: { label: string; value: number }[] }) {
           )
         })}
         <polygon points={axes.map((a, i) => pt(i, a.value / max).join(',')).join(' ')} fill={C.brand} fillOpacity="0.25" stroke={C.brand} strokeWidth="1.5" />
+        {axes.map((a, i) => {
+          const [x, y] = pt(i, a.value / max)
+          return <circle key={a.label} className="pt" cx={x} cy={y} r="3.5" fill={C.brand} data-tip={a.label} />
+        })}
       </svg>
     </figure>
   )
 }
 
 /** Weekday × hour heat grid. */
-export function HeatGrid({ grid, max, rows, scaleLabel }: { grid: number[][]; max: number; rows: string[]; scaleLabel: string }) {
+export function HeatGrid({ grid, max, rows, scaleLabel, tip }: { grid: number[][]; max: number; rows: string[]; scaleLabel: string; tip?: (day: string, hour: number, n: number) => string }) {
   return (
     <figure className="chart heat">
       <div className="heat-grid" style={{ gridTemplateColumns: `3em repeat(24, 1fr)` }}>
@@ -340,7 +364,7 @@ export function HeatGrid({ grid, max, rows, scaleLabel }: { grid: number[][]; ma
           </span>
         ))}
         {grid.map((row, d) => (
-          <Row key={d} label={rows[d] ?? ''} row={row} max={max} />
+          <Row key={d} label={rows[d] ?? ''} row={row} max={max} tip={tip} />
         ))}
       </div>
       <div className="legend">
@@ -356,12 +380,12 @@ export function HeatGrid({ grid, max, rows, scaleLabel }: { grid: number[][]; ma
   )
 }
 
-function Row({ label, row, max }: { label: string; row: number[]; max: number }) {
+function Row({ label, row, max, tip }: { label: string; row: number[]; max: number; tip?: (day: string, hour: number, n: number) => string }) {
   return (
     <>
       <span className="heat-d">{label}</span>
       {row.map((v, h) => (
-        <span key={h} className="heat-cell" style={heatStyle(v, max)}>
+        <span key={h} className="heat-cell" style={heatStyle(v, max)} data-tip={tip?.(label, h, v)}>
           {v || ''}
         </span>
       ))}

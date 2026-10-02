@@ -20,6 +20,7 @@ const data: ReportData = {
   keyCases: [],
   tactics: { mitre: { tactics: [], techniques: [] }, xdr: { tactics: [], techniques: [] }, byCase: {}, topAlerts: {}, pages: { fetched: 0, failed: 0, forbidden: 0 }, alertsMissing: 0, casesWithoutAlertAccess: 0 },
   ingestion: { bySensor: [], byConnector: [] },
+  aiTriage: null,
   gaps: [],
 }
 const details = PocDetails.parse({ customerName: 'ACME <Corp>', verdict: 'approved', comments: 'Great results' })

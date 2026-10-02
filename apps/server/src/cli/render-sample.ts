@@ -31,7 +31,7 @@ if (existsSync(cache)) {
   const iso = (o: number) => new Date(Date.now() - o * 86_400_000).toISOString().slice(0, 10)
   data = await collectReportData(
     client,
-    { instanceUrl: new URL(STELLAR_URL).origin, tenant: { id: STELLAR_TENANT, name: tenant?.name ?? STELLAR_TENANT }, period: { start: iso(days), end: iso(1) } },
+    { instanceUrl: new URL(STELLAR_URL).origin, tenant: { id: STELLAR_TENANT, name: tenant?.name ?? STELLAR_TENANT }, period: { start: iso(days), end: iso(1) }, aiTriage: process.env.AI_TRIAGE === '1' },
     { log: { warn: (o) => console.warn(o) }, onProgress: () => {} },
   )
   await writeFile(cache, JSON.stringify(data))
@@ -50,6 +50,7 @@ const details = PocDetails.parse({
   region: 'LATAM',
   verdict: 'conditional',
   comments: 'Sample comments for visual review.',
+  aiTriageTested: process.env.AI_TRIAGE === '1',
 })
 const locales = (process.env.LOCALES?.split(',') as Locale[] | undefined) ?? [...LOCALES]
 const files: string[] = []
@@ -63,7 +64,7 @@ console.log(files.join('\n'))
 
 if (process.env.PDF) {
   const { renderPdf } = await import('../report/pdf.js')
-  for (const f of files.filter((x) => x.includes(locales[0]!))) {
+  for (const f of files.filter((x) => x.includes(`-${locales[0]!}.`))) {
     await renderPdf(await readFile(f, 'utf8'), f.replace(/\.html$/, '.pdf'))
     console.log(f.replace(/\.html$/, '.pdf'))
   }

@@ -1,6 +1,8 @@
 import { z } from 'zod'
 
-export const ROLES = ['admin', 'sales_engineer', 'partner'] as const
+export const ROLES = ['admin', 'sales_engineer', 'partner', 'customer'] as const
+/** Roles that run PoCs (own them, Sync, edit). */
+export const STAFF_ROLES = ['admin', 'sales_engineer', 'partner'] as const
 export const Role = z.enum(ROLES)
 export type Role = z.infer<typeof Role>
 

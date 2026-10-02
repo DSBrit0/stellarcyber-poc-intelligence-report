@@ -1,4 +1,5 @@
-import type { CaseSummary, ReportData } from '@poc-intel/shared'
+import { AI_VERDICTS, type AiVerdict, type CaseSummary, type ReportData } from '@poc-intel/shared'
+import { z } from 'zod'
 import { runPool } from '../lib/pool.js'
 import { caseStats, selectKeyCases, toCaseSummary } from '../metrics/case-stats.js'
 import { TacticsAccumulator, type AlertSource } from '../metrics/tactics.js'
@@ -85,4 +86,29 @@ export async function collectIngestion(ctx: CollectContext): Promise<ReportData[
     bySensor: bySensor.map((r, i) => toIngestionEntry(r, i, 'sensor')),
     byConnector: byConnector.map((r, i) => toIngestionEntry(r, i, 'connector')),
   }
+}
+
+const AiVerdictsResponse = z.record(z.string(), z.unknown())
+const AI_BATCH = 500
+
+/**
+ * AI Triage verdicts of the Key Cases. Only Instances with AI Triage (7.x) expose the endpoint:
+ * 404/403 means "not available here", which the Report states, never a failed collector.
+ */
+export async function collectAiTriage(ctx: CollectContext, cases: CaseSummary[]): Promise<NonNullable<ReportData['aiTriage']>> {
+  const verdicts: Record<string, AiVerdict> = {}
+  for (let i = 0; i < cases.length; i += AI_BATCH) {
+    const ids = cases.slice(i, i + AI_BATCH).map((c) => c.id)
+    try {
+      const res = await ctx.client.post(ENDPOINTS.aiCaseVerdicts, { case_ids: ids }, AiVerdictsResponse)
+      for (const [id, v] of Object.entries(res)) {
+        const verdict = (v as { verdict?: unknown } | null)?.verdict
+        if (typeof verdict === 'string' && (AI_VERDICTS as readonly string[]).includes(verdict)) verdicts[id] = verdict as AiVerdict
+      }
+    } catch (err) {
+      if (err instanceof StellarApiError && (err.code === 'not_found' || err.code === 'forbidden')) return { available: false, verdicts: {} }
+      throw err
+    }
+  }
+  return { available: true, verdicts }
 }

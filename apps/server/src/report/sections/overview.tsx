@@ -143,13 +143,13 @@ function TechnicalKpis({ rc }: { rc: ReportContext }) {
       <Kpis
         rc={rc}
         items={[
-          { label: t('kpiCasesDetected'), value: fmt.num(d.totalCases), tone: 'brand' },
+          { label: t('kpiCasesDetected'), value: fmt.num(d.totalCases), tone: 'brand', tip: rc.x('kpiTipCases') },
           { label: t('kpiCritCases'), value: String(d.crit.length), tone: 'crit' },
-          { label: t('kpiOpenCases'), value: fmt.num(d.openCount), tone: 'high' },
+          { label: t('kpiOpenCases'), value: fmt.num(d.openCount), tone: 'high', tip: `${rc.x('kpiTipOpen')} ${fmt.pct(d.openCount, d.statusBase)}` },
           { label: t('kpiResolvedCases'), value: fmt.num(d.resolvedCount), tone: 'ok' },
-          { label: t('kpiAvgEntities'), value: d.assetStats ? fmt.num(d.assetStats.avg) : '—', tone: 'navy' },
-          { label: t('kpiActiveConn'), value: `${d.activeConnectors}/${data.connectors.length}`, tone: 'mid' },
-          { label: t('kpiMitreCov'), value: `${d.mitreCovPct}%`, tone: 'brand' },
+          { label: t('kpiAvgEntities'), value: d.assetStats ? fmt.num(d.assetStats.avg) : '—', tone: 'navy', tip: rc.x('kpiTipAssets') },
+          { label: t('kpiActiveConn'), value: `${d.activeConnectors}/${data.connectors.length}`, tone: 'mid', tip: rc.x('kpiTipConnectors') },
+          { label: t('kpiMitreCov'), value: `${d.mitreCovPct}%`, tone: 'brand', tip: rc.x('kpiTipMitre') },
         ]}
       />
       <Grid>
@@ -249,12 +249,12 @@ function ExecutiveDashboard({ rc }: { rc: ReportContext }) {
       <Kpis
         rc={rc}
         items={[
-          { label: t('kpiCasesDetected'), value: fmt.num(d.totalCases), tone: 'navy' },
+          { label: t('kpiCasesDetected'), value: fmt.num(d.totalCases), tone: 'navy', tip: rc.x('kpiTipCases') },
           { label: t('sevCritical'), value: fmt.num(d.crit.length), tone: 'crit' },
           { label: t('sevHigh'), value: fmt.num(d.high.length), tone: 'high' },
-          { label: `${t('kpiMitreCov')} (${d.detectedTactics.size}/14)`, value: `${d.mitreCovPct}%`, tone: 'brand' },
-          { label: t('kpiAvgEntities'), value: d.assetStats ? fmt.num(d.assetStats.avg) : '—', tone: 'mid' },
-          { label: t('metTotalIngested'), value: d.vol ? fmt.vol(d.vol.total) : '—', tone: 'cyan' },
+          { label: `${t('kpiMitreCov')} (${d.detectedTactics.size}/14)`, value: `${d.mitreCovPct}%`, tone: 'brand', tip: rc.x('kpiTipMitre') },
+          { label: t('kpiAvgEntities'), value: d.assetStats ? fmt.num(d.assetStats.avg) : '—', tone: 'mid', tip: rc.x('kpiTipAssets') },
+          { label: t('metTotalIngested'), value: d.vol ? fmt.vol(d.vol.total) : '—', tone: 'cyan', tip: rc.x('kpiTipVolume') },
         ]}
       />
       <div className="grid cols-57">

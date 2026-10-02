@@ -18,7 +18,8 @@ export function LoginPage() {
   const [error, setError] = useState<string | null>(null)
   const [busy, setBusy] = useState(false)
   const [qr, setQr] = useState<string | null>(null)
-  const [form, setForm] = useState({ email: '', password: '', name: '', company: '', code: '' })
+  const [form, setForm] = useState({ email: '', password: '', name: '', company: '', code: '', accessKey: '' })
+  const [isCustomer, setIsCustomer] = useState(false)
 
   if (me) return <Navigate to="/" replace />
 
@@ -51,7 +52,14 @@ export function LoginPage() {
       } else if (stage === 'register') {
         await api('/auth/register', {
           method: 'POST',
-          body: { email: form.email, password: form.password, name: form.name, company: form.company || undefined, locale },
+          body: {
+            email: form.email,
+            password: form.password,
+            name: form.name,
+            company: form.company || undefined,
+            locale,
+            customer: isCustomer ? { name: form.company, accessKey: form.accessKey } : undefined,
+          },
         })
         setStage('registered')
       } else if (stage === 'mfa_setup' || stage === 'mfa_verify') {
@@ -95,8 +103,18 @@ export function LoginPage() {
                   </label>
                   <label className="block">
                     <span className="label">{t('auth.company')}</span>
-                    <input className="input" autoComplete="organization" {...field('company')} />
+                    <input className="input" autoComplete="organization" required={isCustomer} {...field('company')} />
                   </label>
+                  <label className="flex items-center gap-2 text-sm">
+                    <input type="checkbox" checked={isCustomer} onChange={(e) => setIsCustomer(e.target.checked)} />
+                    {t('auth.iamCustomer')}
+                  </label>
+                  {isCustomer ? (
+                    <label className="block">
+                      <span className="label">{t('auth.accessKey')}</span>
+                      <input className="input font-mono tracking-widest uppercase" required autoComplete="off" placeholder="XXXX-XXXX-XXXX" {...field('accessKey')} />
+                    </label>
+                  ) : null}
                 </>
               ) : null}
               <label className="block">

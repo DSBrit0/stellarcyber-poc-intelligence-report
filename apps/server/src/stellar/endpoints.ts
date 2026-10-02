@@ -18,6 +18,8 @@ export const ENDPOINTS = {
   ingestionByConnector: `${API_PREFIX}/ingestion-stats/connector`,
   dataSensors: `${API_PREFIX}/data_sensors`,
   storageUsages: `${API_PREFIX}/storage-usages`,
+  /** AI Triage (7.x Instances only): verdicts for up to 500 Cases per call. */
+  aiCaseVerdicts: `${API_PREFIX}/autotriage/v1/case/feedback/verdicts/batch`,
 } as const
 
 export const PAGING = {

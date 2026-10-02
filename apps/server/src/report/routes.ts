@@ -7,10 +7,10 @@ import { z } from 'zod'
 import { requireAuth } from '../auth/guards.js'
 import { config } from '../config.js'
 import { audit } from '../lib/audit.js'
-import { sha256 } from '../lib/crypto.js'
+import { randomToken, sha256 } from '../lib/crypto.js'
 import { HttpError, parse } from '../lib/http.js'
 import { loadReportData } from '../pocs/access.js'
-import { REPORT_CSP, renderReportHtml } from './render-html.js'
+import { renderReportHtml, reportCsp } from './render-html.js'
 
 const Params = z.object({ id: z.uuid() })
 const Query = z.object({ template: Template.default('technical'), locale: Locale.optional() })
@@ -24,8 +24,19 @@ export async function reportRoutes(app: FastifyInstance): Promise<void> {
     const { id } = parse(Params, req.params)
     const q = parse(Query, req.query)
     const { report, poc } = await loadReportData(auth, id)
-    const html = renderReportHtml(report.data, poc.details, q.template, q.locale ?? auth.user.locale)
-    return reply.header('content-security-policy', REPORT_CSP).type('text/html; charset=utf-8').send(html)
+    const html = renderReportHtml(report.data, poc.details, q.template, q.locale ?? auth.user.locale, { archImage: poc.archImage })
+    return reply.header('content-security-policy', reportCsp()).type('text/html; charset=utf-8').send(html)
+  })
+
+  // Presentation mode: hover insights, interactive legends and keyboard navigation.
+  app.get('/report-data/:id/present', async (req, reply) => {
+    const auth = requireAuth(req)
+    const { id } = parse(Params, req.params)
+    const q = parse(Query, req.query)
+    const { report, poc } = await loadReportData(auth, id)
+    const nonce = randomToken(16)
+    const html = renderReportHtml(report.data, poc.details, q.template, q.locale ?? auth.user.locale, { archImage: poc.archImage, interactiveNonce: nonce })
+    return reply.header('content-security-policy', reportCsp(nonce)).type('text/html; charset=utf-8').send(html)
   })
 
   app.get('/report-data/:id/pdf', async (req, reply) => {

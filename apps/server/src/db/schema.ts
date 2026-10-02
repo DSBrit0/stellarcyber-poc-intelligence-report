@@ -18,6 +18,7 @@ export const users = pgTable('users', {
   mfaLastStep: bigint('mfa_last_step', { mode: 'number' }),
   mfaExempt: boolean('mfa_exempt').notNull().default(false),
   mustChangePassword: boolean('must_change_password').notNull().default(false),
+  customerId: uuid('customer_id'),
   failedLogins: integer('failed_logins').notNull().default(0),
   lockedUntil: ts('locked_until'),
   decidedBy: uuid('decided_by'),
@@ -68,10 +69,31 @@ export const pocs = pgTable('pocs', {
   periodEnd: date('period_end').notNull(),
   details: jsonb('details').$type<PocDetails>().notNull(),
   archImage: text('arch_image'),
+  customerId: uuid('customer_id'),
   createdAt: ts('created_at').notNull().defaultNow(),
   updatedAt: ts('updated_at').notNull().defaultNow(),
 })
 export type Poc = typeof pocs.$inferSelect
+
+export const customers = pgTable('customers', {
+  id: uuid('id').primaryKey().defaultRandom(),
+  name: text('name').notNull(),
+  /** Normalised name used to match a Registration: lower case, single spaces. */
+  nameKey: text('name_key').notNull().unique(),
+  ownerId: uuid('owner_id').notNull(),
+  accessKeyHash: text('access_key_hash').notNull(),
+  createdAt: ts('created_at').notNull().defaultNow(),
+  updatedAt: ts('updated_at').notNull().defaultNow(),
+})
+export type Customer = typeof customers.$inferSelect
+
+export const reportComments = pgTable('report_comments', {
+  id: uuid('id').primaryKey().defaultRandom(),
+  reportDataId: uuid('report_data_id').notNull(),
+  userId: uuid('user_id'),
+  body: text('body').notNull(),
+  createdAt: ts('created_at').notNull().defaultNow(),
+})
 
 export const reportData = pgTable('report_data', {
   id: uuid('id').primaryKey().defaultRandom(),

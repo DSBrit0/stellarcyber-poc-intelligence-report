@@ -33,7 +33,12 @@ export async function runSync(syncId: string, credential: StellarCredential, dis
     const client = new StellarClient(poc.instanceUrl, credential, dispatcher)
     await client.authenticate()
 
-    const target = { instanceUrl: poc.instanceUrl, tenant: { id: poc.tenantId, name: poc.tenantName }, period: { start: poc.periodStart, end: poc.periodEnd } }
+    const target = {
+      instanceUrl: poc.instanceUrl,
+      tenant: { id: poc.tenantId, name: poc.tenantName },
+      period: { start: poc.periodStart, end: poc.periodEnd },
+      aiTriage: poc.details.aiTriageTested === true,
+    }
     const data = await collectReportData(client, target, { log, onProgress: (p) => setProgress(syncId, p) })
 
     const [stored] = await db.insert(reportData).values({ pocId: poc.id, version: REPORT_DATA_VERSION, data }).returning({ id: reportData.id })

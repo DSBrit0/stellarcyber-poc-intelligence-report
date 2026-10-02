@@ -7,6 +7,8 @@ const KNOWN: Record<string, MessageKey> = {
   locked: 'auth.locked',
   invalid_code: 'mfa.invalid',
   password_unchanged: 'password.unchanged',
+  customer_key_invalid: 'auth.customerKeyInvalid',
+  report_data_outdated: 'report.outdated',
 }
 
 export function errorKey(err: unknown): MessageKey {

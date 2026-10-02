@@ -1,5 +1,6 @@
 import type { Locale, PocDetails, ReportData, Template } from '@poc-intel/shared'
 import { fill, reportStrings, type ReportKey, type ReportStrings } from '@poc-intel/shared/i18n/report'
+import { AI_VERDICT_LABELS, reportExtra, type ExtraKey } from '@poc-intel/shared/i18n/report-extra'
 import mitigations from './mitre-mitigations.json' with { type: 'json' }
 import { deriveReport, type Derived } from './model/derived.js'
 import { recommendations, type Recommendation } from './model/recommendations.js'
@@ -17,6 +18,11 @@ export interface ReportContext {
   strings: ReportStrings
   /** A report text with every {placeholder} filled. */
   t: (key: ReportKey, vars?: Record<string, string | number>) => string
+  /** Texts that did not exist in the previous tool. */
+  x: (key: ExtraKey, vars?: Record<string, string | number>) => string
+  aiVerdict: (v: string) => string
+  /** On-screen presentation: tooltips and chart interactions are enabled. */
+  interactive: boolean
   fmt: ReturnType<typeof formatters>
   mitigation: (techniqueId: string) => string | null
   generatedAt: Date
@@ -59,7 +65,15 @@ export function formatters(locale: Locale) {
   }
 }
 
-export function buildReportContext(data: ReportData, details: PocDetails, template: Template, locale: Locale, generatedAt = new Date()): ReportContext {
+export function buildReportContext(
+  data: ReportData,
+  details: PocDetails,
+  template: Template,
+  locale: Locale,
+  generatedAt = new Date(),
+  interactive = false,
+): ReportContext {
+  const extra = reportExtra(locale)
   const strings = reportStrings(locale)
   const d = deriveReport(data, details)
   const byId = new Map(mitigations.map((m) => [m.technique.id, m.mitigation]))
@@ -73,6 +87,9 @@ export function buildReportContext(data: ReportData, details: PocDetails, templa
     recs: recommendations(data),
     strings,
     t: (key, vars) => fill(String(strings.pdf[key] ?? key), vars),
+    x: (key, vars) => fill(extra[key], vars),
+    aiVerdict: (v) => AI_VERDICT_LABELS[locale][v] ?? v,
+    interactive,
     fmt: formatters(locale),
     mitigation: (id) => byId.get(id)?.[locale] ?? null,
     generatedAt,

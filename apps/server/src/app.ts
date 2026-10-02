@@ -9,6 +9,8 @@ import { authRoutes } from './auth/routes.js'
 import { SESSION_COOKIE, loadSession } from './auth/session.js'
 import { config } from './config.js'
 import { HttpError } from './lib/http.js'
+import { commentRoutes } from './comments/routes.js'
+import { customerRoutes } from './customers/routes.js'
 import { pocRoutes } from './pocs/routes.js'
 import type { RenderPdfJob } from './queue.js'
 import { reportRoutes } from './report/routes.js'
@@ -93,5 +95,7 @@ export async function buildApp(deps: AppDeps): Promise<FastifyInstance> {
   await app.register(adminRoutes, { prefix: '/api/admin' })
   await app.register(pocRoutes, { prefix: '/api', dispatcher: deps.dispatcher })
   await app.register(reportRoutes, { prefix: '/api' })
+  await app.register(customerRoutes, { prefix: '/api' })
+  await app.register(commentRoutes, { prefix: '/api' })
   return app
 }

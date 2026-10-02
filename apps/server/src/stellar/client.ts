@@ -65,10 +65,18 @@ export class StellarClient {
     this.#tokenExpiresAt = jwtExpiryMs(token) ?? Date.now() + DEFAULT_TOKEN_TTL_MS
   }
 
-  async get<S extends z.ZodType>(path: string, query: Query, schema: S, timeoutMs = 60_000): Promise<z.output<S>> {
+  get<S extends z.ZodType>(path: string, query: Query, schema: S, timeoutMs = 60_000): Promise<z.output<S>> {
+    return this.#call('GET', path, query, undefined, schema, timeoutMs)
+  }
+
+  post<S extends z.ZodType>(path: string, body: unknown, schema: S, timeoutMs = 60_000): Promise<z.output<S>> {
+    return this.#call('POST', path, undefined, body, schema, timeoutMs)
+  }
+
+  async #call<S extends z.ZodType>(method: 'GET' | 'POST', path: string, query: Query | undefined, body: unknown, schema: S, timeoutMs: number): Promise<z.output<S>> {
     for (let attempt = 0, reauthed = false; ; attempt++) {
       await this.#ensureToken()
-      const res = await this.#send('GET', path, query, { authorization: `Bearer ${this.#token}` }, timeoutMs)
+      const res = await this.#send(method, path, query, { authorization: `Bearer ${this.#token}` }, timeoutMs, body)
       if (res.status === 401 && !reauthed) {
         reauthed = true
         this.#token = null
@@ -103,13 +111,15 @@ export class StellarClient {
     query: Query | undefined,
     headers: Record<string, string>,
     timeoutMs: number,
+    payload?: unknown,
   ): Promise<{ status: number; body: unknown }> {
     const url = new URL(path, this.instanceUrl)
     for (const [k, v] of Object.entries(query ?? {})) if (v !== undefined) url.searchParams.set(k, String(v))
     try {
       const res = await request(url, {
         method,
-        headers: { accept: 'application/json', ...headers },
+        headers: { accept: 'application/json', ...(payload !== undefined ? { 'content-type': 'application/json' } : {}), ...headers },
+        ...(payload !== undefined ? { body: JSON.stringify(payload) } : {}),
         dispatcher: this.dispatcher,
         headersTimeout: timeoutMs,
         bodyTimeout: timeoutMs,

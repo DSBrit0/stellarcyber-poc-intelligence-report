@@ -11,7 +11,7 @@ A person who signs in to this tool: a Stellar Cyber Sales Engineer or a Partner.
 _Avoid_: Account, login, customer
 
 **Role**:
-The level of access a User has. A User is one of Admin, Sales Engineer or Partner.
+The level of access a User has: Admin, Sales Engineer, Partner or Customer. Only an Admin changes a User's Role.
 _Avoid_: Permission, group
 
 **Admin**:
@@ -23,6 +23,23 @@ _Avoid_: SE (allowed only as an abbreviation)
 
 **Partner**:
 A reseller's staff member who runs PoCs. Sees only the PoCs they own.
+
+**Customer**:
+A company evaluating Stellar Cyber, registered in advance by a Sales Engineer or Partner (its Customer Owner). A PoC can be linked to one Customer.
+_Avoid_: Client, account, tenant (a Tenant is a data partition in an Instance)
+
+**Customer Owner**:
+The User who registered a Customer. They approve that Customer's Customer Users.
+
+**Access Key**:
+A secret the Customer Owner generates for a Customer and hands over at the first meeting. A Registration that gives the Customer's name and its Access Key is linked to that Customer.
+_Avoid_: Invite code, password
+
+**Customer User**:
+A User with the Customer Role: someone from a Customer who can view, download and comment on the Reports of the PoCs linked to their Customer, and nothing else.
+
+**Comment**:
+A remark a User leaves on a Report for the PoC's Owner.
 
 **Registration**:
 A self-service request to become a User. It stays Pending until an Admin approves or rejects it.
@@ -108,6 +125,9 @@ The layout of a Report. Technical and Executive are carried over from the previo
 
 **Verdict**:
 The PoC outcome: Approved, Conditional or Rejected.
+
+**AI Triage**:
+Stellar Cyber's AI verdict on a Case: True Positive, False Positive, Benign or Inconclusive. It is collected only when the Owner marks that AI Triage was tested in the PoC.
 
 **Effort Premises**:
 The assumed analyst minutes per Alert and per Case, used to estimate the effort avoided.

@@ -39,6 +39,8 @@ export const PocDetails = z.object({
   version: Text(20).default('1.0'),
   verdict: z.enum(VERDICTS).nullable().default(null),
   comments: Text(1500).default(''),
+  /** The SE validated Stellar Cyber AI Triage during the PoC: the Sync then collects the AI verdicts. */
+  aiTriageTested: z.boolean().default(false),
   effort: z
     .object({
       alertMin: z.number().min(0).max(1440).default(EFFORT_DEFAULTS.alertMin),
@@ -62,6 +64,7 @@ export type PocPeriod = z.infer<typeof PocPeriod>
 
 export const CreatePocInput = z.object({
   instanceUrl: InstanceUrl,
+  customerId: z.uuid().nullable().optional(),
   tenant: z.object({ id: Text(128).min(1), name: Text(200).default('') }),
   period: PocPeriod,
   details: PocDetails,
@@ -71,4 +74,21 @@ export type CreatePocInput = z.infer<typeof CreatePocInput>
 export const UpdatePocInput = z.object({
   period: PocPeriod.optional(),
   details: PocDetails.optional(),
+  customerId: z.uuid().nullable().optional(),
+})
+
+/** Customer company name: matching ignores case and repeated spaces. */
+export const customerNameKey = (name: string) => name.trim().toLowerCase().replace(/\s+/g, ' ')
+
+export const CreateCustomerInput = z.object({ name: z.string().trim().min(2).max(160) })
+
+export const CommentInput = z.object({ body: z.string().trim().min(1).max(4000) })
+
+/** Architecture image as a data: URL (JPEG or PNG, resized in the browser). */
+export const ArchImageInput = z.object({
+  dataUrl: z
+    .string()
+    .max(3_000_000)
+    .regex(/^data:image\/(png|jpeg);base64,[A-Za-z0-9+/=]+$/)
+    .nullable(),
 })

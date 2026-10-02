@@ -6,7 +6,8 @@
   "exports": {
     ".": "./src/index.ts",
     "./i18n": "./src/i18n/index.ts",
-    "./i18n/report": "./src/i18n/report.ts"
+    "./i18n/report": "./src/i18n/report.ts",
+    "./i18n/report-extra": "./src/i18n/report-extra.ts"
   },
   "scripts": {
     "typecheck": "tsc --noEmit"

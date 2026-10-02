@@ -78,7 +78,20 @@ export function AdminPage() {
               <tr key={u.id} className="border-t border-slate-200 dark:border-slate-800">
                 <td className="py-2">{u.name}</td>
                 <td className="text-slate-500">{u.email}</td>
-                <td>{t(`role.${u.role}`)}</td>
+                <td>
+                  <select
+                    className="input w-auto py-1"
+                    aria-label={t('admin.role')}
+                    value={u.role}
+                    onChange={(e) => act.mutate({ path: `/admin/users/${u.id}`, method: 'PATCH', body: { role: e.target.value } })}
+                  >
+                    {ROLES.map((r) => (
+                      <option key={r} value={r}>
+                        {t(`role.${r}`)}
+                      </option>
+                    ))}
+                  </select>
+                </td>
                 <td>{u.status}</td>
                 <td className="space-x-2 text-right whitespace-nowrap">
                   <label className="inline-flex items-center gap-1 text-xs">

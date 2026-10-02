@@ -22,6 +22,7 @@ const userColumns = {
   company: users.company,
   role: users.role,
   status: users.status,
+  customerId: users.customerId,
   mfaEnabled: users.mfaEnabled,
   mfaExempt: users.mfaExempt,
   createdAt: users.createdAt,
@@ -47,9 +48,12 @@ export async function adminRoutes(app: FastifyInstance): Promise<void> {
     const admin = req.auth!.user
     const { id } = parse(IdParam, req.params)
     const { role } = parse(z.object({ role: Role }), req.body)
+    // A Registration linked to a Customer can only become a Customer User.
+    const [current] = await db.select({ customerId: users.customerId }).from(users).where(eq(users.id, id)).limit(1)
+    const finalRole = current?.customerId ? 'customer' : role
     const [user] = await db
       .update(users)
-      .set({ status: 'active', role, decidedBy: admin.id, decidedAt: dsql`now()`, updatedAt: dsql`now()` })
+      .set({ status: 'active', role: finalRole, decidedBy: admin.id, decidedAt: dsql`now()`, updatedAt: dsql`now()` })
       .where(eq(users.id, id))
       .returning(userColumns)
     if (!user) throw notFound()

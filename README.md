@@ -19,6 +19,12 @@ Browser ──HTTPS──▶ Caddy ──▶ api (Fastify) ──▶ PostgreSQL 
 3. The worker calls the Instance API using pooled keep-alive connections behind an SSRF guard, condenses the results into Report Data, and stores it.
 4. Reports render from the stored Report Data in any Template (Technical, Executive or Insight) and any language. The PDF is the same HTML printed by headless Chromium.
 5. Report Data is deleted permanently once the Retention Period ends (90 days by default; an Admin can change it).
+6. **Presenting.** The Present view is the same Report with hover insights, legends that switch series on and off, and keyboard navigation between sections (←/→). Its one script runs under a per-response CSP nonce.
+7. **Customer access** ([ADR 0008](docs/adr/0008-customer-access-by-name-and-key.md)):
+   - An SE registers the Customer and hands over its Access Key at the first meeting.
+   - People from the Customer register with the company name and the key.
+   - Once the SE approves them, they can view, download and comment on the Reports of the PoCs linked to that Customer.
+8. **AI Triage.** When the SE marks it as tested in the PoC, the Sync also collects the AI Triage verdicts of the analysed Cases, and the Reports show them in section 4.3.
 
 ## Repository layout
 
@@ -64,6 +70,13 @@ infra/scripts/init-env.sh        # first time only: .env with random secrets (ba
 infra/scripts/deploy.sh          # git pull, build and (re)start
 docker compose exec api node dist/cli/create-admin.js admin@stellarcyber.ai "Full Name"   # first time only
 infra/scripts/install-cron.sh    # daily backup at 02:30, keeps 14 dumps
+```
+
+Review the PDFs exactly as production renders them:
+
+```bash
+STELLAR_URL=… STELLAR_API_KEY=… STELLAR_TENANT=<cust_id> infra/scripts/render-samples.sh netuno
+# → /opt/poc-intel/data/files/samples/netuno/*.pdf
 ```
 
 Open `https://10.30.11.150`. The certificate comes from Caddy's internal CA, so browsers warn until that CA is trusted. Its root certificate is at `/opt/poc-intel/data/caddy/caddy/pki/authorities/local/root.crt`.

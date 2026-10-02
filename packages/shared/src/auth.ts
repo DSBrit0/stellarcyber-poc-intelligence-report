@@ -12,6 +12,8 @@ export const RegisterInput = z.object({
   company: z.string().trim().max(120).optional(),
   password: Password,
   locale: Locale.optional(),
+  /** Customer Users give their company name and the Access Key their SE handed over. */
+  customer: z.object({ name: z.string().trim().min(1).max(160), accessKey: z.string().trim().min(8).max(64) }).optional(),
 })
 export type RegisterInput = z.infer<typeof RegisterInput>
 
@@ -48,6 +50,7 @@ export const Me = z.object({
   locale: Locale,
   mfaEnabled: z.boolean(),
   mustChangePassword: z.boolean(),
+  customerId: z.uuid().nullable(),
 })
 export type Me = z.infer<typeof Me>
 

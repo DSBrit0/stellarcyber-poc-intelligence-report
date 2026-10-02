@@ -5,6 +5,7 @@ import {
   PasswordResetInput,
   RegisterInput,
   TotpCodeInput,
+  customerNameKey,
   type LoginStep,
   type Me,
 } from '@poc-intel/shared'
@@ -13,9 +14,10 @@ import { and, eq, isNull, sql as dsql } from 'drizzle-orm'
 import type { FastifyInstance } from 'fastify'
 import { z } from 'zod'
 import { db } from '../db/client.js'
-import { passwordResets, users, type User } from '../db/schema.js'
+import { customers, passwordResets, users, type User } from '../db/schema.js'
 import { audit } from '../lib/audit.js'
-import { open, seal, sha256 } from '../lib/crypto.js'
+import { open, safeEqual, seal, sha256 } from '../lib/crypto.js'
+import { normalizeAccessKey } from '../customers/access-key.js'
 import { HttpError, parse } from '../lib/http.js'
 import { hashPassword, verifyAgainstDummy, verifyPassword } from '../lib/password.js'
 import { checkTotp, newTotpSecret, totpEnrolment } from '../lib/totp.js'
@@ -38,6 +40,7 @@ export function toMe(user: User): Me {
     locale: user.locale,
     mfaEnabled: user.mfaEnabled,
     mustChangePassword: user.mustChangePassword,
+    customerId: user.customerId,
   }
 }
 
@@ -51,12 +54,23 @@ export async function authRoutes(app: FastifyInstance): Promise<void> {
     if (registrationAllowedDomains.length > 0 && !registrationAllowedDomains.includes(domain)) {
       throw new HttpError(403, 'registration_domain_not_allowed')
     }
+    // A Customer User proves the link with the company name plus the Access Key their SE handed over.
+    let customerId: string | null = null
+    if (input.customer) {
+      const [customer] = await db.select().from(customers).where(eq(customers.nameKey, customerNameKey(input.customer.name))).limit(1)
+      if (!customer || !safeEqual(customer.accessKeyHash, sha256(normalizeAccessKey(input.customer.accessKey)))) {
+        throw new HttpError(400, 'customer_key_invalid')
+      }
+      customerId = customer.id
+    }
     const inserted = await db
       .insert(users)
       .values({
         email: input.email,
         name: input.name,
-        company: input.company ?? '',
+        company: input.customer?.name ?? input.company ?? '',
+        customerId,
+        role: customerId ? 'customer' : 'partner',
         passwordHash: await hashPassword(input.password),
         locale: input.locale ?? resolveLocale(req.headers['accept-language']),
       })

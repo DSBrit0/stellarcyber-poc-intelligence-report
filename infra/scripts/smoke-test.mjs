@@ -8,17 +8,19 @@ const BASE = 'http://127.0.0.1:3000/api'
 const ORIGIN = process.env.APP_ORIGIN
 const EMAIL = `smoke-${Date.now()}@smoke.test`
 const sql = postgres(process.env.DATABASE_URL, { max: 1 })
-let cookie = ''
+let customerId = null
+let custUserId = null
+const jars = { main: '', customer: '' }
 let failures = 0
 
-async function call(path, { method = 'GET', body } = {}) {
+async function call(path, { method = 'GET', body, jar = 'main' } = {}) {
   const res = await fetch(BASE + path, {
     method,
-    headers: { origin: ORIGIN, cookie, ...(body ? { 'content-type': 'application/json' } : {}) },
+    headers: { origin: ORIGIN, cookie: jars[jar], ...(body ? { 'content-type': 'application/json' } : {}) },
     body: body ? JSON.stringify(body) : undefined,
   })
   const setCookie = res.headers.get('set-cookie')
-  if (setCookie) cookie = setCookie.split(';')[0]
+  if (setCookie) jars[jar] = setCookie.split(';')[0]
   const type = res.headers.get('content-type') ?? ''
   const data = type.includes('json') ? await res.json() : Buffer.from(await res.arrayBuffer())
   return { status: res.status, type, headers: res.headers, data }
@@ -76,7 +78,7 @@ try {
   const daily = Array.from({ length: 10 }, (_, i) => ({ date: `2026-09-${String(i + 1).padStart(2, '0')}`, value: 100 + i * 3 }))
   const compliance = { stats: { days: 10, zeroDays: 0, min: 100, avg: 114, max: 127 }, recommended: 121, recommendedWindow: { from: '2026-09-08', to: '2026-09-10' }, scenarios: [] }
   const data = {
-    version: 2,
+    version: 3,
     collectedAt: new Date().toISOString(),
     instanceUrl: 'https://smoke.example.com',
     tenant: { id: 't-smoke', name: 'Smoke Tenant' },
@@ -90,6 +92,7 @@ try {
     keyCases: [{ id: 'k1', name: 'Smoke threat', severity: 'critical', status: 'New', resolution: '', score: 90, alerts: 12, createdAt: Date.now() - 86400000, startedAt: Date.now() - 86460000, acknowledgedAt: null, closedAt: null }],
     tactics: { mitre: { tactics: [], techniques: [] }, xdr: { tactics: [], techniques: [] }, byCase: {}, topAlerts: {}, pages: { fetched: 1, failed: 0, forbidden: 0 }, alertsMissing: 0, casesWithoutAlertAccess: 0 },
     ingestion: { bySensor: [], byConnector: [] },
+    aiTriage: null,
     gaps: [],
   }
   const [report] = await sql`INSERT INTO report_data (poc_id, version, data) VALUES (${poc.data.id}, ${data.version}, ${sql.json(data)}) RETURNING id`
@@ -100,6 +103,39 @@ try {
   }
   const pdf = await call(`/report-data/${report.id}/pdf?template=insight&locale=en`)
   check('PDF render', pdf.status === 200 && pdf.type === 'application/pdf' && pdf.data.subarray(0, 4).toString() === '%PDF', `${pdf.data.length} bytes`)
+
+  const present = await call(`/report-data/${report.id}/present?template=executive&locale=en`)
+  check('presentation mode has a nonce-bound script', present.status === 200 && /<script nonce="[^"]+">/.test(String(present.data)) && /script-src 'nonce-/.test(present.headers.get('content-security-policy') ?? ''))
+
+  // Customer access: registered in advance, linked by company name + Access Key, approved by the owner.
+  const customer = await call('/customers', { method: 'POST', body: { name: `Smoke Customer ${Date.now()}` } })
+  check('create Customer returns an access key once', customer.status === 201 && /^\w{4}-\w{4}-\w{4}$/.test(customer.data.accessKey))
+  customerId = customer.data.id
+  check('link PoC to Customer', (await call(`/pocs/${poc.data.id}`, { method: 'PATCH', body: { customerId } })).status === 200)
+  const custEmail = `smoke-cust-${Date.now()}@smoke.test`
+  const custPassword = `${password}-cust`
+  const wrongKey = await call('/auth/register', { method: 'POST', jar: 'customer', body: { email: custEmail, name: 'Smoke Customer User', password: custPassword, customer: { name: customer.data.name, accessKey: 'AAAA-BBBB-CCCC' } } })
+  check('registration with a wrong access key is refused', wrongKey.status === 400 && wrongKey.data.error === 'customer_key_invalid')
+  const reg = await call('/auth/register', { method: 'POST', jar: 'customer', body: { email: custEmail, name: 'Smoke Customer User', password: custPassword, customer: { name: customer.data.name.toUpperCase(), accessKey: customer.data.accessKey.toLowerCase() } } })
+  check('registration with name + key is accepted (case-insensitive)', reg.status === 202)
+  check('pending customer cannot sign in', (await call('/auth/login', { method: 'POST', jar: 'customer', body: { email: custEmail, password: custPassword } })).status === 403)
+  const pending = (await call('/customers/users')).data.find((u) => u.email === custEmail)
+  check('owner sees the pending customer user', pending?.status === 'pending')
+  check('owner approves', (await call(`/customers/users/${pending.id}/approve`, { method: 'POST', body: {} })).status === 200)
+  await call('/auth/login', { method: 'POST', jar: 'customer', body: { email: custEmail, password: custPassword } })
+  const cs = await call('/auth/mfa/setup', { method: 'POST', jar: 'customer', body: {} })
+  await call('/auth/mfa/verify', { method: 'POST', jar: 'customer', body: { code: await generate({ secret: new URL(cs.data.uri).searchParams.get('secret') }) } })
+  const me2 = await call('/auth/me', { jar: 'customer' })
+  check('customer signs in with MFA, role customer', me2.data.role === 'customer' && me2.data.customerId === customerId)
+  const custPocs = await call('/pocs', { jar: 'customer' })
+  check('customer sees only the linked PoC', custPocs.status === 200 && custPocs.data.length === 1 && custPocs.data[0].id === poc.data.id)
+  check('customer opens the Report', (await call(`/report-data/${report.id}/html?template=technical&locale=en`, { jar: 'customer' })).status === 200)
+  check('customer cannot edit the PoC', (await call(`/pocs/${poc.data.id}`, { method: 'PATCH', jar: 'customer', body: { details: { customerName: 'x' } } })).status === 403)
+  check('customer cannot reach staff routes', (await call('/customers', { jar: 'customer' })).status === 403)
+  check('customer comments on the Report', (await call(`/report-data/${report.id}/comments`, { method: 'POST', jar: 'customer', body: { body: 'Looks good' } })).status === 201)
+  const comments = await call(`/report-data/${report.id}/comments`)
+  check('owner reads the comment', comments.data.length === 1 && comments.data[0].body === 'Looks good')
+  custUserId = me2.data.id
 
   check('delete PoC', (await call(`/pocs/${poc.data.id}`, { method: 'DELETE' })).status === 204)
   check('logout', (await call('/auth/logout', { method: 'POST' })).status === 204)
@@ -116,6 +152,9 @@ try {
   check('password change succeeds', changed.status === 200)
   check('API released after the change', (await call('/pocs')).status === 200)
 } finally {
+  if (custUserId) await sql`DELETE FROM audit_log WHERE user_id = ${custUserId}`
+  await sql`DELETE FROM users WHERE email LIKE 'smoke-cust-%@smoke.test'`
+  if (customerId) await sql`DELETE FROM customers WHERE id = ${customerId}`
   await sql`DELETE FROM audit_log WHERE user_id = ${user.id}`
   await sql`DELETE FROM users WHERE id = ${user.id}`
   await sql.end()

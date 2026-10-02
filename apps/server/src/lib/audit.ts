@@ -22,6 +22,13 @@ export type AuditAction =
   | 'sync.requested'
   | 'report.rendered'
   | 'retention.purged'
+  | 'customer.created'
+  | 'customer.key_rotated'
+  | 'customer.user_approve'
+  | 'customer.user_reject'
+  | 'customer.user_disable'
+  | 'report.commented'
+  | 'poc.arch_image'
 
 export async function audit(entry: {
   action: AuditAction

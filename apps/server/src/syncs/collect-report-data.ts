@@ -1,5 +1,5 @@
 import { REPORT_DATA_VERSION, ReportData, type SyncProgress } from '@poc-intel/shared'
-import { alertPageCount, collectCases, collectIngestion, collectTactics } from '../stellar/case-collectors.js'
+import { alertPageCount, collectAiTriage, collectCases, collectIngestion, collectTactics } from '../stellar/case-collectors.js'
 import { StellarApiError, type StellarClient } from '../stellar/client.js'
 import {
   collectAssets,
@@ -14,6 +14,8 @@ export interface SyncTarget {
   instanceUrl: string
   tenant: { id: string; name: string }
   period: { start: string; end: string }
+  /** Collect AI Triage verdicts (the Owner marked it as tested in the PoC). */
+  aiTriage?: boolean
 }
 
 type Logger = { warn: (obj: object, msg: string) => void }
@@ -91,6 +93,8 @@ const ctx: CollectContext = { client, tenantId: target.tenant.id, period: target
     : { bySensor: [], byConnector: [] }
 
   const emptyCompliance = { stats: null, recommended: null, recommendedWindow: null, scenarios: [] }
+  const aiTriage = target.aiTriage && keyCases.length ? await guard('aiTriage', () => collectAiTriage(ctx, keyCases)) : null
+
   return ReportData.parse({
     version: REPORT_DATA_VERSION,
     collectedAt: new Date().toISOString(),
@@ -106,6 +110,7 @@ const ctx: CollectContext = { client, tenantId: target.tenant.id, period: target
     keyCases,
     tactics,
     ingestion,
+    aiTriage: target.aiTriage ? (aiTriage ?? { available: false, verdicts: {} }) : null,
     gaps,
   } satisfies ReportData)
 }

@@ -51,16 +51,56 @@ function CaseTable({ rc }: { rc: ReportContext }) {
   )
 }
 
-/** FIX/new: says when the credential could not read some Cases' Alerts (HTTP 403), instead of hiding it. */
+/** New: says when the credential could not read some Cases' Alerts (HTTP 403), instead of hiding it. */
 function AlertAccessNote({ rc }: { rc: ReportContext }) {
   const n = rc.data.tactics.casesWithoutAlertAccess
-  if (!n) return null
-  const text: Record<typeof rc.locale, string> = {
-    'pt-BR': `Os alertas de ${rc.fmt.num(n)} case(s) não puderam ser lidos com a credencial usada na coleta (sem permissão); táticas e técnicas desses cases não estão incluídas.`,
-    en: `The alerts of ${rc.fmt.num(n)} case(s) could not be read with the credential used for collection (no permission); their tactics and techniques are not included.`,
-    es: `Las alertas de ${rc.fmt.num(n)} caso(s) no pudieron leerse con la credencial usada en la recolección (sin permiso); sus tácticas y técnicas no están incluidas.`,
-  }
-  return <Note>{text[rc.locale]}</Note>
+  return n ? <Note>{rc.x('alertAccess', { n: rc.fmt.num(n) })}</Note> : null
+}
+
+const VERDICT_COLOR: Record<string, string> = {
+  'True Positive': C.critical,
+  'False Positive': C.green,
+  'Benign True Positive': C.cyan,
+  Benign: C.mid,
+  Inconclusive: 'var(--slate)',
+}
+
+/** New: AI Triage verdicts, shown only when the Owner marked AI Triage as tested in the PoC. */
+function AiTriage({ rc }: { rc: ReportContext }) {
+  const { fmt, d, data } = rc
+  const ai = data.aiTriage
+  if (!ai) return null
+  const head = <Sub rc={rc}>{`4.3 ${rc.x('aiTitle')}`}</Sub>
+  if (!ai.available) return <>{head}<Note>{rc.x('aiUnavailable')}</Note></>
+  const triaged = d.loaded.filter((c) => ai.verdicts[c.id])
+  if (triaged.length === 0) return <>{head}<Note>{rc.x('aiNone')}</Note></>
+  const critHighTriaged = d.critHigh.filter((c) => ai.verdicts[c.id])
+  const counts = new Map<string, number>()
+  for (const c of triaged) counts.set(ai.verdicts[c.id]!, (counts.get(ai.verdicts[c.id]!) ?? 0) + 1)
+  const noise = (counts.get('False Positive') ?? 0) + (counts.get('Benign') ?? 0) + (counts.get('Benign True Positive') ?? 0)
+  const slices = [...counts].sort((a, b) => b[1] - a[1]).map(([v, n]) => ({ label: rc.aiVerdict(v), value: n, color: VERDICT_COLOR[v] }))
+  return (
+    <>
+      {head}
+      <P>{rc.x('aiIntro')}</P>
+      <p className="body strong">
+        {rc.x('aiCoverage', { n: fmt.num(triaged.length), t: fmt.num(d.loaded.length), p: Math.round((triaged.length / d.loaded.length) * 100), ch: fmt.num(critHighTriaged.length), cht: fmt.num(d.critHigh.length) })}
+      </p>
+      <P>{rc.x('aiSummary', { fp: Math.round((noise / triaged.length) * 100) })}</P>
+      <Grid>
+        <Card title={rc.x('aiChart')} note={rc.x('aiNote')}>
+          <Donut cutout={0.58} slices={slices} />
+        </Card>
+        <Card title={rc.x('aiTableTitle')}>
+          <Table
+            compact
+            head={[rc.t('caseName'), rc.t('caseSev'), rc.t('caseScore'), rc.x('aiColVerdict')]}
+            rows={critHighTriaged.slice(0, 12).map((c) => [fmt.trunc(c.name, 34), <Sev rc={rc} sev={c.severity} />, c.score ?? '—', <b style={{ color: VERDICT_COLOR[ai.verdicts[c.id]!] }}>{rc.aiVerdict(ai.verdicts[c.id]!)}</b>])}
+          />
+        </Card>
+      </Grid>
+    </>
+  )
 }
 
 export function Section4({ rc }: { rc: ReportContext }) {
@@ -78,7 +118,10 @@ export function Section4({ rc }: { rc: ReportContext }) {
       {exec ? <Story rc={rc} /> : null}
       <DetectionMetrics rc={rc} />
       {exec ? (
-        <ExecutiveCharts rc={rc} />
+        <>
+          <AiTriage rc={rc} />
+          <ExecutiveCharts rc={rc} />
+        </>
       ) : (
         <>
           {d.daily.days.length ? (
@@ -90,6 +133,7 @@ export function Section4({ rc }: { rc: ReportContext }) {
             </Card>
           ) : null}
           <CaseTable rc={rc} />
+          <AiTriage rc={rc} />
         </>
       )}
     </Section>
@@ -115,7 +159,7 @@ function ExecutiveCharts({ rc }: { rc: ReportContext }) {
         </Card>
       ) : null}
       <Card wide title={t('t2ChartHeat')} note={t('t2HeatNote')}>
-        <HeatGrid grid={heat.grid} max={heat.max} rows={rc.strings.pdf.t2Weekdays as string[]} scaleLabel={t('t2HeatScale')} />
+        <HeatGrid grid={heat.grid} max={heat.max} rows={rc.strings.pdf.t2Weekdays as string[]} scaleLabel={t('t2HeatScale')} tip={(day, h, n) => rc.x('tipHeat', { d: day, h: String(h).padStart(2, '0'), n })} />
       </Card>
       <Grid>
         <Card title={t('t2ChartScoreHist')} note={t('t2ScoreHistNote')}>
@@ -320,6 +364,7 @@ function Q3({ rc, n, total }: { rc: ReportContext; n: number; total: number }) {
     { q: 'noise', x: pad.l, y: cy, w: cx - pad.l, h: H - pad.b - cy, fill: '#f1f3f5' },
   ]
   const layers = ['medium', 'high', 'critical'] as const
+  const names = new Map(rc.d.loaded.map((c) => [c.id, c.name]))
   const radius = { medium: 3, high: 4, critical: 5, low: 3 }
   return (
     <Question
@@ -359,7 +404,18 @@ function Q3({ rc, n, total }: { rc: ReportContext; n: number; total: number }) {
         {layers.map((sev) =>
           m.points
             .filter((p) => p.sev === sev)
-            .map((p) => <circle key={p.id} cx={x(p.score)} cy={y(p.alerts)} r={radius[sev]} fill={sev === 'critical' ? C.critical : sev === 'high' ? C.high : C.medium} fillOpacity="0.85" />),
+            .map((p) => (
+              <circle
+                key={p.id}
+                className="pt"
+                cx={x(p.score)}
+                cy={y(p.alerts)}
+                r={radius[sev]}
+                fill={sev === 'critical' ? C.critical : sev === 'high' ? C.high : C.medium}
+                fillOpacity="0.85"
+                data-tip={`${names.get(p.id) ?? ''} — ${rc.x('tipPoint', { s: p.score, a: p.alerts, q: t(QUAD_KEY[p.q]) })}`}
+              />
+            )),
         )}
         {m.points
           .filter((p) => p.rank != null)

@@ -36,13 +36,13 @@ await boss.work<SyncJob>(QUEUES.sync, { localConcurrency: 3 }, async ([job]) => 
 await boss.work<RenderPdfJob>(QUEUES.renderPdf, { localConcurrency: 2 }, async ([job]) => {
   if (!job) return
   const [row] = await db
-    .select({ data: reportData.data, details: pocs.details })
+    .select({ data: reportData.data, details: pocs.details, archImage: pocs.archImage })
     .from(reportData)
     .innerJoin(pocs, eq(pocs.id, reportData.pocId))
     .where(eq(reportData.id, job.data.reportDataId))
     .limit(1)
   if (!row) return
-  const html = renderReportHtml(row.data, row.details, Template.parse(job.data.template), Locale.parse(job.data.locale))
+  const html = renderReportHtml(row.data, row.details, Template.parse(job.data.template), Locale.parse(job.data.locale), { archImage: row.archImage })
   await renderPdf(html, job.data.outputPath)
 })
 
