@@ -56,10 +56,12 @@ Checks: `npm run typecheck` and `npm test`.
 
 The server is already prepared: Docker, ufw allowing only 10.30.0.0/16, fail2ban, and `/opt/poc-intel/{app,data,backups}`.
 
+`/opt/poc-intel/app` is a clone of this repository. The server pulls it with a read-only deploy key (`~/.ssh/poc_intel_deploy`).
+
 ```bash
 cd /opt/poc-intel/app
 infra/scripts/init-env.sh        # first time only: .env with random secrets (back up ENCRYPTION_KEY)
-infra/scripts/deploy.sh          # build and (re)start
+infra/scripts/deploy.sh          # git pull, build and (re)start
 docker compose exec api node dist/cli/create-admin.js admin@stellarcyber.ai "Full Name"   # first time only
 infra/scripts/install-cron.sh    # daily backup at 02:30, keeps 14 dumps
 ```
