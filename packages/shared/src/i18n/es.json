@@ -133,5 +133,9 @@
   "auth.accessKey": "Clave de acceso",
   "auth.customerKeyInvalid": "El nombre de la empresa o la clave no coinciden. Confirme con su contacto en Stellar Cyber.",
   "admin.role": "Rol",
-  "role.customer": "Cliente"
+  "role.customer": "Cliente",
+  "report.delete": "Eliminar report",
+  "report.deleteConfirm": "¿Eliminar este report definitivamente? Sus datos, PDFs y comentarios dejarán de existir. No se puede deshacer.",
+  "poc.delete": "Eliminar PoC",
+  "poc.deleteConfirm": "¿Eliminar esta PoC definitivamente, con todos sus reports, detalles, imagen, syncs y comentarios? No se puede deshacer."
 }

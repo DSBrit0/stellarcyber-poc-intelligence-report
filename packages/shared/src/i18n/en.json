@@ -133,5 +133,9 @@
   "auth.accessKey": "Access key",
   "auth.customerKeyInvalid": "Company name or access key do not match. Check with your Stellar Cyber contact.",
   "admin.role": "Role",
-  "role.customer": "Customer"
+  "role.customer": "Customer",
+  "report.delete": "Delete report",
+  "report.deleteConfirm": "Delete this report permanently? Its data, PDFs and comments will no longer exist. This cannot be undone.",
+  "poc.delete": "Delete PoC",
+  "poc.deleteConfirm": "Delete this PoC permanently, with all its reports, details, image, syncs and comments? This cannot be undone."
 }

@@ -3,6 +3,7 @@
 //   docker compose exec -T -w /app/apps/server api node - < infra/scripts/smoke-test.mjs
 import { generate } from 'otplib'
 import postgres from 'postgres'
+import { readdirSync } from 'node:fs'
 
 const BASE = 'http://127.0.0.1:3000/api'
 const ORIGIN = process.env.APP_ORIGIN
@@ -164,7 +165,20 @@ try {
   check('owner reads the comment', comments.data.length === 1 && comments.data[0].body === 'Looks good')
   custUserId = me2.data.id
 
+  // Permanent deletion of a Report: nothing of it may remain in the database or on disk.
+  const rendersDir = `${process.env.DATA_DIR ?? '/data'}/renders`
+  const pdfsBefore = readdirSync(rendersDir).filter((f) => f.startsWith(`${report.id}-`)).length
+  check('a cached PDF of the Report exists before deletion', pdfsBefore > 0, `${pdfsBefore} file(s)`)
+  check('customer cannot delete the Report', (await call(`/report-data/${report.id}`, { method: 'DELETE', jar: 'customer' })).status === 403)
+  check('owner deletes the Report', (await call(`/report-data/${report.id}`, { method: 'DELETE' })).status === 204)
+  const [left] = await sql`SELECT (SELECT count(*) FROM report_data WHERE id = ${report.id})::int AS rd, (SELECT count(*) FROM report_comments WHERE report_data_id = ${report.id})::int AS rc, (SELECT count(*) FROM syncs WHERE report_data_id = ${report.id})::int AS sy`
+  check('no Report Data, comments or Syncs remain', left.rd === 0 && left.rc === 0 && left.sy === 0, JSON.stringify(left))
+  check('no cached PDF remains on disk', readdirSync(rendersDir).filter((f) => f.startsWith(`${report.id}-`)).length === 0)
+  check('deleted Report is gone for everyone', (await call(`/report-data/${report.id}/html?template=technical&locale=en`)).status === 404)
+
   check('delete PoC', (await call(`/pocs/${poc.data.id}`, { method: 'DELETE' })).status === 204)
+  const [pocLeft] = await sql`SELECT count(*)::int AS n FROM pocs WHERE id = ${poc.data.id}`
+  check('PoC row and its details are gone', pocLeft.n === 0)
   check('logout', (await call('/auth/logout', { method: 'POST' })).status === 204)
   check('session gone after logout', (await call('/auth/me')).status === 401)
 

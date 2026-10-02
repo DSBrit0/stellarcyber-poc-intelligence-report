@@ -9,6 +9,7 @@ import { customers, pocs, reportData, syncs } from '../db/schema.js'
 import { audit } from '../lib/audit.js'
 import { HttpError, notFound, parse } from '../lib/http.js'
 import { getSettings } from '../settings.js'
+import { deleteRenders } from '../report/render-cache.js'
 import type { StellarDeps } from '../app.js'
 import { StellarClient } from '../stellar/client.js'
 import { listTenants } from '../stellar/tenants.js'
@@ -130,8 +131,11 @@ export async function pocRoutes(app: FastifyInstance, { dispatcher }: StellarDep
   app.delete('/pocs/:id', async (req, reply) => {
     const auth = requireAuth(req)
     const poc = await loadPoc(auth, parse(IdParam, req.params).id, 'edit')
+    // Permanent: Report Data, Syncs and comments go by cascade; cached PDFs are removed from disk.
+    const reports = await db.select({ id: reportData.id }).from(reportData).where(eq(reportData.pocId, poc.id))
     await db.delete(pocs).where(eq(pocs.id, poc.id))
-    await audit({ action: 'poc.deleted', userId: auth.user.id, target: poc.id, ip: req.ip })
+    const renders = await deleteRenders(reports.map((r) => r.id))
+    await audit({ action: 'poc.deleted', userId: auth.user.id, target: poc.id, ip: req.ip, meta: { reports: reports.length, renders } })
     return reply.code(204).send()
   })
 

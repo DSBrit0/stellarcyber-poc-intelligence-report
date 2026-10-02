@@ -1,7 +1,7 @@
 import { TEMPLATES, type PocDetails, type StellarCredential, type SyncStatus, type Template } from '@poc-intel/shared'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { useEffect, useState } from 'react'
-import { useParams } from 'react-router'
+import { useNavigate, useParams } from 'react-router'
 import { ApiError, api } from '../lib/api'
 import { CredentialFields } from '../lib/CredentialFields'
 import { CustomerSelect } from '../lib/CustomerSelect'
@@ -41,12 +41,15 @@ export function PocDetailPage() {
   const tabLabel: Record<Tab, string> = { reports: 'Reports', details: t('poc.details'), sync: 'Sync' }
   return (
     <div className="space-y-6">
-      <div>
+      <div className="flex items-start gap-3">
+        <div className="flex-1">
         <h1 className="text-xl font-semibold">{poc.details.customerName}</h1>
         <p className="text-sm text-slate-500">
           {poc.tenantName} · {poc.periodStart} → {poc.periodEnd}
           {poc.customerName ? ` · ${t('nav.customers')}: ${poc.customerName}` : ''}
         </p>
+        </div>
+        {poc.canEdit ? <DeletePocButton id={poc.id} /> : null}
       </div>
       {tabs.length > 1 ? (
         <div className="flex gap-1 border-b border-slate-200 dark:border-slate-800" role="tablist">
@@ -105,6 +108,7 @@ function ReportsTab({ poc }: { poc: PocView }) {
                 <button className="btn-ghost" onClick={() => setOpen(open === r.id ? null : r.id)}>
                   {t('report.comments')}
                 </button>
+                {poc.canEdit ? <DeleteReportButton pocId={poc.id} reportId={r.id} /> : null}
               </span>
             </div>
             {open === r.id ? <Comments reportId={r.id} /> : null}
@@ -257,5 +261,60 @@ function SyncTab({ poc }: { poc: PocView }) {
         {sync.error instanceof ApiError ? <p className="text-sm text-red-600">{t(errorKey(sync.error))}</p> : null}
       </form>
     </section>
+  )
+}
+
+function TrashIcon() {
+  return (
+    <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+      <path d="M3 6h18M8 6V4h8v2M19 6l-1 14H6L5 6M10 11v6M14 11v6" />
+    </svg>
+  )
+}
+
+/** Permanent deletion of one Report (Report Data, PDFs, comments, its Sync). */
+function DeleteReportButton({ pocId, reportId }: { pocId: string; reportId: string }) {
+  const { t } = useI18n()
+  const qc = useQueryClient()
+  const del = useMutation({
+    mutationFn: () => api(`/report-data/${reportId}`, { method: 'DELETE' }),
+    onSuccess: () => void qc.invalidateQueries({ queryKey: ['poc', pocId] }),
+  })
+  return (
+    <button
+      className="btn-ghost text-red-600 hover:bg-red-50"
+      title={t('report.delete')}
+      aria-label={t('report.delete')}
+      disabled={del.isPending}
+      onClick={() => window.confirm(t('report.deleteConfirm')) && del.mutate()}
+    >
+      <TrashIcon />
+    </button>
+  )
+}
+
+/** Permanent deletion of the whole PoC and everything it holds. */
+function DeletePocButton({ id }: { id: string }) {
+  const { t } = useI18n()
+  const qc = useQueryClient()
+  const navigate = useNavigate()
+  const del = useMutation({
+    mutationFn: () => api(`/pocs/${id}`, { method: 'DELETE' }),
+    onSuccess: () => {
+      void qc.invalidateQueries({ queryKey: ['pocs'] })
+      navigate('/')
+    },
+  })
+  return (
+    <button
+      className="btn-ghost text-red-600 hover:bg-red-50"
+      title={t('poc.delete')}
+      aria-label={t('poc.delete')}
+      disabled={del.isPending}
+      onClick={() => window.confirm(t('poc.deleteConfirm')) && del.mutate()}
+    >
+      <TrashIcon />
+      <span className="hidden sm:inline">{t('poc.delete')}</span>
+    </button>
   )
 }

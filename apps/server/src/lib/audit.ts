@@ -28,6 +28,7 @@ export type AuditAction =
   | 'customer.user_reject'
   | 'customer.user_disable'
   | 'report.commented'
+  | 'report.deleted'
   | 'poc.arch_image'
 
 export async function audit(entry: {

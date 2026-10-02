@@ -7,6 +7,7 @@ import { db } from '../db/client.js'
 import { pocs, reportData } from '../db/schema.js'
 import { audit } from '../lib/audit.js'
 import { getSettings } from '../settings.js'
+import { deleteRenders } from '../report/render-cache.js'
 
 const RENDER_CACHE_MAX_AGE_MS = 24 * 3_600_000
 
@@ -19,6 +20,7 @@ export async function purgeExpired(): Promise<{ reportData: number; pocs: number
   const cutoff = dsql`now() - make_interval(days => ${retentionDays})`
 
   const deletedReports = await db.delete(reportData).where(lt(reportData.createdAt, cutoff)).returning({ id: reportData.id })
+  await deleteRenders(deletedReports.map((r) => r.id))
   const deletedPocs = await db
     .delete(pocs)
     .where(
