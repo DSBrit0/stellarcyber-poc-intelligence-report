@@ -5,7 +5,7 @@ import { z } from 'zod'
  * a Report renders it together with the PoC's current details.
  * Bump REPORT_DATA_VERSION on any breaking change and keep a reader for older versions.
  */
-export const REPORT_DATA_VERSION = 1
+export const REPORT_DATA_VERSION = 2
 
 const DailyPoint = z.object({ date: z.iso.date(), value: z.number() })
 
@@ -89,10 +89,16 @@ const Tactics = z.object({
   xdr: z.object({ tactics: z.array(DetectionAggregate), techniques: z.array(DetectionAggregate) }),
   byCase: z.record(z.string(), z.object({ tactics: z.array(Count), xdr: z.array(Count), techniques: z.array(Count) })),
   topAlerts: z.record(z.string(), z.array(z.object({ score: z.number(), description: z.string() }))),
-  pages: z.object({ fetched: z.number(), failed: z.number() }),
+  /** forbidden = pages the credential may not read (HTTP 403); failed = any other error after retries. */
+  pages: z.object({ fetched: z.number(), failed: z.number(), forbidden: z.number() }),
+  /** Alerts a Case still references but the index no longer holds (aged out). */
+  alertsMissing: z.number(),
+  /** Key Cases whose Alerts the credential may not read at all. */
+  casesWithoutAlertAccess: z.number(),
 })
 
-const IngestionEntry = z.object({ id: z.string(), name: z.string(), type: z.string(), bytes: z.number(), events: z.number() })
+/** `known` is false when the entry's sensor/connector no longer exists (ingestion history outlives it). */
+const IngestionEntry = z.object({ id: z.string(), name: z.string(), type: z.string(), bytes: z.number(), events: z.number(), known: z.boolean() })
 
 export const ReportData = z.object({
   version: z.literal(REPORT_DATA_VERSION),
@@ -103,8 +109,30 @@ export const ReportData = z.object({
   cases: z.object({ total: z.number(), bySeverity: SeverityCounts }),
   assets: z.object({ daily: z.array(DailyPoint), compliance: LicenseCompliance }),
   volume: z.object({ dailyGb: z.array(DailyPoint), compliance: LicenseCompliance }),
-  connectors: z.array(z.object({ id: z.string(), name: z.string(), type: z.string(), active: z.boolean() })),
-  dataSensors: z.array(z.object({ id: z.string(), name: z.string(), kind: z.string(), online: z.boolean() })),
+  connectors: z.array(
+    z.object({
+      id: z.string(),
+      name: z.string(),
+      type: z.string(),
+      category: z.string(),
+      active: z.boolean(),
+      lastActivity: z.number().nullable(),
+      lastDataReceived: z.number().nullable(),
+      /** Health reported by the API: code 0 = healthy; message explains anything else. */
+      healthCode: z.number().nullable(),
+      healthMessage: z.string(),
+    }),
+  ),
+  dataSensors: z.array(
+    z.object({
+      id: z.string(),
+      name: z.string(),
+      kind: z.string(),
+      version: z.string(),
+      status: z.string(),
+      online: z.boolean(),
+    }),
+  ),
   caseStats: CaseStats.nullable(),
   keyCases: z.array(CaseSummary),
   tactics: Tactics,

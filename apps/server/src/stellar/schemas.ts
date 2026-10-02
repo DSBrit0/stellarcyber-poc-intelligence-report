@@ -13,6 +13,9 @@ export const CasesResponse = z.object({
   data: z.object({
     total: num,
     cases: z.array(z.record(z.string(), z.unknown())).default([]),
+    /** Cursor pagination (documented in 7.0; not every Instance returns it yet). */
+    cursor: z.string().nullish(),
+    has_more: z.boolean().nullish(),
   }),
 })
 
@@ -25,6 +28,7 @@ export const StorageUsagesResponse = z.object({
     .array(
       z.object({
         time: z.union([z.string(), z.number()]),
+        total_usage: z.number().nullish(),
         usages: z.array(z.object({ usage: num })).default([]),
       }),
     )
@@ -38,6 +42,9 @@ const Connector = z.object({
   type: z.string().optional(),
   category: z.string().optional(),
   active: z.boolean().default(true),
+  last_activity: z.union([z.number(), z.string()]).nullish(),
+  last_data_received: z.union([z.number(), z.string()]).nullish(),
+  status: z.object({ code: z.number().nullish(), message: z.string().nullish() }).nullish().catch(null),
 })
 export const ConnectorsResponse = z.union([
   z.object({ connectors: z.array(Connector) }).transform((r) => r.connectors),
@@ -52,6 +59,7 @@ const DataSensor = z.object({
   feature: z.string().optional(),
   mode: z.string().optional(),
   os: z.string().optional(),
+  sw_version: z.string().default(''),
   connection_status: z.string().default(''),
 })
 export type DataSensor = z.infer<typeof DataSensor>
@@ -62,7 +70,9 @@ export const DataSensorsResponse = z.union([
 ])
 
 export const CaseAlertsResponse = z.object({
-  data: z.object({ docs: z.array(z.object({ _source: z.record(z.string(), z.unknown()).default({}) })).default([]) }),
+  data: z.object({
+    docs: z.array(z.object({ found: z.boolean().optional(), _source: z.record(z.string(), z.unknown()).optional() })).default([]),
+  }),
 })
 
 const IngestionRow = z.record(z.string(), z.unknown())

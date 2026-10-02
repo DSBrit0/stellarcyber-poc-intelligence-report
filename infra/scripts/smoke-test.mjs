@@ -76,7 +76,7 @@ try {
   const daily = Array.from({ length: 10 }, (_, i) => ({ date: `2026-09-${String(i + 1).padStart(2, '0')}`, value: 100 + i * 3 }))
   const compliance = { stats: { days: 10, zeroDays: 0, min: 100, avg: 114, max: 127 }, recommended: 121, recommendedWindow: { from: '2026-09-08', to: '2026-09-10' }, scenarios: [] }
   const data = {
-    version: 1,
+    version: 2,
     collectedAt: new Date().toISOString(),
     instanceUrl: 'https://smoke.example.com',
     tenant: { id: 't-smoke', name: 'Smoke Tenant' },
@@ -86,9 +86,13 @@ try {
     volume: { dailyGb: daily, compliance },
     connectors: [],
     dataSensors: [],
+    caseStats: { cases: 30, total: 30, alerts: 300, byStatus: { New: 10, Resolved: 20 }, byResolution: {}, handled: 20, closed: 20, medianCloseHours: 5, acknowledged: 20, medianAckMinutes: 12, top5Alerts: 80 },
+    keyCases: [{ id: 'k1', name: 'Smoke threat', severity: 'critical', status: 'New', resolution: '', score: 90, alerts: 12, createdAt: Date.now() - 86400000, startedAt: Date.now() - 86460000, acknowledgedAt: null, closedAt: null }],
+    tactics: { mitre: { tactics: [], techniques: [] }, xdr: { tactics: [], techniques: [] }, byCase: {}, topAlerts: {}, pages: { fetched: 1, failed: 0, forbidden: 0 }, alertsMissing: 0, casesWithoutAlertAccess: 0 },
+    ingestion: { bySensor: [], byConnector: [] },
     gaps: [],
   }
-  const [report] = await sql`INSERT INTO report_data (poc_id, version, data) VALUES (${poc.data.id}, 1, ${sql.json(data)}) RETURNING id`
+  const [report] = await sql`INSERT INTO report_data (poc_id, version, data) VALUES (${poc.data.id}, ${data.version}, ${sql.json(data)}) RETURNING id`
 
   for (const template of ['technical', 'executive', 'insight']) {
     const html = await call(`/report-data/${report.id}/html?template=${template}&locale=pt-BR`)

@@ -11,6 +11,8 @@ export interface AlertSource {
     description?: unknown
     tactic?: { id?: unknown; name?: unknown }
     technique?: { id?: unknown; name?: unknown }
+    /** Every tactic/technique pair of the alert; `tactic`/`technique` hold only the primary one. */
+    ttps?: { tactic?: { id?: unknown; name?: unknown }; technique?: { id?: unknown; name?: unknown } }[]
   }
 }
 
@@ -38,26 +40,46 @@ export class TacticsAccumulator {
   #topAlerts = new Map<string, { score: number; description: string }[]>()
   fetched = 0
   failed = 0
+  /** Alerts the Case still references but the index no longer holds (`found: false`, aged out). */
+  missing = 0
+  #forbiddenPages = 0
+  #readableCases = new Set<string>()
+  #forbiddenCases = new Set<string>()
+
+  forbid(caseId: string): void {
+    this.#forbiddenPages++
+    this.#forbiddenCases.add(caseId)
+  }
 
   add(caseId: string, alerts: AlertSource[]): void {
+    this.#readableCases.add(caseId)
     for (const src of alerts) {
       this.#keepTopAlert(caseId, src)
       const xdr = src.xdr_event ?? {}
-      const tacticId = s(xdr.tactic?.id)
-      if (!tacticId) continue
-      const tacticName = s(xdr.tactic?.name)
-      const techniqueId = s(xdr.technique?.id)
-      const techniqueName = s(xdr.technique?.name)
-      const isMitre = tacticId.startsWith('TA')
+      // An alert counts once per distinct tactic and once per distinct technique it carries.
+      const pairs = xdr.ttps?.length ? xdr.ttps : [{ tactic: xdr.tactic, technique: xdr.technique }]
+      const seenTactics = new Set<string>()
+      const seenTechniques = new Set<string>()
+      for (const pair of pairs) {
+        const tacticId = s(pair.tactic?.id)
+        if (!tacticId) continue
+        const tacticName = s(pair.tactic?.name)
+        const techniqueId = s(pair.technique?.id)
+        const techniqueName = s(pair.technique?.name)
+        const isMitre = tacticId.startsWith('TA')
 
-      let pc = this.#perCase.get(caseId)
-      if (!pc) this.#perCase.set(caseId, (pc = { tactics: new Map(), xdr: new Map(), techniques: new Map() }))
-      bump(isMitre ? pc.tactics : pc.xdr, tacticId, tacticName)
-      if (isMitre && techniqueId) bump(pc.techniques, techniqueId, techniqueName)
-
-      track(isMitre ? this.#mitreTactics : this.#xdrTactics, { id: tacticId, name: tacticName }, caseId)
-      if (techniqueId) {
-        track(isMitre ? this.#mitreTechniques : this.#xdrTechniques, { id: techniqueId, name: techniqueName, tacticId, tacticName }, caseId)
+        let pc = this.#perCase.get(caseId)
+        if (!pc) this.#perCase.set(caseId, (pc = { tactics: new Map(), xdr: new Map(), techniques: new Map() }))
+        if (!seenTactics.has(tacticId)) {
+          seenTactics.add(tacticId)
+          bump(isMitre ? pc.tactics : pc.xdr, tacticId, tacticName)
+          track(isMitre ? this.#mitreTactics : this.#xdrTactics, { id: tacticId, name: tacticName }, caseId)
+        }
+        if (techniqueId && !seenTechniques.has(techniqueId)) {
+          seenTechniques.add(techniqueId)
+          if (isMitre) bump(pc.techniques, techniqueId, techniqueName)
+          track(isMitre ? this.#mitreTechniques : this.#xdrTechniques, { id: techniqueId, name: techniqueName, tacticId, tacticName }, caseId)
+        }
       }
     }
   }
@@ -84,7 +106,9 @@ export class TacticsAccumulator {
         [...this.#perCase].map(([id, pc]) => [id, { tactics: byAlerts(pc.tactics), xdr: byAlerts(pc.xdr), techniques: byAlerts(pc.techniques) }]),
       ),
       topAlerts: Object.fromEntries(this.#topAlerts),
-      pages: { fetched: this.fetched, failed: this.failed },
+      pages: { fetched: this.fetched, failed: this.failed, forbidden: this.#forbiddenPages },
+      alertsMissing: this.missing,
+      casesWithoutAlertAccess: [...this.#forbiddenCases].filter((id) => !this.#readableCases.has(id)).length,
     }
   }
 }

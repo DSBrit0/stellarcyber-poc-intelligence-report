@@ -14,11 +14,11 @@ const data: ReportData = {
   cases: { total: 42, bySeverity: { critical: 2, high: 10, medium: 20, low: 10 } },
   assets: { daily, compliance: licenseCompliance(daily, { integer: true }) },
   volume: { dailyGb: daily.map((d) => ({ ...d, value: d.value / 10 })), compliance: licenseCompliance(daily, { integer: false }) },
-  connectors: [{ id: 'c1', name: 'O365', type: 'office365', active: true }],
-  dataSensors: [{ id: 's1', name: 'ds-01', kind: 'Modular Sensor', online: true }],
+  connectors: [{ id: 'c1', name: 'O365', type: 'office365', category: 'saas', active: true, lastActivity: null, lastDataReceived: null, healthCode: 0, healthMessage: '' }],
+  dataSensors: [{ id: 's1', name: 'ds-01', kind: 'Modular Sensor', version: '6.1.0', status: 'connected', online: true }],
   caseStats: null,
   keyCases: [],
-  tactics: { mitre: { tactics: [], techniques: [] }, xdr: { tactics: [], techniques: [] }, byCase: {}, topAlerts: {}, pages: { fetched: 0, failed: 0 } },
+  tactics: { mitre: { tactics: [], techniques: [] }, xdr: { tactics: [], techniques: [] }, byCase: {}, topAlerts: {}, pages: { fetched: 0, failed: 0, forbidden: 0 }, alertsMissing: 0, casesWithoutAlertAccess: 0 },
   ingestion: { bySensor: [], byConnector: [] },
   gaps: [],
 }
@@ -34,6 +34,6 @@ describe('renderReportHtml', () => {
     })
   }
   it('translates headings', () => {
-    expect(renderReportHtml(data, details, 'technical', 'es')).toContain('Resumen Ejecutivo')
+    expect(renderReportHtml(data, details, 'technical', 'es')).toContain('Resumen')
   })
 })

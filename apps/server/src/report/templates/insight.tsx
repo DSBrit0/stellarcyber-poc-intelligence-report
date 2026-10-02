@@ -1,51 +1,84 @@
-import { ComplianceTable, Kpi, SeverityBars, Sparkline, Unavailable, hasGap } from '../components.js'
+import { C, Donut, Gauge, HBars, Lines } from '../charts.js'
 import type { ReportContext } from '../context.js'
+import { scorecardRows } from '../sections/overview.js'
+import { Card, Grid, Kpis } from '../ui.js'
 
-// Insight: the new Template. One-page-first layout: the outcome and the three numbers a decision-maker
-// needs sit above the fold; evidence follows as cards that reflow from three columns to one on a phone.
-export function InsightTemplate({ ctx }: { ctx: ReportContext }) {
-  const { data, details, t, fmt } = ctx
+// Insight — the new Template, built on the same model as Technical/Executive. Decision-first: the
+// verdict and the numbers that matter above the fold; evidence as cards that reflow down to one column.
+export function InsightTemplate({ rc }: { rc: ReportContext }) {
+  const { t, fmt, d, data, details } = rc
+  const verdict = details.verdict
   return (
     <main className="report insight">
       <header className="hero">
-        <div className="hero-kicker">
-          {fmt.date(data.period.start)} – {fmt.date(data.period.end)} · {data.tenant.name || data.tenant.id}
+        <div className="eyebrow">
+          {t('coverReportType')} · {fmt.date(data.period.start)} – {fmt.date(data.period.end)} · {data.tenant.name || data.tenant.id}
         </div>
         <h1>{details.customerName}</h1>
-        {details.verdict ? <span className={`pill verdict-${details.verdict}`}>{details.verdict}</span> : null}
-        <div className="kpis hero-kpis">
-          <Kpi label={t('metric.cases')} value={fmt.int(data.cases.total)} />
-          <Kpi label={t('severity.critical')} value={fmt.int(data.cases.bySeverity.critical)} tone="critical" />
-          <Kpi
-            label={t('metric.recommendedLicense')}
-            value={data.assets.compliance.recommended != null ? fmt.int(data.assets.compliance.recommended) : '–'}
-            tone="ok"
-          />
-        </div>
+        <span className={`verdict-pill verdict-${verdict ?? 'pending'}`}>{verdict ? rc.strings.verdict[verdict] : t('verdictPending')}</span>
+        <Kpis
+          rc={{ ...rc, template: 'executive' }}
+          items={[
+            { label: t('kpiCasesDetected'), value: fmt.num(d.totalCases), tone: 'navy' },
+            { label: `${t('sevCritical')} + ${t('sevHigh')}`, value: fmt.num(d.critHigh.length), tone: 'crit' },
+            { label: t('kpiMitreCov'), value: `${d.mitreCovPct}%`, tone: 'brand' },
+            { label: t('kpiAvgEntities'), value: d.assetStats ? fmt.num(d.assetStats.avg) : '—', tone: 'mid' },
+            { label: t('metTotalIngested'), value: d.vol ? fmt.vol(d.vol.total) : '—', tone: 'cyan' },
+          ]}
+        />
       </header>
-
-      <div className="cards">
-        <article className="card">
-          <h2>{t('section.detection')}</h2>
-          {hasGap(data, 'cases') ? <Unavailable ctx={ctx} /> : <SeverityBars ctx={ctx} />}
-        </article>
-        <article className="card">
-          <h2>{t('metric.assets')}</h2>
-          <Sparkline points={data.assets.daily} />
-          <ComplianceTable ctx={ctx} compliance={data.assets.compliance} unit="assets" />
-        </article>
-        <article className="card">
-          <h2>{t('metric.volume')}</h2>
-          <Sparkline points={data.volume.dailyGb} />
-          <ComplianceTable ctx={ctx} compliance={data.volume.compliance} unit="gb" />
-        </article>
-      </div>
-
+      <Grid cols={3}>
+        <Card title={t('chartMitre')}>
+          <Gauge pct={d.mitreCovPct} label={`${d.detectedTactics.size} / 14 ${t('sc_tactics')}`} />
+        </Card>
+        <Card title={t('t2ChartSevPie')}>
+          <Donut
+            cutout={0.6}
+            center={fmt.num(d.totalCases)}
+            sub={t('totalLabel')}
+            slices={[
+              { label: t('sevCritical'), value: d.crit.length, color: C.critical },
+              { label: t('sevHigh'), value: d.high.length, color: C.high },
+              { label: t('sevMedium'), value: d.sev.medium, color: C.medium },
+              { label: t('sevLow'), value: d.sev.low, color: C.low },
+            ]}
+          />
+        </Card>
+        <Card title={t('t2ChartScore')}>
+          <HBars items={scorecardRows(rc).map((r) => ({ label: t(r.key), value: r.pct, color: r.pct >= 70 ? C.green : r.pct >= 35 ? C.orange : C.red }))} format={(v) => `${v}%`} />
+        </Card>
+      </Grid>
+      {d.daily.days.length ? (
+        <Card wide title={t('t2ChartTrend')}>
+          <Lines
+            labels={d.daily.days.map((x) => fmt.dayMonth(x))}
+            series={[
+              { name: t('sevCritical'), values: d.daily.critical, color: C.critical },
+              { name: t('sevHigh'), values: d.daily.high, color: C.high },
+            ]}
+          />
+        </Card>
+      ) : null}
+      <Grid>
+        {data.tactics.mitre.techniques.length ? (
+          <Card title={t('chartTechniques')}>
+            <HBars items={data.tactics.mitre.techniques.slice(0, 8).map((x) => ({ label: fmt.trunc(`${x.id} ${x.name}`, 36), value: x.caseCount }))} />
+          </Card>
+        ) : null}
+        {data.assets.compliance.recommended != null ? (
+          <Card title={t('t2ChartAssets')}>
+            <Lines
+              labels={data.assets.daily.map((x) => fmt.dayMonth(x.date))}
+              series={[{ name: t('t2SeriesAssets'), values: data.assets.daily.map((x) => x.value), color: C.brand }]}
+              refs={[{ name: `${t('t2SeriesLicense')} (${fmt.num(data.assets.compliance.recommended)})`, value: data.assets.compliance.recommended, color: C.green }]}
+            />
+          </Card>
+        ) : null}
+      </Grid>
       {details.comments ? (
-        <article className="card wide">
-          <h2>{t('section.conclusion')}</h2>
-          <p className="prose">{details.comments}</p>
-        </article>
+        <Card wide title={t('seCommentsTitle')}>
+          <p className="body prose">{details.comments}</p>
+        </Card>
       ) : null}
     </main>
   )

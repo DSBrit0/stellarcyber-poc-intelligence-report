@@ -42,11 +42,14 @@ export async function collectTactics(
   await runPool(pages, PAGING.concurrency, async ({ caseId, skip }) => {
     try {
       const res = await ctx.client.get(ENDPOINTS.caseAlerts(caseId), { limit: PAGING.caseAlertsPage, skip }, CaseAlertsResponse, 20_000)
-      acc.add(caseId, res.data.docs.map((d) => d._source as AlertSource))
+      acc.missing += res.data.docs.filter((d) => d.found === false || !d._source).length
+      acc.add(caseId, res.data.docs.flatMap((d) => (d._source ? [d._source as AlertSource] : [])))
       acc.fetched++
     } catch (err) {
       if (err instanceof StellarApiError && err.code === 'auth_failed') throw err
-      acc.failed++
+      // 403 security_exception: this credential's role may not read the index holding these Alerts.
+      if (err instanceof StellarApiError && err.code === 'forbidden') acc.forbid(caseId)
+      else acc.failed++
     } finally {
       onPage?.()
     }
@@ -67,6 +70,7 @@ function toIngestionEntry(row: Record<string, unknown>, i: number, kind: 'sensor
     type: String(first(`${kind}_type`, 'type') ?? ''),
     bytes: Number(first('total_ingestion', 'total_bytes', 'bytes_ingested', 'bytes')) || 0,
     events: Number(first('total_events', 'event_count', 'events')) || 0,
+    known: true,
   }
 }
 

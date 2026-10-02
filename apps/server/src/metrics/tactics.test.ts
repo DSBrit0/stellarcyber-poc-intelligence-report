@@ -33,4 +33,32 @@ describe('TacticsAccumulator', () => {
     ])
     expect(r.topAlerts.c2).toEqual([{ score: 80, description: 'Brute force' }])
   })
+
+  it('counts Cases whose Alerts the credential may not read', () => {
+    const a = new TacticsAccumulator()
+    a.forbid('x')
+    a.forbid('y')
+    a.add('y', [])
+    expect(a.result().pages.forbidden).toBe(2)
+    expect(a.result().casesWithoutAlertAccess).toBe(1)
+  })
+
+  it('counts every tactic/technique pair of an alert once (xdr_event.ttps)', () => {
+    const a = new TacticsAccumulator()
+    a.add('c', [
+      {
+        xdr_event: {
+          tactic: { id: 'TA0001', name: 'Initial Access' },
+          ttps: [
+            { tactic: { id: 'TA0001', name: 'Initial Access' }, technique: { id: 'T1078', name: 'Valid Accounts' } },
+            { tactic: { id: 'TA0006', name: 'Credential Access' }, technique: { id: 'T1110', name: 'Brute Force' } },
+            { tactic: { id: 'TA0006', name: 'Credential Access' }, technique: { id: 'T1110', name: 'Brute Force' } },
+          ],
+        },
+      },
+    ])
+    const r = a.result()
+    expect(r.mitre.tactics.map((t) => [t.id, t.alertCount])).toEqual([['TA0001', 1], ['TA0006', 1]])
+    expect(r.mitre.techniques.map((t) => t.id).sort()).toEqual(['T1078', 'T1110'])
+  })
 })

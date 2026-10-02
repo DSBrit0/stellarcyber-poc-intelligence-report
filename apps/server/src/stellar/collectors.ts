@@ -15,6 +15,16 @@ const dayStart = (d: string) => Date.parse(`${d}T00:00:00.000Z`)
 const dayEnd = (d: string) => Date.parse(`${d}T23:59:59.999Z`)
 const inPeriod = (date: string, p: CollectContext['period']) => date >= p.start && date <= p.end
 
+/** The API sends timestamps as epoch ms or ISO strings. */
+function toEpochMs(v: number | string | null | undefined): number | null {
+  if (typeof v === 'number') return v > 0 ? v : null
+  if (typeof v === 'string' && v) {
+    const ms = Date.parse(v)
+    return Number.isNaN(ms) ? null : ms
+  }
+  return null
+}
+
 const SEVERITIES = ['Critical', 'High', 'Medium', 'Low'] as const
 
 /** Case totals per Severity: one limit=1 call each, `total` carries the count. */
@@ -54,11 +64,11 @@ export async function casesInRange(
   cap = Infinity,
 ): Promise<Record<string, unknown>[]> {
   const out: Record<string, unknown>[] = []
-  const page = (a: number, b: number, skip: number) =>
+  const page = (a: number, b: number, from: { skip: number } | { cursor: string }) =>
     ctx.client
       .get(
         ENDPOINTS.cases,
-        { tenantid: ctx.tenantId, ...params, 'FROM~created_at': a, 'TO~created_at': b, limit: PAGING.casesPage, skip },
+        { tenantid: ctx.tenantId, ...params, 'FROM~created_at': a, 'TO~created_at': b, limit: PAGING.casesPage, ...from },
         CasesResponse,
         90_000,
       )
@@ -66,7 +76,17 @@ export async function casesInRange(
 
   async function walk(a: number, b: number): Promise<void> {
     if (out.length >= cap) return
-    const first = await page(a, b, 0)
+    const first = await page(a, b, { skip: 0 })
+    // Instances that return a cursor page by cursor, with no deep skips and no window splitting.
+    if (typeof first.has_more === 'boolean') {
+      out.push(...first.cases)
+      for (let cur = first; cur.has_more && cur.cursor && out.length < cap; ) {
+        cur = await page(a, b, { cursor: cur.cursor })
+        if (cur.cases.length === 0) break
+        out.push(...cur.cases)
+      }
+      return
+    }
     if (first.total > PAGING.casesSafeSkip && b - a > 60_000) {
       const mid = Math.floor((a + b) / 2)
       await walk(mid + 1, b)
@@ -75,7 +95,7 @@ export async function casesInRange(
     }
     out.push(...first.cases)
     for (let skip = first.cases.length; skip < first.total && out.length < cap; skip += PAGING.casesPage) {
-      const next = await page(a, b, skip)
+      const next = await page(a, b, { skip })
       if (next.cases.length === 0) break
       out.push(...next.cases)
     }
@@ -105,7 +125,7 @@ export async function collectVolume(ctx: CollectContext): Promise<ReportData['vo
   const dailyGb = res.data
     .map((d) => ({
       date: (typeof d.time === 'number' ? new Date(d.time).toISOString() : d.time).slice(0, 10),
-      value: d.usages.reduce((sum, u) => sum + u.usage, 0),
+      value: d.total_usage ?? d.usages.reduce((sum, u) => sum + u.usage, 0),
     }))
     .filter((d) => d.date < today && inPeriod(d.date, ctx.period))
     .sort((a, b) => a.date.localeCompare(b.date))
@@ -118,7 +138,12 @@ export async function collectConnectors(ctx: CollectContext): Promise<ReportData
     id: c._id ?? c.id ?? `connector-${i}`,
     name: c.name || `Connector ${i + 1}`,
     type: c.type ?? c.category ?? 'unknown',
+    category: c.category ?? '',
     active: c.active,
+    lastActivity: toEpochMs(c.last_activity),
+    lastDataReceived: toEpochMs(c.last_data_received),
+    healthCode: c.status?.code ?? null,
+    healthMessage: c.status?.message ?? '',
   }))
 }
 
@@ -141,6 +166,8 @@ export async function collectDataSensors(ctx: CollectContext): Promise<ReportDat
     id: s.sensor_id ?? s.internal_sensor_id ?? `sensor-${i}`,
     name: s.hostname || `Sensor ${i + 1}`,
     kind: sensorKind(s),
+    version: s.sw_version.match(/\d+\.\d+\.\d+/)?.[0] ?? s.sw_version,
+    status: s.connection_status,
     online: s.connection_status === 'connected',
   }))
 }
