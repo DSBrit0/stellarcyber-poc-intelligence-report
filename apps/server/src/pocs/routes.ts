@@ -1,5 +1,5 @@
-import { ArchImageInput, CreatePocInput, InstanceUrl, PocPeriod, StellarCredential, UpdatePocInput } from '@poc-intel/shared'
-import { and, desc, eq, inArray, sql as dsql } from 'drizzle-orm'
+import { ACTIVE_SYNC_STATUSES, ArchImageInput, CreatePocInput, InstanceUrl, PocPeriod, StellarCredential, UpdatePocInput } from '@poc-intel/shared'
+import { and, desc, eq, inArray, notExists, sql as dsql } from 'drizzle-orm'
 import type { FastifyInstance } from 'fastify'
 import { z } from 'zod'
 import { requireAuth, requireRole } from '../auth/guards.js'
@@ -98,6 +98,7 @@ export async function pocRoutes(app: FastifyInstance, { dispatcher }: StellarDep
         draft: pocs.draft,
         updatedAt: pocs.updatedAt,
         reports: dsql<number>`(SELECT count(*)::int FROM report_data r WHERE r.poc_id = ${pocs.id})`,
+        syncing: dsql<boolean>`EXISTS (SELECT 1 FROM syncs s WHERE s.poc_id = ${pocs.id} AND s.status IN ('queued', 'running'))`,
       })
       .from(pocs)
       .leftJoin(users, eq(users.id, pocs.ownerId))
@@ -208,8 +209,14 @@ export async function pocRoutes(app: FastifyInstance, { dispatcher }: StellarDep
     const auth = requireAuth(req)
     const poc = await loadPoc(auth, parse(IdParam, req.params).id, 'edit')
     // Permanent: Report Data, Syncs and comments go by cascade; cached PDFs are removed from disk.
+    // Never while a Sync runs: the User stops it first. The check sits in the DELETE itself, so a
+    // Sync started between a check and the delete cannot slip through.
     const reports = await db.select({ id: reportData.id }).from(reportData).where(eq(reportData.pocId, poc.id))
-    await db.delete(pocs).where(eq(pocs.id, poc.id))
+    const deleted = await db
+      .delete(pocs)
+      .where(and(eq(pocs.id, poc.id), notExists(db.select({ one: dsql`1` }).from(syncs).where(and(eq(syncs.pocId, poc.id), inArray(syncs.status, [...ACTIVE_SYNC_STATUSES]))))))
+      .returning({ id: pocs.id })
+    if (deleted.length === 0) throw new HttpError(409, 'sync_in_progress')
     const renders = await deleteRenders(reports.map((r) => r.id))
     await audit({ action: 'poc.deleted', userId: auth.user.id, target: poc.id, ip: req.ip, meta: { reports: reports.length, renders } })
     return reply.code(204).send()
@@ -226,7 +233,7 @@ export async function pocRoutes(app: FastifyInstance, { dispatcher }: StellarDep
     const [active] = await db
       .select({ id: syncs.id })
       .from(syncs)
-      .where(and(eq(syncs.pocId, poc.id), inArray(syncs.status, ['queued', 'running'])))
+      .where(and(eq(syncs.pocId, poc.id), inArray(syncs.status, [...ACTIVE_SYNC_STATUSES])))
       .limit(1)
     if (active) return reply.code(409).send({ error: 'sync_in_progress', syncId: active.id })
 
@@ -264,5 +271,24 @@ export async function pocRoutes(app: FastifyInstance, { dispatcher }: StellarDep
     if (!sync) throw notFound()
     await loadPoc(auth, sync.pocId)
     return sync
+  })
+
+  // Stops a queued or running Sync. The worker sees the status within ~2 s, aborts its calls to the
+  // Instance and stores nothing; a Sync still in the queue is skipped when the worker picks it up.
+  app.post('/syncs/:id/cancel', async (req) => {
+    const auth = requireAuth(req)
+    const { id } = parse(IdParam, req.params)
+    const [sync] = await db.select({ pocId: syncs.pocId }).from(syncs).where(eq(syncs.id, id)).limit(1)
+    if (!sync) throw notFound()
+    await loadPoc(auth, sync.pocId, 'edit')
+    const [cancelled] = await db
+      .update(syncs)
+      .set({ status: 'cancelled', error: 'cancelled', finishedAt: dsql`now()` })
+      .where(and(eq(syncs.id, id), inArray(syncs.status, [...ACTIVE_SYNC_STATUSES])))
+      .returning()
+    if (!cancelled) throw new HttpError(409, 'sync_not_running')
+    await audit({ action: 'sync.cancelled', userId: auth.user.id, target: sync.pocId, ip: req.ip, meta: { syncId: id } })
+    appLog('info', 'sync', 'Sync cancelled by the User', { userId: auth.user.id, requestId: req.id, context: { syncId: id, pocId: sync.pocId } })
+    return cancelled
   })
 }

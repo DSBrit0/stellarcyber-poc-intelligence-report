@@ -20,7 +20,8 @@ export const TEMPLATES = ['technical', 'executive', 'insight'] as const
 export const Template = z.enum(TEMPLATES)
 export type Template = z.infer<typeof Template>
 
-export const SYNC_STATUSES = ['queued', 'running', 'succeeded', 'failed'] as const
+export const SYNC_STATUSES = ['queued', 'running', 'succeeded', 'failed', 'cancelled'] as const
+export const ACTIVE_SYNC_STATUSES = ['queued', 'running'] as const
 export const SyncStatus = z.enum(SYNC_STATUSES)
 export type SyncStatus = z.infer<typeof SyncStatus>
 

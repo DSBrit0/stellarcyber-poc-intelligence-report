@@ -1,5 +1,6 @@
 import type { FastifyInstance, FastifyReply } from 'fastify'
 import type { Fragment } from 'postgres'
+import { SyncStatus } from '@poc-intel/shared'
 import { z } from 'zod'
 import { requireRole } from '../auth/guards.js'
 import { sql } from '../db/client.js'
@@ -33,7 +34,7 @@ const LogsQuery = Range.extend({
   userId: z.uuid().optional(),
   q: z.string().max(200).optional(),
 })
-const SyncsQuery = Range.extend({ status: z.enum(['queued', 'running', 'succeeded', 'failed']).optional(), q: z.string().max(200).optional() })
+const SyncsQuery = Range.extend({ status: SyncStatus.optional(), q: z.string().max(200).optional() })
 const ExportQuery = z.object({ kind: z.enum(['events', 'api-calls', 'logs']), format: z.enum(['csv', 'json', 'txt']).default('csv') })
 
 const like = (q: string) => `%${q.replace(/[\\%_]/g, (c) => `\\${c}`)}%`

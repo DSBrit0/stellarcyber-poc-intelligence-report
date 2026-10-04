@@ -1,3 +1,4 @@
+import { SYNC_STATUSES, type SyncStatus as SyncStatusValue } from '@poc-intel/shared'
 import type { MessageKey } from '@poc-intel/shared/i18n'
 import { keepPreviousData, useQuery } from '@tanstack/react-query'
 import { useState } from 'react'
@@ -10,7 +11,7 @@ import { Empty, JsonBlock, LEVEL_STYLE, Pager, PresetSelect, Th, qs, useFormat, 
 
 interface SyncRow {
   id: string
-  status: 'queued' | 'running' | 'succeeded' | 'failed'
+  status: SyncStatusValue
   error: string | null
   createdAt: string
   startedAt: string | null
@@ -43,6 +44,7 @@ const STATUS_STYLE: Record<SyncRow['status'], string> = {
   running: 'bg-blue-100 text-blue-800 dark:bg-blue-950 dark:text-blue-300',
   succeeded: 'bg-green-100 text-green-800 dark:bg-green-950 dark:text-green-300',
   failed: 'bg-red-100 text-red-700 dark:bg-red-950 dark:text-red-300',
+  cancelled: 'bg-slate-100 text-slate-600 dark:bg-slate-900 dark:text-slate-400',
 }
 
 function SyncStatus({ status }: { status: SyncRow['status'] }) {
@@ -203,7 +205,7 @@ export function SyncsTab({ params, go }: { params: URLSearchParams; go: Go }) {
         <div className="flex flex-wrap items-center gap-2">
           <select className="input w-auto" aria-label={t('audit.status')} value={status} onChange={(e) => (setStatus(e.target.value), setOffset(0))}>
             <option value="">{t('audit.allStatuses')}</option>
-            {(['queued', 'running', 'succeeded', 'failed'] as const).map((s) => (
+            {SYNC_STATUSES.map((s) => (
               <option key={s} value={s}>
                 {t(`sync.status.${s}` as MessageKey)}
               </option>

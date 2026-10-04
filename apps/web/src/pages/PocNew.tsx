@@ -300,7 +300,7 @@ export function PocNewPage() {
         ) : null}
       </Block>
 
-      {syncId ? <SyncBar sticky sync={sync} label={saved ? t('wiz.waiting') : undefined} /> : null}
+      {syncId ? <SyncBar sticky canCancel sync={sync} label={saved ? t('wiz.waiting') : undefined} /> : null}
       {error ? (
         <p className="text-sm text-red-600" role="alert">
           {error}

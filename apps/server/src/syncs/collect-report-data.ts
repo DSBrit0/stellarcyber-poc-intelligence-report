@@ -45,7 +45,15 @@ export async function collectReportData(
     onProgress,
     onMetrics,
     onCollectorFailed,
-  }: { log: Logger; onProgress: (p: SyncProgress) => Promise<void> | void; onMetrics?: (m: SyncMetrics) => void; onCollectorFailed?: (name: string, err: Error) => void },
+    signal,
+  }: {
+    log: Logger
+    onProgress: (p: SyncProgress) => Promise<void> | void
+    onMetrics?: (m: SyncMetrics) => void
+    onCollectorFailed?: (name: string, err: Error) => void
+    /** The Sync was cancelled: stop at once instead of turning the aborted calls into gaps. */
+    signal?: AbortSignal
+  },
 ): Promise<ReportData> {
   const t0 = performance.now()
   const phases: Record<string, number> = {}
@@ -92,6 +100,7 @@ const ctx: CollectContext = { client, tenantId: target.tenant.id, period: target
     try {
       return await fn()
     } catch (err) {
+      if (signal?.aborted) throw signal.reason
       if (err instanceof StellarApiError && err.code === 'auth_failed') throw err
       gaps.push({ collector: name, reason: err instanceof StellarApiError ? err.code : 'internal' })
       log.warn({ collector: name, err: (err as Error).message }, 'collector failed')
@@ -125,6 +134,8 @@ const ctx: CollectContext = { client, tenantId: target.tenant.id, period: target
     keyCases.length ? guard('tactics', () => timed('tactics', () => collectTactics(ctx, keyCases, onPage))) : null,
     allCases.length ? guard('alertCount', () => timed('alertCount', () => countAlertsInPeriod(ctx, allCases, from, to, onPage))) : null,
   ])
+  // Alert pages that fail are counted, not thrown: after a cancel they all fail at once, so stop here.
+  signal?.throwIfAborted()
   const tactics = tacticsResult ?? emptyTactics
   const stats = results.cases ? periodCaseStats(allCases, results.cases.total, exact) : null
 

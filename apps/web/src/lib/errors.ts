@@ -10,6 +10,7 @@ const KNOWN: Record<string, MessageKey> = {
   customer_key_invalid: 'auth.customerKeyInvalid',
   report_data_outdated: 'report.outdated',
   sync_in_progress: 'err.sync_in_progress',
+  sync_not_running: 'err.sync_not_running',
   credential_required: 'err.credential_required',
   period_future: 'err.period_future',
   stellar_auth_failed: 'err.stellar_auth_failed',
@@ -22,7 +23,10 @@ const KNOWN: Record<string, MessageKey> = {
   validation: 'err.validation',
 }
 
-/** A clear message for every error code the API sends; the generic one only for the unexpected. */
-export function errorKey(err: unknown): MessageKey {
-  return (err instanceof ApiError && KNOWN[err.code]) || 'common.error'
+/**
+ * A clear message for every error code the API sends; the generic one only for the unexpected.
+ * `overrides` words a code for one action (e.g. sync_in_progress when deleting a PoC).
+ */
+export function errorKey(err: unknown, overrides: Record<string, MessageKey> = {}): MessageKey {
+  return (err instanceof ApiError && (overrides[err.code] ?? KNOWN[err.code])) || 'common.error'
 }

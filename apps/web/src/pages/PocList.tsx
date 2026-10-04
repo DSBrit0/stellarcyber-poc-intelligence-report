@@ -1,6 +1,7 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { Link, useSearchParams } from 'react-router'
 import { api } from '../lib/api'
+import { errorKey } from '../lib/errors'
 import { useMe } from '../lib/auth'
 import { useI18n } from '../lib/i18n'
 
@@ -10,6 +11,8 @@ interface PocRow {
   ownerName: string | null
   linkedCustomer: string | null
   reports: number
+  /** A Sync is queued or running: the PoC cannot be deleted until it ends or is cancelled. */
+  syncing: boolean
   draft: boolean
   customerName: string
   tenantName: string
@@ -60,7 +63,7 @@ export function PocListPage() {
       <ul className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
         {data.map((p) => (
           <li key={p.id} className="relative">
-            {me && (me.role === 'admin' || me.id === p.ownerId) ? <DeletePoc id={p.id} name={p.customerName} /> : null}
+            {me && (me.role === 'admin' || me.id === p.ownerId) ? <DeletePoc id={p.id} name={p.customerName} syncing={p.syncing} /> : null}
             <Link to={`/pocs/${p.id}`} className="card block pr-12 hover:border-brand">
               <div className="flex items-center gap-2 font-semibold">
                 {p.customerName}
@@ -85,19 +88,23 @@ export function PocListPage() {
 }
 
 /** Trash icon in the corner of a PoC card: permanent deletion of the PoC and everything it holds. */
-function DeletePoc({ id, name }: { id: string; name: string }) {
+function DeletePoc({ id, name, syncing }: { id: string; name: string; syncing: boolean }) {
   const { t } = useI18n()
   const qc = useQueryClient()
   const del = useMutation({
     mutationFn: () => api(`/pocs/${id}`, { method: 'DELETE' }),
     onSuccess: () => void qc.invalidateQueries({ queryKey: ['pocs'] }),
+    onError: (err) => {
+      window.alert(t(errorKey(err, { sync_in_progress: 'poc.deleteBlocked' })))
+      void qc.invalidateQueries({ queryKey: ['pocs'] })
+    },
   })
   return (
     <button
-      className="absolute top-3 right-3 z-10 rounded-md p-1.5 text-slate-400 hover:bg-red-50 hover:text-red-600"
-      title={`${t('poc.delete')}: ${name}`}
+      className="absolute top-3 right-3 z-10 rounded-md p-1.5 text-slate-400 hover:bg-red-50 hover:text-red-600 disabled:cursor-not-allowed disabled:opacity-40 disabled:hover:bg-transparent disabled:hover:text-slate-400"
+      title={syncing ? t('poc.deleteBlocked') : `${t('poc.delete')}: ${name}`}
       aria-label={`${t('poc.delete')}: ${name}`}
-      disabled={del.isPending}
+      disabled={del.isPending || syncing}
       onClick={() => window.confirm(t('poc.deleteConfirm')) && del.mutate()}
     >
       <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">

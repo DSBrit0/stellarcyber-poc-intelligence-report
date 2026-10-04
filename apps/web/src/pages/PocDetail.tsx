@@ -80,11 +80,11 @@ export function PocDetailPage() {
             <button className={tab === 'details' ? 'btn' : 'btn-ghost'} onClick={() => setTab(tab === 'details' ? 'reports' : 'details')}>
               {t('poc.editDetails')}
             </button>
-            <DeletePocButton id={poc.id} />
+            <DeletePocButton id={poc.id} syncing={Boolean(running)} />
           </div>
         ) : null}
       </div>
-      {running || latest?.status === 'failed' ? <SyncBar sync={running ?? latest} /> : null}
+      {running || latest?.status === 'failed' || latest?.status === 'cancelled' ? <SyncBar sync={running ?? latest} canCancel={poc.canEdit} /> : null}
       {tab === 'reports' ? <ReportsTab poc={poc} /> : tab === 'details' ? <DetailsTab poc={poc} onSaved={() => setTab('reports')} /> : <SyncTab poc={poc} onStarted={() => setTab('reports')} />}
     </div>
   )
@@ -421,7 +421,7 @@ function DeleteReportButton({ pocId, reportId }: { pocId: string; reportId: stri
 }
 
 /** Permanent deletion of the whole PoC and everything it holds. */
-function DeletePocButton({ id }: { id: string }) {
+function DeletePocButton({ id, syncing }: { id: string; syncing: boolean }) {
   const { t } = useI18n()
   const qc = useQueryClient()
   const navigate = useNavigate()
@@ -431,13 +431,17 @@ function DeletePocButton({ id }: { id: string }) {
       void qc.invalidateQueries({ queryKey: ['pocs'] })
       navigate('/')
     },
+    onError: (err) => {
+      window.alert(t(errorKey(err, { sync_in_progress: 'poc.deleteBlocked' })))
+      void qc.invalidateQueries({ queryKey: ['poc', id] })
+    },
   })
   return (
     <button
-      className="btn-ghost text-red-600 hover:bg-red-50"
-      title={t('poc.delete')}
+      className="btn-ghost text-red-600 hover:bg-red-50 disabled:cursor-not-allowed disabled:opacity-40 disabled:hover:bg-transparent"
+      title={syncing ? t('poc.deleteBlocked') : t('poc.delete')}
       aria-label={t('poc.delete')}
-      disabled={del.isPending}
+      disabled={del.isPending || syncing}
       onClick={() => window.confirm(t('poc.deleteConfirm')) && del.mutate()}
     >
       <TrashIcon />

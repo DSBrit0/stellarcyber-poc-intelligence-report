@@ -88,7 +88,21 @@ try {
   check('no remembered credentials in a new browser', JSON.stringify((await call('/stellar/credentials')).data) === '[]')
   await call(`/pocs/${draft.data.id}`, { method: 'PATCH', body: { finalize: true, details: { customerName: 'Draft Saved' } } })
   check('Save completes the Draft', (await call(`/pocs/${draft.data.id}`)).data.draft === false)
-  await call(`/pocs/${draft.data.id}`, { method: 'DELETE' })
+
+  // Guardrail: a PoC cannot be deleted while a Sync runs; the User cancels it first. The Sync row is
+  // written straight to the DB (no job is queued), so no worker touches it.
+  const [active] = await sql`INSERT INTO syncs (poc_id, requested_by, status, started_at) VALUES (${draft.data.id}, ${user.id}, 'running', now()) RETURNING id`
+  const blockedDelete = await call(`/pocs/${draft.data.id}`, { method: 'DELETE' })
+  check('a PoC with a running Sync cannot be deleted', blockedDelete.status === 409 && blockedDelete.data.error === 'sync_in_progress', JSON.stringify(blockedDelete.data))
+  check('the PoC is still there after the refused delete', (await call(`/pocs/${draft.data.id}`)).status === 200)
+  check('the list flags the running Sync', (await call('/pocs')).data.some((p) => p.id === draft.data.id && p.syncing === true))
+  const cancelled = await call(`/syncs/${active.id}/cancel`, { method: 'POST' })
+  check('cancel stops the running Sync', cancelled.status === 200 && cancelled.data.status === 'cancelled' && cancelled.data.finishedAt, JSON.stringify(cancelled.data))
+  check('a finished Sync cannot be cancelled again', (await call(`/syncs/${active.id}/cancel`, { method: 'POST' })).data.error === 'sync_not_running')
+  check('the list clears the flag after the cancel', (await call('/pocs')).data.some((p) => p.id === draft.data.id && p.syncing === false))
+  const [queued] = await sql`INSERT INTO syncs (poc_id, requested_by) VALUES (${draft.data.id}, ${user.id}) RETURNING id`
+  check('a queued Sync can be cancelled too', (await call(`/syncs/${queued.id}/cancel`, { method: 'POST' })).data.status === 'cancelled')
+  check('the PoC is deleted once no Sync runs', (await call(`/pocs/${draft.data.id}`, { method: 'DELETE' })).status === 204)
 
   const poc = await call('/pocs', {
     method: 'POST',

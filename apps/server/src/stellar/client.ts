@@ -1,3 +1,4 @@
+import { setTimeout as sleep } from 'node:timers/promises'
 import type { StellarCredential } from '@poc-intel/shared'
 import { request, type Dispatcher } from 'undici'
 import type { z } from 'zod'
@@ -32,7 +33,6 @@ function jwtExpiryMs(token: string): number | null {
   }
 }
 
-const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms))
 
 /**
  * Client for one Instance with one Stellar Credential. Exchanges the credential for a
@@ -51,6 +51,8 @@ export class StellarClient {
     readonly dispatcher: Dispatcher,
     /** Receives every call for the Audit log (no headers, no bodies). */
     private readonly recorder?: (call: ApiCallRecord) => void,
+    /** Aborts every call in flight and refuses new ones; calls then reject with `signal.reason`. */
+    private readonly signal?: AbortSignal,
   ) {}
 
   async authenticate(): Promise<void> {
@@ -81,6 +83,7 @@ export class StellarClient {
 
   async #call<S extends z.ZodType>(method: 'GET' | 'POST', path: string, query: Query | undefined, body: unknown, schema: S, timeoutMs: number): Promise<z.output<S>> {
     for (let attempt = 0, reauthed = false; ; attempt++) {
+      this.signal?.throwIfAborted()
       await this.#ensureToken()
       const res = await this.#send(method, path, query, { authorization: `Bearer ${this.#token}` }, timeoutMs, body, attempt > 0)
       if (res.status === 401 && !reauthed) {
@@ -89,7 +92,7 @@ export class StellarClient {
         continue
       }
       if (RETRYABLE.has(res.status) && attempt < MAX_RETRIES) {
-        await sleep(800 * 2 ** attempt)
+        await sleep(800 * 2 ** attempt, undefined, { signal: this.signal })
         continue
       }
       if (res.status === 401) throw new StellarApiError('auth_failed', `${path}: unauthorized`, 401)
@@ -148,6 +151,7 @@ export class StellarClient {
         dispatcher: this.dispatcher,
         headersTimeout: timeoutMs,
         bodyTimeout: timeoutMs,
+        signal: this.signal,
       })
       const text = await res.body.text()
       let body: unknown = null
@@ -161,6 +165,7 @@ export class StellarClient {
       this.#audit(method, url, res.statusCode, ms, text.length, retry, res.statusCode >= 400 ? errorText(body) : null)
       return { status: res.statusCode, body }
     } catch (err) {
+      if (this.signal?.aborted) throw this.signal.reason
       this.stats.record(url.pathname, 'network', performance.now() - t0, 0, retry)
       this.#audit(method, url, null, performance.now() - t0, 0, retry, (err as Error).message)
       // Never include headers here: they carry the credential.

@@ -20,6 +20,7 @@ export type AuditAction =
   | 'poc.updated'
   | 'poc.deleted'
   | 'sync.requested'
+  | 'sync.cancelled'
   | 'report.rendered'
   | 'retention.purged'
   | 'customer.created'
