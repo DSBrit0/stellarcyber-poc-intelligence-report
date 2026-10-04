@@ -6,6 +6,7 @@ import { api } from '../lib/api'
 import { CredentialFields } from '../lib/CredentialFields'
 import { AutoTriageCheckbox } from '../lib/AutoTriage'
 import { CustomerDialog } from '../lib/CustomerForm'
+import { HelpTip } from '../lib/HelpTip'
 import { useCustomers } from '../lib/CustomerSelect'
 import { PeriodFields, periodOk } from '../lib/PeriodFields'
 import { errorKey } from '../lib/errors'
@@ -37,7 +38,7 @@ const origin = (u: string) => {
  * One step of the page. `locked` means "not yet" (dimmed) or "already used by the Sync" (read-only):
  * either way it cannot be changed, but the values must stay readable.
  */
-function Block({ title, help, done, locked, children }: { title: string; help?: string; done?: boolean; locked?: boolean; children: ReactNode }) {
+function Block({ title, help, helpTip, done, locked, children }: { title: string; help?: string; helpTip?: ReactNode; done?: boolean; locked?: boolean; children: ReactNode }) {
   return (
     <section className={`card space-y-3 transition ${locked ? 'pointer-events-none opacity-60' : ''}`} aria-disabled={locked}>
       <h2 className="flex items-center gap-2 font-semibold">
@@ -48,7 +49,12 @@ function Block({ title, help, done, locked, children }: { title: string; help?: 
         </span>
         {title}
       </h2>
-      {help ? <p className="text-sm text-slate-500 dark:text-slate-400">{help}</p> : null}
+      {help ? (
+        <p className="text-sm text-slate-500 dark:text-slate-400">
+          {help}
+          {helpTip}
+        </p>
+      ) : null}
       {children}
     </section>
   )
@@ -185,7 +191,15 @@ export function PocNewPage() {
     <div className="mx-auto max-w-3xl space-y-4">
       <h1 className="text-xl font-semibold">{t('poc.create')}</h1>
 
-      <Block title={t('wiz.customerTitle')} help={t('wiz.customerHelp')} done={Boolean(customerId)} locked={locked}>
+      <Block
+        title={t('wiz.customerTitle')}
+        help={t('wiz.customerHelp')}
+        helpTip={
+          <HelpTip title={t('help.customerTitle')}>
+            <p>{t('help.customer')}</p>
+          </HelpTip>
+        }
+        done={Boolean(customerId)} locked={locked}>
         <div className="flex gap-2">
           <select className="input" value={customerId ?? ''} onChange={(e) => pickCustomer(e.target.value || null)}>
             <option value="">{t('form.noCustomer')}</option>
@@ -325,8 +339,8 @@ export function PocNewPage() {
       ) : null}
 
       {pocId ? (
-        <Block title={t('wiz.detailsTitle')} help={t('wiz.detailsHelp')} done={saved}>
-          <PocForm value={details} onChange={setDetails} autoTriageNote={t('form.aiTriageNextSync')} />
+        <Block title={t('wiz.detailsTitle')} done={saved}>
+          <PocForm value={details} onChange={setDetails} autoTriage={false} />
           <div className="flex items-center gap-3">
             <button type="button" className="btn" disabled={busy || !dirty} onClick={() => void save()}>
               {t('common.save')}

@@ -2,6 +2,7 @@ import { EFFORT_DEFAULTS, VERDICTS, type PocDetails } from '@poc-intel/shared'
 import type { MessageKey } from '@poc-intel/shared/i18n'
 import type { ReactNode } from 'react'
 import { AutoTriageCheckbox } from './AutoTriage'
+import { HelpTip } from './HelpTip'
 import { useI18n } from './i18n'
 
 export const emptyDetails = (customerName = ''): PocDetails => ({
@@ -22,10 +23,13 @@ export const emptyDetails = (customerName = ''): PocDetails => ({
 })
 
 /** A group of the form: a heading with a divider above it, never a card inside the page's card. */
-function Section({ title, children }: { title: string; children: ReactNode }) {
+function Section({ title, tip, children }: { title: string; tip?: ReactNode; children: ReactNode }) {
   return (
     <section className="space-y-3 border-t border-slate-200 pt-4 first:border-t-0 first:pt-0 dark:border-slate-800">
-      <h3 className="text-sm font-semibold text-slate-700 dark:text-slate-200">{title}</h3>
+      <h3 className="flex items-center text-sm font-semibold text-slate-700 dark:text-slate-200">
+        {title}
+        {tip}
+      </h3>
       {children}
     </section>
   )
@@ -36,20 +40,76 @@ function Row({ cols, children }: { cols: string; children: ReactNode }) {
   return <div className={`grid items-end gap-3 ${cols}`}>{children}</div>
 }
 
-function Field({ label, children }: { label: string; children: ReactNode }) {
+function Field({ label, tip, children }: { label: string; tip?: ReactNode; children: ReactNode }) {
   return (
     <label className="block min-w-0">
-      <span className="label">{label}</span>
+      <span className="label flex items-center">
+        {label}
+        {tip}
+      </span>
       {children}
     </label>
   )
 }
 
+/** The previous tool's Verdict guide: meaning, detail and best-practice alignment of each Verdict. */
+function VerdictGuide() {
+  const { t } = useI18n()
+  return (
+    <div className="space-y-4">
+      {VERDICTS.map((v) => (
+        <div key={v} className="space-y-1">
+          <h3 className="font-semibold text-slate-900 dark:text-slate-100">{t(`form.verdict.${v}`)}</h3>
+          <p>
+            <b>{t('help.verdictMeaning')}:</b> {t(`help.verdict.${v}.meaning`)}
+          </p>
+          <p>{t(`help.verdict.${v}.detail`)}</p>
+          <p>
+            <b>{t('help.verdictAlign')}:</b> {t(`help.verdict.${v}.align`)}
+          </p>
+        </div>
+      ))}
+      <p className="text-slate-500 dark:text-slate-400">{t('help.verdictPending')}</p>
+    </div>
+  )
+}
+
+/** What the effort premises feed, what each one means (with the defaults) and how the saving is computed. */
+function EffortHelp() {
+  const { t } = useI18n()
+  const d = EFFORT_DEFAULTS
+  return (
+    <div className="space-y-2">
+      <p>{t('help.effortGoal')}</p>
+      <ul className="list-disc space-y-1 pl-5">
+        <li>{t('help.effortAlert', { v: d.alertMin })}</li>
+        <li>{t('help.effortInv', { ch: d.critHighMin, m: d.mediumMin, l: d.lowMin })}</li>
+        <li>{t('help.effortMonth', { v: d.monthHours })}</li>
+      </ul>
+      <p>{t('help.effortCalc', { a: d.alertMin })}</p>
+      <p className="text-slate-500 dark:text-slate-400">{t('help.effortDefaults')}</p>
+    </div>
+  )
+}
+
 /**
  * Every PoC detail, in the order and groups of the previous tool's form, plus Auto Triage.
- * Controlled: the parent owns the value. `autoTriageNote` says when an Auto Triage change applies.
+ * Controlled: the parent owns the value. `autoTriage={false}` hides the Auto Triage group where the
+ * page asks it elsewhere (New PoC); `autoTriageNote` says when an Auto Triage change applies.
  */
-export function PocForm({ value, onChange, readOnly, autoTriageNote }: { value: PocDetails; onChange: (v: PocDetails) => void; readOnly?: boolean; autoTriageNote?: string }) {
+export function PocForm({
+  value,
+  onChange,
+  readOnly,
+  autoTriage = true,
+  autoTriageNote,
+}: {
+  value: PocDetails
+  onChange: (v: PocDetails) => void
+  readOnly?: boolean
+  autoTriage?: boolean
+  autoTriageNote?: string
+}) {
   const { t } = useI18n()
   const set = <K extends keyof PocDetails>(k: K, v: PocDetails[K]) => onChange({ ...value, [k]: v })
   const text = (k: 'customerName' | 'department' | 'customerEmail' | 'platformVersion' | 'region', label: MessageKey, max: number, type = 'text') => (
@@ -125,7 +185,7 @@ export function PocForm({ value, onChange, readOnly, autoTriageNote }: { value: 
         <Row cols="sm:grid-cols-3">
           {text('platformVersion', 'form.platformVersion', 40)}
           {text('region', 'form.region', 80)}
-          <Field label={t('form.verdict')}>
+          <Field label={t('form.verdict')} tip={<HelpTip title={t('help.verdictTitle')}><VerdictGuide /></HelpTip>}>
             <select className="input" disabled={readOnly} value={value.verdict ?? ''} onChange={(e) => set('verdict', (e.target.value || null) as PocDetails['verdict'])}>
               <option value="">{t('form.verdictNone')}</option>
               {VERDICTS.map((v) => (
@@ -136,16 +196,18 @@ export function PocForm({ value, onChange, readOnly, autoTriageNote }: { value: 
             </select>
           </Field>
         </Row>
-        <Field label={`${t('form.comments')} (${value.comments.length}/1500)`}>
+        <Field label={`${t('form.comments')} (${value.comments.length}/1500)`} tip={<HelpTip title={t('help.commentsTitle')}><p>{t('help.comments')}</p></HelpTip>}>
           <textarea className="input" rows={4} maxLength={1500} disabled={readOnly} value={value.comments} onChange={(e) => set('comments', e.target.value)} />
         </Field>
       </Section>
 
-      <Section title={t('form.sectionAutoTriage')}>
-        <AutoTriageCheckbox checked={value.aiTriageTested} disabled={readOnly} note={autoTriageNote} onChange={(v) => set('aiTriageTested', v)} />
-      </Section>
+      {autoTriage ? (
+        <Section title={t('form.sectionAutoTriage')}>
+          <AutoTriageCheckbox checked={value.aiTriageTested} disabled={readOnly} note={autoTriageNote} onChange={(v) => set('aiTriageTested', v)} />
+        </Section>
+      ) : null}
 
-      <Section title={t('form.sectionEffort')}>
+      <Section title={t('form.sectionEffort')} tip={<HelpTip title={t('help.effortTitle')}><EffortHelp /></HelpTip>}>
         <Row cols="grid-cols-2 sm:grid-cols-3 lg:grid-cols-5">
           {effort('alertMin', 'form.effortAlert')}
           {effort('critHighMin', 'form.effortCritHigh')}
