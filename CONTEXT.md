@@ -144,8 +144,9 @@ The layout of a Report. Technical and Executive are carried over from the previo
 **Verdict**:
 The PoC outcome: Approved, Conditional or Rejected.
 
-**AI Triage**:
-Stellar Cyber's AI verdict on a Case: True Positive, False Positive, Benign or Inconclusive. It is collected only when the Owner marks that AI Triage was tested in the PoC.
+**Auto Triage**:
+Stellar Cyber's AI verdict on a Case: True Positive, False Positive, Benign or Inconclusive. It requires an add-on license. It is collected only by a Sync started while the Owner has confirmed that Auto Triage was tested in the PoC; each Report shows what its own Sync collected.
+_Avoid_: AI Triage, Triagem por IA
 
 **Effort Premises**:
 The assumed analyst minutes per Alert and per Case, used to estimate the effort avoided.

@@ -49,7 +49,7 @@ const STATUS_STYLE: Record<SyncRow['status'], string> = {
 
 function SyncStatus({ status }: { status: SyncRow['status'] }) {
   const { t } = useI18n()
-  return <span className={`rounded px-2 py-0.5 text-xs font-medium ${STATUS_STYLE[status]}`}>{t(`sync.status.${status}` as MessageKey)}</span>
+  return <span className={`rounded px-2 py-0.5 text-xs font-medium whitespace-nowrap ${STATUS_STYLE[status]}`}>{t(`sync.status.${status}` as MessageKey)}</span>
 }
 
 const seconds = (s: { startedAt: string | null; finishedAt: string | null }) => (s.startedAt && s.finishedAt ? (Date.parse(s.finishedAt) - Date.parse(s.startedAt)) / 1000 : null)
@@ -103,11 +103,11 @@ function SyncDetailPanel({ id, go, onClose }: { id: string; go: Go; onClose: () 
           <div className="font-semibold tabular-nums">{f.duration(seconds(sync))}</div>
         </div>
         <div>
-          <div className="text-xs text-slate-500">{t('audit.calls')}</div>
+          <div className="text-xs text-slate-500">{t('audit.stat.calls')}</div>
           <div className="font-semibold tabular-nums">{f.num(sync.calls)}</div>
         </div>
         <div>
-          <div className="text-xs text-slate-500">{t('audit.errors')}</div>
+          <div className="text-xs text-slate-500">{t('audit.stat.errors')}</div>
           <div className={`font-semibold tabular-nums ${sync.callErrors ? 'text-red-600' : ''}`}>{f.num(sync.callErrors)}</div>
         </div>
         <div>
@@ -138,11 +138,11 @@ function SyncDetailPanel({ id, go, onClose }: { id: string; go: Go; onClose: () 
           <div className="space-y-1">
             {phases.map(([name, ms]) => (
               <div key={name} className="flex items-center gap-2 text-xs">
-                <span className="w-40 truncate font-mono text-slate-500">{name}</span>
+                <span className="w-28 shrink-0 truncate font-mono text-slate-500 sm:w-40">{name}</span>
                 <div className="h-2 flex-1 rounded bg-slate-100 dark:bg-slate-800">
                   <div className="h-full rounded bg-brand/70" style={{ width: `${(ms / maxPhase) * 100}%` }} />
                 </div>
-                <span className="w-16 text-right tabular-nums">{f.ms(ms)}</span>
+                <span className="w-16 shrink-0 text-right whitespace-nowrap tabular-nums">{f.ms(ms)}</span>
               </div>
             ))}
           </div>
@@ -224,8 +224,8 @@ export function SyncsTab({ params, go }: { params: URLSearchParams; go: Go }) {
                   <Th>{t('audit.poc')}</Th>
                   <Th>{t('audit.user')}</Th>
                   <Th right>{t('audit.duration')}</Th>
-                  <Th right>{t('audit.calls')}</Th>
-                  <Th right>{t('audit.errors')}</Th>
+                  <Th right>{t('audit.stat.calls')}</Th>
+                  <Th right>{t('audit.stat.errors')}</Th>
                 </tr>
               </thead>
               <tbody>
@@ -244,13 +244,13 @@ export function SyncsTab({ params, go }: { params: URLSearchParams; go: Go }) {
                       {s.error ? <div className="text-xs text-red-600">{s.error}</div> : null}
                     </td>
                     <td className="px-2 py-2">
-                      <div className="font-medium">{s.company || s.tenantName || '—'}</div>
-                      <div className="text-xs text-slate-500">
+                      <div className="font-medium whitespace-nowrap">{s.company || s.tenantName || '—'}</div>
+                      <div className="text-xs whitespace-nowrap text-slate-500">
                         {s.tenantName} · {s.instanceUrl?.replace(/^https?:\/\//, '')}
                       </div>
                     </td>
-                    <td className="px-2 py-2 text-xs text-slate-500">{s.email ?? '—'}</td>
-                    <td className="px-2 py-2 text-right tabular-nums">{f.duration(seconds(s))}</td>
+                    <td className="px-2 py-2 text-xs whitespace-nowrap text-slate-500">{s.email ?? '—'}</td>
+                    <td className="px-2 py-2 text-right whitespace-nowrap tabular-nums">{f.duration(seconds(s))}</td>
                     <td className="px-2 py-2 text-right tabular-nums">{f.num(s.calls)}</td>
                     <td className={`px-2 py-2 text-right tabular-nums ${s.callErrors ? 'font-semibold text-red-600' : 'text-slate-400'}`}>{f.num(s.callErrors)}</td>
                   </tr>

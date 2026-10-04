@@ -3,6 +3,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { useEffect, useState } from 'react'
 import { useNavigate, useParams } from 'react-router'
 import { ApiError, api } from '../lib/api'
+import { AutoTriageConfirm } from '../lib/AutoTriage'
 import { CredentialFields } from '../lib/CredentialFields'
 import { CustomerSelect } from '../lib/CustomerSelect'
 import { errorKey } from '../lib/errors'
@@ -62,12 +63,13 @@ export function PocDetailPage() {
   return (
     <div className="space-y-5">
       <div className="flex flex-wrap items-start gap-3">
-        <div className="min-w-0 flex-1">
+        {/* At least 16rem wide: on a phone the buttons wrap below instead of squeezing the title. */}
+        <div className="min-w-[min(100%,16rem)] flex-1">
           <h1 className="flex items-center gap-2 text-xl font-semibold">
             {poc.details.customerName}
-            {poc.draft ? <span className="rounded bg-amber-100 px-2 py-0.5 text-xs font-medium text-amber-800">{t('poc.draft')}</span> : null}
+            {poc.draft ? <span className="rounded bg-amber-100 px-2 py-0.5 text-xs font-medium text-amber-800 dark:bg-amber-950 dark:text-amber-300">{t('poc.draft')}</span> : null}
           </h1>
-          <p className="text-sm text-slate-500">
+          <p className="text-sm text-slate-500 dark:text-slate-400">
             {poc.tenantName} · {poc.periodStart} → {poc.periodEnd}
             {poc.customerName ? ` · ${t('nav.customers')}: ${poc.customerName}` : ''}
           </p>
@@ -128,8 +130,8 @@ function ReportItem({ poc, r }: { poc: PocView; r: ReportRow }) {
           v{r.version}
         </span>
         <span className="font-medium">{date(r.createdAt)}</span>
-        <span className="text-slate-500">
-          · {r.periodStart} → {r.periodEnd}
+        <span className="text-slate-500 dark:text-slate-400">
+          {r.periodStart} → {r.periodEnd}
         </span>
         <span className="text-xs text-slate-400">{t('report.expiresOn', { date: date(r.expiresAt) })}</span>
         {poc.canEdit ? (
@@ -215,7 +217,7 @@ function Comments({ pocId, reportId, version }: { pocId: string; reportId: strin
             {t(c.kind === 'report' ? 'report.commentReport' : 'report.commentInternal')}
           </span>{' '}
           {c.private ? (
-            <span className="rounded bg-amber-100 px-1.5 py-0.5 text-[11px] font-medium text-amber-800" title={t('report.commentPrivateHelp')}>
+            <span className="rounded bg-amber-100 px-1.5 py-0.5 text-[11px] font-medium text-amber-800 dark:bg-amber-950 dark:text-amber-300" title={t('report.commentPrivateHelp')}>
               {t('report.commentPrivateBadge')}
             </span>
           ) : null}{' '}
@@ -233,7 +235,7 @@ function Comments({ pocId, reportId, version }: { pocId: string; reportId: strin
         <div className="flex flex-wrap gap-4 text-sm" role="radiogroup" aria-label={t('report.commentType')}>
           {(['internal', 'report'] as const).map((k) => (
             <label key={k} className="flex items-center gap-2">
-              <input type="checkbox" checked={kind === k} onChange={() => setKind(k)} />
+              <input type="radio" name={`comment-kind-${reportId}`} checked={kind === k} onChange={() => setKind(k)} />
               {t(k === 'report' ? 'report.commentReport' : 'report.commentInternal')}
             </label>
           ))}
@@ -287,10 +289,12 @@ function DetailsTab({ poc, onSaved }: { poc: PocView; onSaved: () => void }) {
       <div className="card">
         <CustomerSelect value={customerId} onChange={setCustomerId} />
       </div>
-      <PocForm value={details} onChange={setDetails} />
-      <fieldset className="card space-y-3">
-        <legend className="px-1 text-sm font-semibold text-slate-600">{t('form.sectionArch')}</legend>
-        {poc.hasArchImage ? <img src={`/api/pocs/${poc.id}/arch-image?v=${Date.now()}`} alt="" className="max-h-64 rounded border border-slate-200" /> : null}
+      <div className="card">
+        <PocForm value={details} onChange={setDetails} autoTriageNote={t('form.aiTriageNextSync')} />
+      </div>
+      <section className="card space-y-3">
+        <h3 className="text-sm font-semibold text-slate-700 dark:text-slate-200">{t('form.sectionArch')}</h3>
+        {poc.hasArchImage ? <img src={`/api/pocs/${poc.id}/arch-image?v=${Date.now()}`} alt="" className="max-h-64 rounded border border-slate-200 dark:border-slate-700" /> : null}
         <div className="flex flex-wrap gap-3">
           <label className="btn-ghost cursor-pointer">
             {t('form.archUpload')}
@@ -303,7 +307,7 @@ function DetailsTab({ poc, onSaved }: { poc: PocView; onSaved: () => void }) {
           ) : null}
         </div>
         {image.error ? <p className="text-sm text-red-600">{t(errorKey(image.error))}</p> : null}
-      </fieldset>
+      </section>
       <div className="flex items-center gap-3">
         <button className="btn" disabled={save.isPending}>
           {t('common.save')}
@@ -340,12 +344,15 @@ function SyncTab({ poc, onStarted }: { poc: PocView; onStarted: () => void }) {
       onStarted()
     },
   })
+  // A Sync that collects Auto Triage is confirmed again before it starts.
+  const [confirming, setConfirming] = useState(false)
+  const start = () => (poc.details.aiTriageTested ? setConfirming(true) : sync.mutate())
   return (
     <section className="card space-y-4">
-      <p className="text-sm text-slate-500">{poc.instanceUrl}</p>
+      <p className="text-sm text-slate-500 dark:text-slate-400">{poc.instanceUrl}</p>
       {stored && useStored ? (
         <p className="flex flex-wrap items-center gap-3 text-sm">
-          <span className="rounded bg-green-100 px-2 py-1 text-green-800">✓ {t('wiz.remembered')}</span>
+          <span className="rounded bg-green-100 px-2 py-1 text-green-800 dark:bg-green-950 dark:text-green-300">✓ {t('wiz.remembered')}</span>
           <button type="button" className="text-brand underline" onClick={() => setUseStored(false)}>
             {t('wiz.useOther')}
           </button>
@@ -359,8 +366,8 @@ function SyncTab({ poc, onStarted }: { poc: PocView; onStarted: () => void }) {
           </label>
         </>
       )}
-      <fieldset className="space-y-2 rounded-lg border border-slate-200 p-3 dark:border-slate-700">
-        <legend className="px-1 text-sm font-semibold">{t('sync.periodTitle')}</legend>
+      <div className="space-y-2 rounded-lg border border-slate-200 p-3 dark:border-slate-700">
+        <h3 className="text-sm font-semibold">{t('sync.periodTitle')}</h3>
         <PeriodFields start={period.start} end={period.end} onChange={(start, end) => setPeriod({ start, end })} />
         <p className="flex flex-wrap items-center gap-3 text-xs text-slate-500">
           {custom ? t('sync.periodCustom') : t('sync.periodDefault')}
@@ -370,20 +377,30 @@ function SyncTab({ poc, onStarted }: { poc: PocView; onStarted: () => void }) {
             </button>
           ) : null}
         </p>
-      </fieldset>
-      <button className="btn" disabled={sync.isPending || running || !periodOk(period.start, period.end)} onClick={() => sync.mutate()}>
+      </div>
+      <button className="btn" disabled={sync.isPending || running || !periodOk(period.start, period.end)} onClick={start}>
         {t('wiz.runSync')}
       </button>
+      {confirming ? (
+        <AutoTriageConfirm
+          onConfirm={() => {
+            setConfirming(false)
+            sync.mutate()
+          }}
+          onCancel={() => setConfirming(false)}
+        />
+      ) : null}
       {sync.error ? <p className="text-sm text-red-600">{t(errorKey(sync.error))}</p> : null}
-      <ul className="space-y-1 border-t border-slate-200 pt-3 text-sm dark:border-slate-800">
+      {/* Sync history as a grid, so the columns line up; on a phone each Sync takes two lines. */}
+      <ul className="divide-y divide-slate-100 border-t border-slate-200 text-sm dark:divide-slate-800 dark:border-slate-800">
         {poc.syncs.map((s) => (
-          <li key={s.id} className="flex gap-3">
-            <span>{new Date(s.createdAt).toLocaleString(locale)}</span>
+          <li key={s.id} className="grid grid-cols-[auto_1fr] gap-x-3 py-1.5 sm:grid-cols-[11rem_7rem_13rem_1fr]">
+            <span className="tabular-nums">{new Date(s.createdAt).toLocaleString(locale)}</span>
             <span className="font-medium">{t(`sync.status.${s.status}`)}</span>
-            <span className="text-slate-500">
+            <span className="tabular-nums text-slate-500 dark:text-slate-400">
               {s.periodStart} → {s.periodEnd}
             </span>
-            {s.error ? <span className="text-red-600">{s.error}</span> : null}
+            {s.error && s.status === 'failed' ? <span className="text-red-600 dark:text-red-400">{t(errorKey(new ApiError(500, `stellar_${s.error}`)))}</span> : <span />}
           </li>
         ))}
       </ul>

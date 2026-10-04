@@ -69,19 +69,22 @@ function Shell({ children, adminOnly, staffOnly }: { children: ReactNode; adminO
   return (
     <div className="min-h-dvh">
       <header className="border-b border-slate-200 bg-white dark:border-slate-800 dark:bg-slate-900">
-        <div className="mx-auto flex max-w-6xl flex-wrap items-center gap-4 px-4 py-3">
-          <Link to="/" className="font-semibold">
+        {/* Narrow screens: brand and actions on the first row, the nav scrolls on its own second row. */}
+        <div className="mx-auto flex max-w-6xl flex-wrap items-center gap-x-4 gap-y-2 px-4 py-3">
+          <Link to="/" className="min-w-0 truncate font-semibold">
             {t('app.name')}
           </Link>
-          <nav className="flex gap-4 text-sm">
+          <nav className="order-last -mx-4 flex w-[calc(100%+2rem)] gap-4 overflow-x-auto px-4 text-sm whitespace-nowrap sm:order-none sm:mx-0 sm:w-auto sm:px-0">
             {me.role !== 'customer' ? <Link to="/customers">{t('nav.customers')}</Link> : null}
             {me.role === 'admin' ? <Link to="/admin">{t('nav.admin')}</Link> : null}
             {me.role === 'admin' ? <Link to="/audit">{t('nav.audit')}</Link> : null}
           </nav>
-          <div className="ml-auto flex items-center gap-3 text-sm">
-            <span className="hidden text-slate-500 sm:inline">{me.name}</span>
+          <div className="ml-auto flex shrink-0 items-center gap-3 text-sm">
+            <span className="hidden max-w-48 truncate text-slate-500 sm:inline" title={me.email}>
+              {me.name}
+            </span>
             <LocaleSwitch />
-            <button className="btn-ghost" onClick={signOut}>
+            <button className="btn-ghost whitespace-nowrap" onClick={signOut} title={`${me.name} · ${me.email}`}>
               {t('nav.signOut')}
             </button>
           </div>

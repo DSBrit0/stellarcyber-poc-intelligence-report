@@ -75,6 +75,12 @@ export function InsightTemplate({ rc }: { rc: ReportContext }) {
           </Card>
         ) : null}
       </Grid>
+      {/* No numbered sections here: the add-on license note becomes a card. */}
+      {data.aiTriage ? (
+        <Card wide title={rc.x('licAutoTriageTitle').replace(/^\d+\.\d+\s+/, '')}>
+          <p className="body">{rc.x('licAutoTriage')}</p>
+        </Card>
+      ) : null}
       {details.comments ? (
         <Card wide title={t('seCommentsTitle')}>
           <p className="body prose">{details.comments}</p>

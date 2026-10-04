@@ -71,24 +71,24 @@ export function EndpointTable({ rows, onPick }: { rows: EndpointStat[]; onPick?:
               onClick={() => onPick?.(r.endpoint)}
               title={r.statuses ? Object.entries(r.statuses).map(([s, n]) => `${s}: ${n}`).join(' · ') : undefined}
             >
-              <td className="px-2 py-1.5 font-mono text-xs">
+              <td className="px-2 py-1.5 font-mono text-xs whitespace-nowrap">
                 {r.method ? <span className="mr-1 text-slate-400">{r.method}</span> : null}
                 {r.endpoint}
               </td>
-              <td className="px-2 py-1.5 text-right tabular-nums">{f.num(r.requests)}</td>
+              <td className="px-2 py-1.5 text-right whitespace-nowrap tabular-nums">{f.num(r.requests)}</td>
               <td className={`px-2 py-1.5 text-right tabular-nums ${r.errors ? 'font-semibold text-red-600' : 'text-slate-400'}`}>{f.num(r.errors)}</td>
               <td className={`px-2 py-1.5 text-right tabular-nums ${r.retries ? 'text-amber-600' : 'text-slate-400'}`}>{f.num(r.retries)}</td>
-              <td className="px-2 py-1.5 text-right tabular-nums">{f.ms(r.p50)}</td>
-              <td className="w-40 px-2 py-1.5">
+              <td className="px-2 py-1.5 text-right whitespace-nowrap tabular-nums">{f.ms(r.p50)}</td>
+              <td className="w-40 min-w-32 px-2 py-1.5">
                 <div className="flex items-center gap-2">
                   <div className="h-1.5 flex-1 rounded bg-slate-100 dark:bg-slate-800">
                     <div className={`h-full rounded ${r.p95 > 10_000 ? 'bg-red-500' : r.p95 > 3_000 ? 'bg-amber-400' : 'bg-green-500'}`} style={{ width: `${(r.p95 / maxP95) * 100}%` }} />
                   </div>
-                  <span className="w-16 text-right text-xs tabular-nums">{f.ms(r.p95)}</span>
+                  <span className="w-16 text-right text-xs whitespace-nowrap tabular-nums">{f.ms(r.p95)}</span>
                 </div>
               </td>
-              <td className="px-2 py-1.5 text-right tabular-nums text-slate-500">{f.ms(r.max)}</td>
-              <td className="px-2 py-1.5 text-right tabular-nums text-slate-500">{f.bytes(r.bytes)}</td>
+              <td className="px-2 py-1.5 text-right whitespace-nowrap tabular-nums text-slate-500">{f.ms(r.max)}</td>
+              <td className="px-2 py-1.5 text-right whitespace-nowrap tabular-nums text-slate-500">{f.bytes(r.bytes)}</td>
             </tr>
           ))}
         </tbody>
@@ -141,7 +141,7 @@ export function ApiTab({ params }: { params: URLSearchParams }) {
         </span>
       </div>
 
-      <div className="grid gap-4 lg:grid-cols-3">
+      <div className="grid grid-cols-1 gap-4 lg:grid-cols-3 [&>*]:min-w-0">
         <section className="card lg:col-span-1">
           <h2 className="mb-2 text-sm font-semibold">{t('audit.instances')}</h2>
           {stats.data?.instances.length ? (
@@ -234,10 +234,10 @@ export function ApiTab({ params }: { params: URLSearchParams }) {
                         <span className="text-slate-400">{c.method}</span> {c.endpoint}
                         {c.error ? <div className="truncate text-red-600">{c.error}</div> : null}
                       </td>
-                      <td className="px-2 py-1.5 text-xs text-slate-500">{host(c.instance)}</td>
-                      <td className={`px-2 py-1.5 text-right tabular-nums ${c.ms > 10_000 ? 'font-semibold text-red-600' : c.ms > 3_000 ? 'text-amber-600' : ''}`}>{f.ms(c.ms)}</td>
-                      <td className="px-2 py-1.5 text-right tabular-nums text-slate-500">{f.bytes(c.bytes)}</td>
-                      <td className="truncate px-2 py-1.5 text-xs text-slate-500">{c.email ?? '—'}</td>
+                      <td className="px-2 py-1.5 text-xs whitespace-nowrap text-slate-500">{host(c.instance)}</td>
+                      <td className={`px-2 py-1.5 text-right whitespace-nowrap tabular-nums ${c.ms > 10_000 ? 'font-semibold text-red-600' : c.ms > 3_000 ? 'text-amber-600' : ''}`}>{f.ms(c.ms)}</td>
+                      <td className="px-2 py-1.5 text-right whitespace-nowrap tabular-nums text-slate-500">{f.bytes(c.bytes)}</td>
+                      <td className="px-2 py-1.5 text-xs whitespace-nowrap text-slate-500">{c.email ?? '—'}</td>
                     </tr>
                     {open === c.id ? (
                       <tr>

@@ -4,6 +4,7 @@ import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react'
 import { useNavigate } from 'react-router'
 import { api } from '../lib/api'
 import { CredentialFields } from '../lib/CredentialFields'
+import { AutoTriageCheckbox } from '../lib/AutoTriage'
 import { CustomerDialog } from '../lib/CustomerForm'
 import { useCustomers } from '../lib/CustomerSelect'
 import { PeriodFields, periodOk } from '../lib/PeriodFields'
@@ -32,14 +33,22 @@ const origin = (u: string) => {
   }
 }
 
+/**
+ * One step of the page. `locked` means "not yet" (dimmed) or "already used by the Sync" (read-only):
+ * either way it cannot be changed, but the values must stay readable.
+ */
 function Block({ title, help, done, locked, children }: { title: string; help?: string; done?: boolean; locked?: boolean; children: ReactNode }) {
   return (
-    <section className={`card space-y-3 transition ${locked ? 'pointer-events-none opacity-40' : ''}`} aria-disabled={locked}>
+    <section className={`card space-y-3 transition ${locked ? 'pointer-events-none opacity-60' : ''}`} aria-disabled={locked}>
       <h2 className="flex items-center gap-2 font-semibold">
-        <span className={`inline-flex h-5 w-5 items-center justify-center rounded-full text-xs ${done ? 'bg-green-600 text-white' : 'bg-slate-200 text-slate-600'}`}>{done ? '✓' : ''}</span>
+        <span
+          className={`inline-flex h-5 w-5 shrink-0 items-center justify-center rounded-full text-xs ${done ? 'bg-green-600 text-white' : 'bg-slate-200 text-slate-600 dark:bg-slate-700 dark:text-slate-300'}`}
+        >
+          {done ? '✓' : ''}
+        </span>
         {title}
       </h2>
-      {help ? <p className="text-sm text-slate-500">{help}</p> : null}
+      {help ? <p className="text-sm text-slate-500 dark:text-slate-400">{help}</p> : null}
       {children}
     </section>
   )
@@ -190,15 +199,16 @@ export function PocNewPage() {
             +
           </button>
         </div>
-        <CustomerDialog
-          open={dialog}
-          onClose={() => setDialog(false)}
-          onCreated={(c) => {
-            setCustomerId(c.id)
-            if (c.instanceUrl && !validUrl(instanceUrl)) setInstanceUrl(c.instanceUrl)
-          }}
-        />
       </Block>
+      {/* Outside the Block: a closed <dialog> still counts as a child for space-y. */}
+      <CustomerDialog
+        open={dialog}
+        onClose={() => setDialog(false)}
+        onCreated={(c) => {
+          setCustomerId(c.id)
+          if (c.instanceUrl && !validUrl(instanceUrl)) setInstanceUrl(c.instanceUrl)
+        }}
+      />
 
       <Block title={t('wiz.instanceTitle')} done={Boolean(tenants)} locked={locked}>
         <label className="block">
@@ -212,7 +222,7 @@ export function PocNewPage() {
         </label>
         {stored && useStored ? (
           <p className="flex flex-wrap items-center gap-3 text-sm">
-            <span className="rounded bg-green-100 px-2 py-1 text-green-800">✓ {t('wiz.remembered')}</span>
+            <span className="rounded bg-green-100 px-2 py-1 text-green-800 dark:bg-green-950 dark:text-green-300">✓ {t('wiz.remembered')}</span>
             <button type="button" className="text-brand underline" onClick={() => setUseStored(false)}>
               {t('wiz.useOther')}
             </button>
@@ -256,32 +266,39 @@ export function PocNewPage() {
         ) : null}
         {tenant ? (
           <p className="text-sm">
-            <span className="rounded bg-green-100 px-2 py-1 text-green-800">✓ {tenant.group ? `${tenant.group} / ` : ''}{tenant.name}</span>
+            <span className="rounded bg-green-100 px-2 py-1 text-green-800 dark:bg-green-950 dark:text-green-300">✓ {tenant.group ? `${tenant.group} / ` : ''}{tenant.name}</span>
           </p>
         ) : null}
         {/* A list of buttons rather than a <select size>: a click always selects, filtered or not. */}
-        <div role="listbox" aria-label={t('wiz.tenantTitle')} className="max-h-72 overflow-y-auto rounded-lg border border-slate-200 dark:border-slate-700">
-          {groups.map((g) => (
-            <div key={g || '-'} role="group" aria-label={g || '—'}>
-              <div className="sticky top-0 bg-slate-100 px-3 py-1 text-xs font-semibold text-slate-500 dark:bg-slate-800">{g || '—'}</div>
-              {shown
-                .filter((x) => x.group === g)
-                .map((x) => (
-                  <button
-                    key={x.id}
-                    type="button"
-                    role="option"
-                    aria-selected={x.id === tenantId}
-                    className={`block w-full px-4 py-1.5 text-left text-sm ${x.id === tenantId ? 'bg-brand font-medium text-white' : 'hover:bg-slate-100 dark:hover:bg-slate-800'}`}
-                    onClick={() => setTenantId(x.id)}
-                  >
-                    {x.name}
-                  </button>
-                ))}
-            </div>
-          ))}
-          {tenants && shown.length === 0 ? <p className="px-3 py-2 text-sm text-slate-500">{t('wiz.noTenantMatch')}</p> : null}
-        </div>
+        {tenants ? (
+          <div role="listbox" aria-label={t('wiz.tenantTitle')} className="max-h-72 overflow-y-auto rounded-lg border border-slate-200 dark:border-slate-700">
+            {groups.map((g) => (
+              <div key={g || '-'} role="group" aria-label={g || '—'}>
+                {/* Tenants outside any Tenant Group come first, without a header. */}
+                {g ? <div className="sticky top-0 bg-slate-100 px-3 py-1 text-xs font-semibold text-slate-500 dark:bg-slate-800 dark:text-slate-400">{g}</div> : null}
+                {shown
+                  .filter((x) => x.group === g)
+                  .map((x) => (
+                    <button
+                      key={x.id}
+                      type="button"
+                      role="option"
+                      aria-selected={x.id === tenantId}
+                      className={`block w-full px-4 py-1.5 text-left text-sm ${x.id === tenantId ? 'bg-brand font-medium text-white' : 'hover:bg-slate-100 dark:hover:bg-slate-800'}`}
+                      onClick={() => setTenantId(x.id)}
+                    >
+                      {x.name}
+                    </button>
+                  ))}
+              </div>
+            ))}
+            {tenants && shown.length === 0 ? <p className="px-3 py-2 text-sm text-slate-500">{t('wiz.noTenantMatch')}</p> : null}
+          </div>
+        ) : null}
+      </Block>
+
+      <Block title={t('wiz.autoTriageTitle')} help={t('wiz.autoTriageHelp')} done={details.aiTriageTested} locked={!tenant || locked}>
+        <AutoTriageCheckbox checked={details.aiTriageTested} onChange={(v) => setDetails((d) => ({ ...d, aiTriageTested: v }))} />
       </Block>
 
       <Block title={t('wiz.periodTitle')} help={t('wiz.periodHelp')} done={periodValid} locked={!tenant || locked}>
@@ -309,7 +326,7 @@ export function PocNewPage() {
 
       {pocId ? (
         <Block title={t('wiz.detailsTitle')} help={t('wiz.detailsHelp')} done={saved}>
-          <PocForm value={details} onChange={setDetails} />
+          <PocForm value={details} onChange={setDetails} autoTriageNote={t('form.aiTriageNextSync')} />
           <div className="flex items-center gap-3">
             <button type="button" className="btn" disabled={busy || !dirty} onClick={() => void save()}>
               {t('common.save')}

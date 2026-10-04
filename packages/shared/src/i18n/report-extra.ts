@@ -1,19 +1,22 @@
 import type { Locale } from '../domain.js'
 
-// Report texts that did not exist in the previous tool (AI Triage, alert access, interactive mode).
+// Report texts that did not exist in the previous tool (Auto Triage, alert access, interactive mode).
 const en = {
-  aiTitle: 'AI Triage',
+  aiTitle: 'Auto Triage',
   aiIntro:
-    'During the PoC, Stellar Cyber AI Triage was evaluated: the platform reviews each case and gives a verdict (True Positive, False Positive, Benign or Inconclusive). The figures below come from the AI Triage API for the analysed cases of the period.',
-  aiUnavailable: 'AI Triage was marked as tested, but this Instance does not expose AI Triage verdicts through the API (available on Stellar Cyber 7.x).',
-  aiNone: 'AI Triage was marked as tested, but no analysed case of the period has an AI verdict yet.',
+    'During the PoC, Stellar Cyber Auto Triage was evaluated: the platform reviews each case and gives a verdict (True Positive, False Positive, Benign or Inconclusive). The figures below come from the Auto Triage API for the analysed cases of the period.',
+  aiUnavailable: 'Auto Triage was marked as tested, but this Instance does not expose Auto Triage verdicts through the API (available on Stellar Cyber 7.x).',
+  aiNone: 'Auto Triage was marked as tested, but no analysed case of the period has an AI verdict yet.',
   aiCoverage: 'AI verdict on {n} of {t} analysed cases ({p}%) · {ch} of {cht} Critical/High.',
   aiSummary: '{fp}% of the cases with an AI verdict were classified as False Positive or Benign: work the team does not need to investigate.',
   aiSmallSample: 'Small sample: only {n} case(s) have an AI verdict, so these percentages are an indication only.',
   aiChart: 'AI verdicts (analysed cases)',
   aiTableTitle: 'Critical and High cases with an AI verdict',
   aiColVerdict: 'AI verdict',
-  aiNote: 'Verdicts as returned by the AI Triage API at collection time. Cases without a verdict were not triaged by the AI.',
+  aiNote: 'Verdicts as returned by the Auto Triage API at collection time. Cases without a verdict were not triaged by the AI.',
+  licAutoTriageTitle: '7.5 Auto Triage License',
+  licAutoTriage:
+    'Auto Triage was evaluated in this PoC. It is licensed separately (add-on), on top of the asset or volume license. To keep the AI triage of alerts in production, include the Auto Triage license in the proposal. A trial license is available for evaluation.',
   alertAccess:
     'The alerts of {n} case(s) could not be read with the credential used for collection (no permission); their tactics and techniques are not included.',
   removed: 'removed',
@@ -37,18 +40,21 @@ const en = {
 type Extra = typeof en
 
 const ptBR: Extra = {
-  aiTitle: 'Triagem por IA',
+  aiTitle: 'Auto Triage',
   aiIntro:
-    'Durante a PoC foi avaliada a Triagem por IA da Stellar Cyber: a plataforma analisa cada case e dá um veredito (Verdadeiro Positivo, Falso Positivo, Benigno ou Inconclusivo). Os números abaixo vêm da API de Triagem por IA para os cases analisados no período.',
-  aiUnavailable: 'A Triagem por IA foi marcada como testada, mas esta instância não disponibiliza os vereditos da IA pela API (disponível na Stellar Cyber 7.x).',
-  aiNone: 'A Triagem por IA foi marcada como testada, mas nenhum case analisado no período tem veredito da IA ainda.',
+    'Durante a PoC foi avaliado o Auto Triage da Stellar Cyber: a plataforma analisa cada case e dá um veredito (Verdadeiro Positivo, Falso Positivo, Benigno ou Inconclusivo). Os números abaixo vêm da API do Auto Triage para os cases analisados no período.',
+  aiUnavailable: 'O Auto Triage foi marcado como testado, mas esta instância não disponibiliza os vereditos da IA pela API (disponível na Stellar Cyber 7.x).',
+  aiNone: 'O Auto Triage foi marcado como testado, mas nenhum case analisado no período tem veredito da IA ainda.',
   aiCoverage: 'Veredito da IA em {n} de {t} cases analisados ({p}%) · {ch} de {cht} Críticos/Altos.',
   aiSummary: '{fp}% dos cases com veredito da IA foram classificados como Falso Positivo ou Benigno: trabalho que a equipe não precisa investigar.',
   aiSmallSample: 'Amostra pequena: só {n} case(s) têm veredito da IA; leia esses percentuais apenas como indicação.',
   aiChart: 'Vereditos da IA (cases analisados)',
   aiTableTitle: 'Cases Críticos e Altos com veredito da IA',
   aiColVerdict: 'Veredito da IA',
-  aiNote: 'Vereditos como retornados pela API de Triagem por IA no momento da coleta. Cases sem veredito não foram triados pela IA.',
+  aiNote: 'Vereditos como retornados pela API do Auto Triage no momento da coleta. Cases sem veredito não foram triados pela IA.',
+  licAutoTriageTitle: '7.5 Licença Auto Triage',
+  licAutoTriage:
+    'O Auto Triage foi avaliado nesta PoC. É um recurso licenciado à parte (add-on), adicional à licença de ativos ou de volume. Para manter a triagem automática dos alertas pela IA em produção, inclua a licença Auto Triage na proposta. Há licença de avaliação (trial) disponível.',
   alertAccess:
     'Os alertas de {n} case(s) não puderam ser lidos com a credencial usada na coleta (sem permissão); táticas e técnicas desses cases não estão incluídas.',
   removed: 'removido',
@@ -71,18 +77,21 @@ const ptBR: Extra = {
 }
 
 const es: Extra = {
-  aiTitle: 'Triaje por IA',
+  aiTitle: 'Auto Triage',
   aiIntro:
-    'Durante la PoC se evaluó el Triaje por IA de Stellar Cyber: la plataforma analiza cada caso y emite un veredicto (Verdadero Positivo, Falso Positivo, Benigno o Inconcluso). Las cifras provienen de la API de Triaje por IA para los casos analizados del período.',
-  aiUnavailable: 'El Triaje por IA se marcó como probado, pero esta instancia no expone los veredictos de la IA por API (disponible en Stellar Cyber 7.x).',
-  aiNone: 'El Triaje por IA se marcó como probado, pero ningún caso analizado del período tiene veredicto de la IA todavía.',
+    'Durante la PoC se evaluó el Auto Triage de Stellar Cyber: la plataforma analiza cada caso y emite un veredicto (Verdadero Positivo, Falso Positivo, Benigno o Inconcluso). Las cifras provienen de la API de Auto Triage para los casos analizados del período.',
+  aiUnavailable: 'El Auto Triage se marcó como probado, pero esta instancia no expone los veredictos de la IA por API (disponible en Stellar Cyber 7.x).',
+  aiNone: 'El Auto Triage se marcó como probado, pero ningún caso analizado del período tiene veredicto de la IA todavía.',
   aiCoverage: 'Veredicto de la IA en {n} de {t} casos analizados ({p}%) · {ch} de {cht} Críticos/Altos.',
   aiSummary: 'El {fp}% de los casos con veredicto de la IA se clasificó como Falso Positivo o Benigno: trabajo que el equipo no necesita investigar.',
   aiSmallSample: 'Muestra pequeña: solo {n} caso(s) tienen veredicto de la IA; lea estos porcentajes solo como indicación.',
   aiChart: 'Veredictos de la IA (casos analizados)',
   aiTableTitle: 'Casos Críticos y Altos con veredicto de la IA',
   aiColVerdict: 'Veredicto de la IA',
-  aiNote: 'Veredictos tal como los devolvió la API de Triaje por IA en el momento de la recolección. Los casos sin veredicto no fueron triados por la IA.',
+  aiNote: 'Veredictos tal como los devolvió la API de Auto Triage en el momento de la recolección. Los casos sin veredicto no fueron triados por la IA.',
+  licAutoTriageTitle: '7.5 Licencia Auto Triage',
+  licAutoTriage:
+    'El Auto Triage se evaluó en esta PoC. Es un recurso con licencia aparte (add-on), adicional a la licencia de activos o de volumen. Para mantener el triaje automático de alertas por la IA en producción, incluya la licencia Auto Triage en la propuesta. Hay licencia de evaluación (trial) disponible.',
   alertAccess:
     'Las alertas de {n} caso(s) no pudieron leerse con la credencial usada en la recolección (sin permiso); sus tácticas y técnicas no están incluidas.',
   removed: 'eliminado',

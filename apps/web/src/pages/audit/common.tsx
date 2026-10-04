@@ -16,7 +16,9 @@ export function qs(params: Record<string, string | number | null | undefined>, p
   const p = new URLSearchParams()
   for (const [k, v] of Object.entries(params)) if (v !== '' && v != null) p.set(k, String(v))
   const ms = preset ? PRESET_MS[preset] : null
-  if (ms) p.set('from', new Date(Date.now() - ms).toISOString())
+  // Rounded to the minute: the query string is part of the query key, and a key that changes on
+  // every render makes react-query refetch without end.
+  if (ms) p.set('from', new Date(Math.floor((Date.now() - ms) / 60_000) * 60_000).toISOString())
   return p.toString()
 }
 
@@ -26,7 +28,9 @@ export function useFormat() {
     dateTime: (iso: string | null | undefined) => (iso ? new Date(iso).toLocaleString(locale, { dateStyle: 'short', timeStyle: 'medium' }) : '—'),
     time: (iso: string) => new Date(iso).toLocaleTimeString(locale, { hour: '2-digit', minute: '2-digit' }),
     num: (n: number | null | undefined) => (n == null ? '—' : n.toLocaleString(locale)),
-    ms: (n: number | null | undefined) => (n == null ? '—' : n >= 10_000 ? `${(n / 1000).toFixed(1)} s` : `${n.toLocaleString(locale)} ms`),
+    // One unit rule for every duration in milliseconds: under a second in ms, otherwise seconds with one decimal.
+    ms: (n: number | null | undefined) =>
+      n == null ? '—' : n < 1000 ? `${Math.round(n).toLocaleString(locale)} ms` : `${(n / 1000).toLocaleString(locale, { minimumFractionDigits: 1, maximumFractionDigits: 1 })} s`,
     duration: (seconds: number | null | undefined) => {
       if (seconds == null) return '—'
       const m = Math.floor(seconds / 60)
@@ -41,17 +45,18 @@ export function useFormat() {
         v /= 1024
         i++
       }
-      return `${v.toFixed(i ? 1 : 0)} ${units[i]}`
+      return `${v.toLocaleString(locale, { minimumFractionDigits: i ? 1 : 0, maximumFractionDigits: i ? 1 : 0 })} ${units[i]}`
     },
   }
 }
 
-export function PresetSelect({ value, onChange }: { value: Preset; onChange: (p: Preset) => void }) {
+/** `className`/`optionClassName` replace the default look, e.g. on the dark Logs toolbar. */
+export function PresetSelect({ value, onChange, className = 'input w-auto', optionClassName }: { value: Preset; onChange: (p: Preset) => void; className?: string; optionClassName?: string }) {
   const { t } = useI18n()
   return (
-    <select className="input w-auto" aria-label={t('audit.period')} value={value} onChange={(e) => onChange(e.target.value as Preset)}>
+    <select className={className} aria-label={t('audit.period')} value={value} onChange={(e) => onChange(e.target.value as Preset)}>
       {PRESETS.map((p) => (
-        <option key={p} value={p}>
+        <option key={p} value={p} className={optionClassName}>
           {t(`audit.preset.${p}` as MessageKey)}
         </option>
       ))}
@@ -120,7 +125,7 @@ export function StatusBadge({ status, outcome }: { status: number | null; outcom
         : s >= 400
           ? 'bg-amber-100 text-amber-800 dark:bg-amber-950 dark:text-amber-300'
           : 'bg-green-100 text-green-800 dark:bg-green-950 dark:text-green-300'
-  return <span className={`rounded px-1.5 py-0.5 font-mono text-xs ${cls}`}>{status ?? 'NET'}</span>
+  return <span className={`rounded px-1.5 py-0.5 font-mono text-xs whitespace-nowrap ${cls}`}>{status ?? 'NET'}</span>
 }
 
 export function JsonBlock({ value }: { value: unknown }) {
@@ -179,7 +184,7 @@ export function HourlyBars({ data, series }: { data: Record<string, number | str
 }
 
 export function Th({ children, right }: { children?: ReactNode; right?: boolean }) {
-  return <th className={`px-2 py-2 text-xs font-medium tracking-wide text-slate-500 uppercase ${right ? 'text-right' : 'text-left'}`}>{children}</th>
+  return <th className={`px-2 py-2 text-xs font-medium tracking-wide whitespace-nowrap text-slate-500 uppercase ${right ? 'text-right' : 'text-left'}`}>{children}</th>
 }
 
 export function Empty({ loading }: { loading?: boolean }) {

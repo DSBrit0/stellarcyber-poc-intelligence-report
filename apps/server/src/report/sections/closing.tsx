@@ -253,6 +253,14 @@ export function SectionRoi({ rc }: { rc: ReportContext }) {
           )}
         </>
       )}
+
+      {/* Auto Triage is an add-on license: stated whenever this Report's Sync collected it. */}
+      {data.aiTriage ? (
+        <>
+          <Sub rc={rc}>{rc.x('licAutoTriageTitle')}</Sub>
+          <P>{rc.x('licAutoTriage')}</P>
+        </>
+      ) : null}
     </Section>
   )
 }

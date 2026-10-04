@@ -30,14 +30,17 @@ export function PocListPage() {
   const owner = isAdmin ? (params.get('owner') ?? '') : ''
   const { data = [], isLoading } = useQuery({ queryKey: ['pocs', owner], queryFn: () => api<PocRow[]>(`/pocs${owner ? `?owner=${owner}` : ''}`) })
   const all = useQuery({ queryKey: ['pocs', ''], queryFn: () => api<PocRow[]>('/pocs'), enabled: isAdmin })
+  const ownerName = owner && owner !== 'me' ? (all.data ?? []).find((p) => p.ownerId === owner)?.ownerName : null
+  // The heading follows the Owner filter: an Admin's unfiltered list holds everyone's PoCs.
+  const heading = !isAdmin || owner === 'me' || owner === me?.id ? t('poc.list') : owner ? t('poc.listOf', { name: ownerName ?? '—' }) : t('poc.listAll')
   const owners = [...new Map((all.data ?? []).map((p) => [p.ownerId, p.ownerName ?? '—'])).entries()].sort((a, b) => a[1].localeCompare(b[1]))
   return (
     <div className="space-y-4">
-      <div className="flex items-center justify-between">
-        <h1 className="text-xl font-semibold">{t('poc.list')}</h1>
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <h1 className="text-xl font-semibold">{heading}</h1>
         {isAdmin ? (
           <select
-            className="input mr-auto ml-4 w-auto"
+            className="input mr-auto w-auto"
             aria-label={t('poc.owner')}
             value={owner}
             onChange={(e) => setParams(e.target.value ? { owner: e.target.value } : {})}
@@ -64,10 +67,16 @@ export function PocListPage() {
         {data.map((p) => (
           <li key={p.id} className="relative">
             {me && (me.role === 'admin' || me.id === p.ownerId) ? <DeletePoc id={p.id} name={p.customerName} syncing={p.syncing} /> : null}
-            <Link to={`/pocs/${p.id}`} className="card block pr-12 hover:border-brand">
-              <div className="flex items-center gap-2 font-semibold">
+            <Link to={`/pocs/${p.id}`} className="card block h-full pr-12 hover:border-brand">
+              <div className="flex flex-wrap items-center gap-2 font-semibold">
                 {p.customerName}
-                {p.draft ? <span className="rounded bg-amber-100 px-2 py-0.5 text-xs font-medium text-amber-800">{t('poc.draft')}</span> : null}
+                {p.draft ? <span className="rounded bg-amber-100 px-2 py-0.5 text-xs font-medium whitespace-nowrap text-amber-800 dark:bg-amber-950 dark:text-amber-300">{t('poc.draft')}</span> : null}
+                {p.syncing ? (
+                  <span className="inline-flex items-center gap-1.5 rounded bg-blue-100 px-2 py-0.5 text-xs font-medium whitespace-nowrap text-blue-800 dark:bg-blue-950 dark:text-blue-300">
+                    <span className="h-1.5 w-1.5 animate-pulse rounded-full bg-current" aria-hidden="true" />
+                    {t('poc.syncing')}
+                  </span>
+                ) : null}
               </div>
               <div className="text-sm text-slate-500">{p.tenantName}</div>
               <div className="mt-2 text-xs text-slate-500">

@@ -53,4 +53,18 @@ describe('renderReportHtml', () => {
     expect(html).toContain('Ajuste &lt;do&gt; escopo')
     expect(renderReportHtml(data, details, 'technical', 'pt-BR')).toContain('Versão 1.0')
   })
+  it('states the Auto Triage add-on license only when the Sync collected Auto Triage', () => {
+    const without = renderReportHtml(data, details, 'technical', 'pt-BR')
+    expect(without).not.toContain('Licença Auto Triage')
+    const collected = { ...data, aiTriage: { available: false, verdicts: {} } }
+    for (const template of TEMPLATES) {
+      const html = renderReportHtml(collected, details, template, 'pt-BR')
+      expect(html).toContain('Licença Auto Triage')
+      expect(html).toContain('licenciado à parte (add-on)')
+      expect(html).not.toContain('Triagem por IA')
+    }
+  })
+  it('labels the region as where the Instance is provisioned', () => {
+    expect(renderReportHtml(data, PocDetails.parse({ customerName: 'X', region: 'Brasil' }), 'technical', 'pt-BR')).toContain('Instância provisionada em')
+  })
 })

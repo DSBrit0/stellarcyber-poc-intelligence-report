@@ -476,7 +476,7 @@
     "envStart": "PoC Start",
     "envEnd": "PoC End",
     "envVersion": "Platform Version",
-    "envRegion": "Region",
+    "envRegion": "Instance provisioned in",
     "envParam": "Parameter",
     "envValue": "Value",
     "phaseNum": "#",

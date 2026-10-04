@@ -55,7 +55,7 @@ export function DateInput({ value, onChange, min, max, label, required }: { valu
         />
         <button
           type="button"
-          className="absolute top-1/2 right-2 -translate-y-1/2 rounded p-1 text-slate-500 hover:bg-slate-100"
+          className="absolute top-1/2 right-2 -translate-y-1/2 rounded p-1 text-slate-500 hover:bg-slate-100 dark:text-slate-400 dark:hover:bg-slate-800"
           aria-label={label}
           onClick={() => native.current?.showPicker?.()}
         >

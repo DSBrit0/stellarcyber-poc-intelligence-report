@@ -87,9 +87,7 @@ export function LogsTab({ params }: { params: URLSearchParams }) {
             </option>
           ))}
         </select>
-        <span className="[&_select]:rounded-lg [&_select]:border-white/10 [&_select]:bg-white/5 [&_select]:py-1.5 [&_select]:text-xs [&_select]:text-slate-200">
-          <PresetSelect value={preset} onChange={set(setPreset)} />
-        </span>
+        <PresetSelect value={preset} onChange={set(setPreset)} className="rounded-lg border border-white/10 bg-white/5 px-2 py-1.5 text-xs text-slate-200" optionClassName="bg-slate-900" />
         <input
           className="min-w-32 flex-1 rounded-lg border border-white/10 bg-white/5 px-3 py-1.5 text-xs outline-none placeholder:text-slate-500"
           placeholder={t('audit.searchLogs')}
@@ -128,16 +126,23 @@ export function LogsTab({ params }: { params: URLSearchParams }) {
             const isOpen = open.has(e.id)
             return (
               <div key={e.id} className={`group border-b border-white/[0.03] ${hasData ? 'cursor-pointer hover:bg-white/[0.03]' : ''}`} onClick={() => hasData && toggle(e.id)}>
-                <div className="flex items-start gap-2 px-4 py-1.5">
+                {/* Below sm the message drops to its own full-width line under the level, time and category. */}
+                <div className="flex flex-wrap items-start gap-x-2 px-4 py-1.5 sm:flex-nowrap">
                   <span className={`shrink-0 rounded border px-1.5 leading-5 ${LEVEL_STYLE[e.level]}`}>{e.level[0]!.toUpperCase()}</span>
                   <span className="shrink-0 leading-5 text-slate-500 tabular-nums">{f.dateTime(e.at)}</span>
                   <span className="shrink-0 leading-5 text-violet-400">
                     [{e.source}/{e.category}]
                   </span>
-                  <span className={`flex-1 leading-5 break-all ${e.level === 'error' ? 'text-red-300' : e.level === 'warn' ? 'text-amber-200' : 'text-slate-300'}`}>{e.message}</span>
+                  <span
+                    className={`order-last min-w-0 basis-full leading-5 [overflow-wrap:anywhere] sm:order-none sm:flex-1 sm:basis-0 ${e.level === 'error' ? 'text-red-300' : e.level === 'warn' ? 'text-amber-200' : 'text-slate-300'}`}
+                  >
+                    {e.message}
+                  </span>
                   {e.email ? <span className="hidden shrink-0 leading-5 text-slate-500 md:inline">{e.email}</span> : null}
-                  <CopyButton text={asText(e)} />
-                  {hasData ? <span className="shrink-0 leading-5 text-slate-600">{isOpen ? '▲' : '▼'}</span> : null}
+                  <span className="ml-auto flex shrink-0 gap-2 sm:ml-0">
+                    <CopyButton text={asText(e)} />
+                    {hasData ? <span className="leading-5 text-slate-600">{isOpen ? '▲' : '▼'}</span> : null}
+                  </span>
                 </div>
                 {hasData && isOpen ? (
                   <pre className="overflow-x-auto bg-black/30 px-4 pb-3 leading-relaxed text-slate-400 select-text" onClick={(ev) => ev.stopPropagation()}>

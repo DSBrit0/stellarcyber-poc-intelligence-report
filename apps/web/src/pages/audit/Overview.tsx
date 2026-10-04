@@ -54,7 +54,7 @@ export function OverviewTab({ go }: { go: Go }) {
         <Kpi label={t('audit.kpi.appErrors')} value={f.num(c.errors24h)} hint={t('audit.kpi.warnings', { n: c.warnings24h })} tone={c.errors24h ? 'bad' : 'good'} />
       </div>
 
-      <div className="grid gap-4 lg:grid-cols-2">
+      <div className="grid grid-cols-1 gap-4 lg:grid-cols-2 [&>*]:min-w-0">
         <section className="card">
           <h2 className="mb-3 text-sm font-semibold">{t('audit.chart.api')}</h2>
           <HourlyBars
@@ -78,7 +78,7 @@ export function OverviewTab({ go }: { go: Go }) {
         </section>
       </div>
 
-      <div className="grid gap-4 lg:grid-cols-3">
+      <div className="grid grid-cols-1 gap-4 lg:grid-cols-3 [&>*]:min-w-0">
         <section className="card">
           <div className="mb-2 flex items-center justify-between">
             <h2 className="text-sm font-semibold">{t('audit.recentFailures')}</h2>
@@ -89,11 +89,13 @@ export function OverviewTab({ go }: { go: Go }) {
           {recentFailures.length ? (
             <ul className="space-y-2 text-sm">
               {recentFailures.map((r, i) => (
-                <li key={i} className="flex justify-between gap-2">
-                  <span className="truncate">{r.email ?? r.meta?.email ?? '—'}</span>
-                  <span className="shrink-0 text-xs text-slate-500">
+                <li key={i}>
+                  <div className="truncate" title={r.email ?? r.meta?.email ?? undefined}>
+                    {r.email ?? r.meta?.email ?? '—'}
+                  </div>
+                  <div className="text-xs text-slate-500">
                     {r.ip} · {f.dateTime(r.at)}
-                  </span>
+                  </div>
                 </li>
               ))}
             </ul>
@@ -112,7 +114,9 @@ export function OverviewTab({ go }: { go: Go }) {
             <ul className="space-y-2 text-sm">
               {recentErrors.map((r) => (
                 <li key={r.id}>
-                  <div className="truncate font-mono text-xs text-red-600 dark:text-red-400">{r.message}</div>
+                  <div className="truncate font-mono text-xs text-red-600 dark:text-red-400" title={r.message}>
+                    {r.message}
+                  </div>
                   <div className="text-xs text-slate-500">
                     {r.source}/{r.category} · {f.dateTime(r.at)}
                   </div>

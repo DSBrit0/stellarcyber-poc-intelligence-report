@@ -42,7 +42,7 @@ function CancelSyncButton({ syncId }: { syncId: string }) {
   return (
     <button
       type="button"
-      className="rounded-md border border-red-300 bg-white px-2 py-0.5 text-xs font-medium text-red-700 hover:bg-red-50 disabled:opacity-50 dark:bg-transparent"
+      className="shrink-0 whitespace-nowrap rounded-md border border-red-300 bg-white px-2 py-0.5 text-xs font-medium text-red-700 hover:bg-red-50 disabled:opacity-50 dark:border-red-800 dark:bg-transparent dark:text-red-300 dark:hover:bg-red-950"
       disabled={cancel.isPending}
       onClick={() => window.confirm(t('sync.cancelConfirm')) && cancel.mutate()}
     >
@@ -67,7 +67,7 @@ export function SyncBar({ sync, label, sticky, canCancel }: { sync: SyncRow | un
   const phaseText = phase ? t('sync.phaseOf', { n: phase, total: SYNC_PHASES.length, name: t(`sync.phase.${SYNC_PHASES[phase - 1]}` as MessageKey) }) : t('sync.progressPlain')
   const bar = (
     <div
-      className={`rounded-lg border p-3 ${sticky ? 'shadow-md' : ''} ${failed ? 'border-red-300 bg-red-50' : cancelled ? 'border-slate-300 bg-slate-100 dark:bg-slate-900' : 'border-blue-200 bg-blue-50 dark:bg-blue-950/30'}`}
+      className={`rounded-lg border p-3 ${sticky ? 'shadow-md' : ''} ${failed ? 'border-red-300 bg-red-50 dark:border-red-900 dark:bg-red-950/40' : cancelled ? 'border-slate-300 bg-slate-100 dark:border-slate-700 dark:bg-slate-900' : 'border-blue-200 bg-blue-50 dark:border-blue-900 dark:bg-blue-950/30'}`}
       role="status"
       aria-live="polite"
     >
@@ -80,7 +80,7 @@ export function SyncBar({ sync, label, sticky, canCancel }: { sync: SyncRow | un
           {canCancel && isRunning(sync) ? <CancelSyncButton syncId={sync.id} /> : null}
         </span>
       </div>
-      <div className="h-2 overflow-hidden rounded bg-white/70">
+      <div className="h-2 overflow-hidden rounded bg-white/70 dark:bg-slate-800">
         <div
           className={`h-full transition-all ${failed ? 'bg-red-500' : cancelled ? 'bg-slate-400' : sync.status === 'succeeded' ? 'bg-green-600' : 'bg-brand'}`}
           style={{ width: `${failed ? 100 : pct}%` }}
@@ -97,7 +97,7 @@ export function SyncBar({ sync, label, sticky, canCancel }: { sync: SyncRow | un
           ))}
         </ol>
       ) : null}
-      {failed ? <p className="mt-2 text-sm text-red-700">{t(errorKey(new ApiError(500, `stellar_${sync.error ?? ''}`)))}</p> : null}
+      {failed ? <p className="mt-2 text-sm text-red-700 dark:text-red-300">{t(errorKey(new ApiError(500, `stellar_${sync.error ?? ''}`)))}</p> : null}
     </div>
   )
   // Opaque strip in the page colour, so the content scrolling under the bar does not show through.

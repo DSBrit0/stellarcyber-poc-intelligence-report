@@ -93,7 +93,7 @@ export function ActivityTab({ params }: { params: URLSearchParams }) {
   return (
     <section className="card space-y-3">
       <div className="flex flex-wrap items-center gap-2">
-        <select className="input w-auto" aria-label={t('audit.user')} value={userId} onChange={(e) => reset(setUserId)(e.target.value)}>
+        <select className="input w-auto max-w-full" aria-label={t('audit.user')} value={userId} onChange={(e) => reset(setUserId)(e.target.value)}>
           <option value="">{t('audit.allUsers')}</option>
           {users.data?.map((u) => (
             <option key={u.id} value={u.id}>
@@ -101,7 +101,7 @@ export function ActivityTab({ params }: { params: URLSearchParams }) {
             </option>
           ))}
         </select>
-        <select className="input w-auto" aria-label={t('audit.action')} value={action} onChange={(e) => reset(setAction)(e.target.value)}>
+        <select className="input w-auto max-w-full" aria-label={t('audit.action')} value={action} onChange={(e) => reset(setAction)(e.target.value)}>
           <option value="">{t('audit.allActions')}</option>
           {groups.map((g) => (
             <optgroup key={g} label={g}>

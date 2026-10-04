@@ -1,9 +1,17 @@
+import type { MessageKey } from '@poc-intel/shared/i18n'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { useState, type FormEvent } from 'react'
 import { api } from '../lib/api'
 import { useCustomers } from '../lib/CustomerSelect'
 import { errorKey } from '../lib/errors'
 import { useI18n } from '../lib/i18n'
+
+const USER_STATUS_STYLE: Record<string, string> = {
+  pending: 'bg-amber-100 text-amber-800 dark:bg-amber-950 dark:text-amber-300',
+  active: 'bg-green-100 text-green-800 dark:bg-green-950 dark:text-green-300',
+  rejected: 'bg-red-100 text-red-700 dark:bg-red-950 dark:text-red-300',
+  disabled: 'bg-slate-100 text-slate-600 dark:bg-slate-800 dark:text-slate-400',
+}
 
 interface CustomerUser {
   id: string
@@ -56,11 +64,11 @@ export function CustomersPage() {
       </div>
 
       <form className="card flex flex-wrap items-end gap-3" onSubmit={create}>
-        <label className="block min-w-64 flex-1">
+        <label className="block min-w-56 flex-1">
           <span className="label">{t('form.customerName')}</span>
           <input className="input" required minLength={2} maxLength={160} value={name} onChange={(e) => setName(e.target.value)} />
         </label>
-        <button className="btn">{t('customers.new')}</button>
+        <button className="btn whitespace-nowrap">{t('customers.new')}</button>
         {error ? <p className="w-full text-sm text-red-600">{error}</p> : null}
       </form>
 
@@ -74,26 +82,38 @@ export function CustomersPage() {
       ) : null}
 
       <section className="card overflow-x-auto">
-        <table className="w-full text-sm">
+        <table className="w-full text-sm [&_td]:px-2 [&_td:first-child]:pl-0 [&_th]:px-2 [&_th:first-child]:pl-0">
           <thead className="text-left text-xs text-slate-500">
             <tr>
               <th className="py-2">{t('form.customerName')}</th>
               <th>{t('customers.pocs')}</th>
               <th>{t('customers.users')}</th>
-              <th />
+              <th className="hidden sm:table-cell" />
             </tr>
           </thead>
           <tbody>
             {(customers.data ?? []).map((c) => (
               <tr key={c.id} className="border-t border-slate-200 dark:border-slate-800">
-                <td className="py-2 font-medium">{c.name}</td>
+                <td className="py-2 font-medium">
+                  {c.name}
+                  {/* On narrow screens the key button sits under the name instead of a fourth column. */}
+                  <div className="mt-1 sm:hidden">
+                    <button className="btn-ghost px-2 py-1 text-xs font-normal whitespace-nowrap" onClick={() => void rotate(c.id, c.name)}>
+                      {t('customers.rotate')}
+                    </button>
+                  </div>
+                </td>
                 <td>{c.pocs}</td>
                 <td>
                   {c.users}
-                  {c.pending ? <span className="ml-2 rounded bg-amber-100 px-2 text-xs text-amber-800">{c.pending} {t('customers.pending')}</span> : null}
+                  {c.pending ? (
+                    <span className="mt-0.5 block w-fit rounded bg-amber-100 px-2 text-xs whitespace-nowrap text-amber-800 sm:mt-0 sm:ml-2 sm:inline dark:bg-amber-950 dark:text-amber-300">
+                      {c.pending} {t('customers.pending')}
+                    </span>
+                  ) : null}
                 </td>
-                <td className="text-right">
-                  <button className="btn-ghost" onClick={() => void rotate(c.id, c.name)}>
+                <td className="hidden pr-0 text-right sm:table-cell">
+                  <button className="btn-ghost whitespace-nowrap" onClick={() => void rotate(c.id, c.name)}>
                     {t('customers.rotate')}
                   </button>
                 </td>
@@ -108,10 +128,12 @@ export function CustomersPage() {
         {(people.data ?? []).map((u) => (
           <div key={u.id} className="flex flex-wrap items-center gap-3 border-t border-slate-200 py-2 text-sm first:border-0 dark:border-slate-800">
             <span className="font-medium">{u.name}</span>
-            <span className="text-slate-500">{u.email}</span>
-            <span className="text-slate-500">· {u.customerName}</span>
+            {/* The separator stays with the e-mail, so a wrapped line never starts with "·". */}
+            <span className="text-slate-500">
+              {[u.email, u.customerName].filter(Boolean).join(' · ')}
+            </span>
             <span className="text-xs text-slate-400">{new Date(u.createdAt).toLocaleDateString(locale)}</span>
-            <span className={`rounded px-2 text-xs ${u.status === 'pending' ? 'bg-amber-100 text-amber-800' : u.status === 'active' ? 'bg-green-100 text-green-800' : 'bg-slate-100 text-slate-600'}`}>{u.status}</span>
+            <span className={`rounded px-2 text-xs whitespace-nowrap ${USER_STATUS_STYLE[u.status] ?? USER_STATUS_STYLE.disabled}`}>{t(`user.status.${u.status}` as MessageKey)}</span>
             <span className="ml-auto flex gap-2">
               {u.status !== 'active' ? (
                 <button className="btn" onClick={() => decide.mutate({ id: u.id, action: 'approve' })}>
