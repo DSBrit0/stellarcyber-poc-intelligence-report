@@ -607,5 +607,8 @@
   "err.transfer_invalid": "This person cannot receive the PoCs and companies.",
   "err.confirm_name": "The name typed does not match the company's.",
   "audit.action.user.deleted": "Account deleted",
-  "audit.action.customer.deleted": "Company deleted"
+  "audit.action.customer.deleted": "Company deleted",
+  "root.changePassword": "Change password",
+  "root.help": "The system's root administrator: its role never changes and it cannot be disabled or deleted.",
+  "err.root_protected": "The Administrator (root) account cannot have its role or status changed, nor be deleted."
 }

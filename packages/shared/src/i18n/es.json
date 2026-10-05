@@ -607,5 +607,8 @@
   "err.transfer_invalid": "Esta persona no puede recibir las PoCs y empresas.",
   "err.confirm_name": "El nombre escrito no coincide con el de la empresa.",
   "audit.action.user.deleted": "Cuenta eliminada",
-  "audit.action.customer.deleted": "Empresa eliminada"
+  "audit.action.customer.deleted": "Empresa eliminada",
+  "root.changePassword": "Cambiar contraseña",
+  "root.help": "Administrador root del sistema: su rol no cambia y la cuenta no puede desactivarse ni eliminarse.",
+  "err.root_protected": "La cuenta Administrator (root) no puede cambiar su rol o estado, ni ser eliminada."
 }

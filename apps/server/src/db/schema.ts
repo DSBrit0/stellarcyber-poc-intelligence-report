@@ -18,6 +18,8 @@ export const users = pgTable('users', {
   mfaEnabled: boolean('mfa_enabled').notNull().default(false),
   mfaLastStep: bigint('mfa_last_step', { mode: 'number' }),
   mfaExempt: boolean('mfa_exempt').notNull().default(false),
+  /** The Root Administrator (ADR 0013): fixed Admin Role, never disabled or deleted. */
+  isRoot: boolean('is_root').notNull().default(false),
   mustChangePassword: boolean('must_change_password').notNull().default(false),
   customerId: uuid('customer_id'),
   failedLogins: integer('failed_logins').notNull().default(0),

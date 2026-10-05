@@ -18,6 +18,8 @@ interface UserRow {
   status: string
   mfaEnabled: boolean
   mfaExempt: boolean
+  /** The Root Administrator (ADR 0013): Role, status and deletion are locked. */
+  isRoot: boolean
   createdAt: string
   customers: number
   pocs: number
@@ -105,12 +107,21 @@ export function AdminPage() {
             <tbody>
               {others.map((u) => (
                 <tr key={u.id} className="border-t border-slate-200 dark:border-slate-800">
-                  <td className="py-2">{u.name}</td>
+                  <td className="py-2">
+                    {u.name}
+                    {u.isRoot ? (
+                      <span className="ml-2 rounded bg-slate-800 px-1.5 py-0.5 text-[11px] font-semibold text-white dark:bg-slate-200 dark:text-slate-900" title={t('root.help')}>
+                        Root
+                      </span>
+                    ) : null}
+                  </td>
                   <td className="text-slate-500">{u.email}</td>
                   <td>
                     <select
                       className="input w-auto min-w-[9rem] py-1"
                       aria-label={t('admin.role')}
+                      disabled={u.isRoot}
+                      title={u.isRoot ? t('root.help') : undefined}
                       value={u.role}
                       onChange={(e) => act.mutate({ path: `/admin/users/${u.id}`, method: 'PATCH', body: { role: e.target.value } })}
                     >
@@ -154,7 +165,7 @@ export function AdminPage() {
                       >
                         {t('admin.passwordLink')}
                       </button>
-                      {u.id !== me?.id ? <DeleteUserButton userId={u.id} label={u.name} /> : null}
+                      {u.id !== me?.id && !u.isRoot ? <DeleteUserButton userId={u.id} label={u.name} /> : null}
                     </div>
                   </td>
                 </tr>

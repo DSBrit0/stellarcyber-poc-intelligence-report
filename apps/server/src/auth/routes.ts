@@ -41,6 +41,7 @@ export function toMe(user: User): Me {
     mfaEnabled: user.mfaEnabled,
     mustChangePassword: user.mustChangePassword,
     customerId: user.customerId,
+    isRoot: user.isRoot,
   }
 }
 

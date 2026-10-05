@@ -5,6 +5,7 @@ import { db } from '../db/client.js'
 import { customers, pocs, reportData, syncs, users, type User } from '../db/schema.js'
 import { HttpError, notFound } from '../lib/http.js'
 import { deleteRenders } from '../report/render-cache.js'
+import { assertNotRoot } from '../auth/root.js'
 
 /**
  * Permanent deletion of User accounts and Companies (LGPD). An Admin deletes anything; a Sales
@@ -83,6 +84,7 @@ export async function loadDeletableUser(auth: AuthContext, userId: string): Prom
   if (userId === auth.user.id) throw new HttpError(400, 'cannot_delete_self')
   const [target] = await db.select().from(users).where(eq(users.id, userId)).limit(1)
   if (!target) throw notFound()
+  assertNotRoot(target)
   if (auth.user.role !== 'admin') {
     const [company] = target.customerId ? await db.select({ ownerId: customers.ownerId }).from(customers).where(eq(customers.id, target.customerId)).limit(1) : []
     if (!company || company.ownerId !== auth.user.id) throw notFound()

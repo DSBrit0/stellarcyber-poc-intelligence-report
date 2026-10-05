@@ -8,8 +8,9 @@ import { useI18n } from './i18n'
 /**
  * Blocking dialog shown while the User must change their password (first sign-in of an account
  * created by an Admin). It cannot be dismissed: the API refuses everything else until it is done.
+ * With `onClose`, it is the Root Administrator's own "Change password" (ADR 0013), which can be closed.
  */
-export function ChangePasswordDialog() {
+export function ChangePasswordDialog({ onClose }: { onClose?: () => void } = {}) {
   const { t } = useI18n()
   const qc = useQueryClient()
   const ref = useRef<HTMLDialogElement>(null)
@@ -30,6 +31,7 @@ export function ChangePasswordDialog() {
     try {
       await api('/auth/password', { method: 'POST', body: { currentPassword: form.current, newPassword: form.next } })
       qc.setQueryData<Me | null>(['me'], (me) => (me ? { ...me, mustChangePassword: false } : me))
+      onClose?.()
     } catch (err) {
       setError(t(errorKey(err)))
     } finally {
@@ -56,14 +58,14 @@ export function ChangePasswordDialog() {
     <dialog
       ref={ref}
       className="m-auto w-[calc(100%-2rem)] max-w-md rounded-xl bg-white p-0 shadow-xl backdrop:bg-slate-900/60 dark:bg-slate-900 dark:text-slate-100"
-      onCancel={(e) => e.preventDefault()}
+      onCancel={(e) => (onClose ? onClose() : e.preventDefault())}
       aria-labelledby="change-password-title"
     >
       <form className="space-y-4 p-6" onSubmit={submit}>
         <h2 id="change-password-title" className="text-lg font-semibold">
           {t('password.changeTitle')}
         </h2>
-        <p className="text-sm text-slate-500">{t('password.changeHelp')}</p>
+        {onClose ? null : <p className="text-sm text-slate-500">{t('password.changeHelp')}</p>}
         {field('current', t('password.current'), 'current-password')}
         {field('next', t('password.new'), 'new-password')}
         {field('confirm', t('password.confirm'), 'new-password')}
@@ -72,9 +74,16 @@ export function ChangePasswordDialog() {
             {error}
           </p>
         ) : null}
-        <button className="btn w-full" disabled={busy}>
-          {t('common.save')}
-        </button>
+        <div className="flex gap-2">
+          {onClose ? (
+            <button type="button" className="btn-ghost flex-1" onClick={onClose}>
+              {t('catalog.cancel')}
+            </button>
+          ) : null}
+          <button className="btn flex-1" disabled={busy}>
+            {t('common.save')}
+          </button>
+        </div>
       </form>
     </dialog>
   )

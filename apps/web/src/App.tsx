@@ -1,6 +1,6 @@
 import { LOCALES, type Locale } from '@poc-intel/shared'
 import { useQueryClient } from '@tanstack/react-query'
-import type { ReactNode } from 'react'
+import { useState, type ReactNode } from 'react'
 import { BrowserRouter, Link, Navigate, Route, Routes } from 'react-router'
 import { ChangePasswordDialog } from './lib/ChangePasswordDialog'
 import { api } from './lib/api'
@@ -57,6 +57,7 @@ function Shell({ children, adminOnly, staffOnly }: { children: ReactNode; adminO
   const { data: me, isLoading } = useMe()
   const { t } = useI18n()
   const qc = useQueryClient()
+  const [changingPassword, setChangingPassword] = useState(false)
 
   if (isLoading) return null
   if (!me) return <Navigate to="/login" replace />
@@ -86,12 +87,19 @@ function Shell({ children, adminOnly, staffOnly }: { children: ReactNode; adminO
               {me.name}
             </span>
             <LocaleSwitch />
+            {/* Only the Root Administrator changes their password here (ADR 0013); others use the reset link. */}
+            {me.isRoot ? (
+              <button className="btn-ghost whitespace-nowrap" onClick={() => setChangingPassword(true)}>
+                {t('root.changePassword')}
+              </button>
+            ) : null}
             <button className="btn-ghost whitespace-nowrap" onClick={signOut} title={`${me.name} · ${me.email}`}>
               {t('nav.signOut')}
             </button>
           </div>
         </div>
       </header>
+      {changingPassword ? <ChangePasswordDialog onClose={() => setChangingPassword(false)} /> : null}
       {me.mustChangePassword ? <ChangePasswordDialog /> : <main className="mx-auto max-w-6xl px-4 py-6">{children}</main>}
     </div>
   )

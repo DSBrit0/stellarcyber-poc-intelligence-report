@@ -51,6 +51,8 @@ export const Me = z.object({
   mfaEnabled: z.boolean(),
   mustChangePassword: z.boolean(),
   customerId: z.uuid().nullable(),
+  /** The Root Administrator (ADR 0013): the only account that changes its own password on screen. */
+  isRoot: z.boolean(),
 })
 export type Me = z.infer<typeof Me>
 

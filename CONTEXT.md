@@ -17,6 +17,10 @@ _Avoid_: Permission, group
 **Admin**:
 A User who approves registrations, manages Users and settings, and can see every PoC.
 
+**Root Administrator**:
+The built-in Admin account (`administrator@stellarcyber.ai`, "Administrator") every installation has from the start. Its Role never changes, it is never disabled or deleted, it signs in with MFA like everyone, and it is the only User who changes their own password on screen (ADR 0013).
+_Avoid_: Super user, master account
+
 **Sales Engineer**:
 A Stellar Cyber employee who runs PoCs. Sees the PoCs they own, plus the PoCs and Customers of the Users of the Partner Companies they registered.
 _Avoid_: SE (allowed only as an abbreviation)

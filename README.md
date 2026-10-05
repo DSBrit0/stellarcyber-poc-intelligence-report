@@ -50,6 +50,7 @@ cp .env.example .env    # then set:
 #   APP_ORIGIN=http://localhost:5173
 #   DATABASE_URL=postgres://pocintel:dev@localhost:5432/pocintel
 #   ENCRYPTION_KEY=$(openssl rand -base64 32)
+# The API creates the Root Administrator (administrator@stellarcyber.ai) at start-up; set ROOT_PASSWORD in .env
 npm run admin:create -w @poc-intel/server -- you@stellarcyber.ai "Your Name"
 npm run dev:api      # :3000
 npm run dev:worker
@@ -68,7 +69,8 @@ The server is already prepared: Docker, ufw allowing only 10.30.0.0/16, fail2ban
 cd /opt/poc-intel/app
 infra/scripts/init-env.sh        # first time only: .env with random secrets (back up ENCRYPTION_KEY)
 infra/scripts/deploy.sh          # git pull, build and (re)start
-docker compose exec api node dist/cli/create-admin.js admin@stellarcyber.ai "Full Name"   # first time only
+# first start: the Root Administrator administrator@stellarcyber.ai is created with ROOT_PASSWORD (ADR 0013)
+docker compose exec api node dist/cli/create-admin.js admin@stellarcyber.ai "Full Name"   # optional: more Admins
 infra/scripts/install-cron.sh    # daily backup at 02:30, keeps 14 dumps
 ```
 

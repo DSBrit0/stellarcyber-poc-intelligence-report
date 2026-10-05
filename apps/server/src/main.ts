@@ -3,6 +3,7 @@ import { buildApp } from './app.js'
 import { config } from './config.js'
 import { sql } from './db/client.js'
 import { migrate } from './db/migrate.js'
+import { ensureRootAdministrator } from './auth/root.js'
 import { seal } from './lib/crypto.js'
 import { MIGRATIONS_DIR } from './lib/paths.js'
 import { QUEUES, startBoss, type RenderPdfJob, type SyncJob } from './queue.js'
@@ -14,6 +15,7 @@ setLogSource('api')
 const cfg = config()
 const applied = await migrate(sql, MIGRATIONS_DIR)
 if (applied.length) console.log(`migrations applied: ${applied.join(', ')}`)
+await ensureRootAdministrator(cfg.ROOT_PASSWORD)
 
 const boss = await startBoss()
 const dispatcher = createSafeAgent(cfg.STELLAR_ALLOWED_PRIVATE_CIDRS)

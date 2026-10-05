@@ -10,11 +10,14 @@ fi
 
 pg_password=$(openssl rand -hex 24)
 encryption_key=$(openssl rand -base64 32)
+root_password=$(openssl rand -base64 18)
 
 sed \
   -e "s|^POSTGRES_PASSWORD=.*|POSTGRES_PASSWORD=${pg_password}|" \
   -e "s|^DATABASE_URL=.*|DATABASE_URL=postgres://pocintel:${pg_password}@postgres:5432/pocintel|" \
   -e "s|^ENCRYPTION_KEY=.*|ENCRYPTION_KEY=${encryption_key}|" \
+  -e "s|^ROOT_PASSWORD=.*|ROOT_PASSWORD=${root_password}|" \
   .env.example > .env
 chmod 600 .env
 echo ".env created. Back up ENCRYPTION_KEY somewhere safe: losing it invalidates every MFA enrolment."
+echo "Root Administrator: administrator@stellarcyber.ai, first password ${root_password} (change it at the first sign-in)."

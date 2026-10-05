@@ -607,5 +607,8 @@
   "err.transfer_invalid": "Esta pessoa não pode receber as PoCs e empresas.",
   "err.confirm_name": "O nome digitado não confere com o da empresa.",
   "audit.action.user.deleted": "Conta apagada",
-  "audit.action.customer.deleted": "Empresa apagada"
+  "audit.action.customer.deleted": "Empresa apagada",
+  "root.changePassword": "Alterar senha",
+  "root.help": "Administrador root do sistema: o papel não muda e a conta não pode ser desativada nem apagada.",
+  "err.root_protected": "A conta Administrator (root) não pode ter o papel ou o status alterados, nem ser apagada."
 }

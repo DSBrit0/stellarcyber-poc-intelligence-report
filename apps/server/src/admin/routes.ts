@@ -10,6 +10,7 @@ import { audit } from '../lib/audit.js'
 import { config } from '../config.js'
 import { randomToken, sha256 } from '../lib/crypto.js'
 import { HttpError, notFound, parse } from '../lib/http.js'
+import { assertNotRoot } from '../auth/root.js'
 import { AppSettings, getSettings, updateSettings } from '../settings.js'
 
 const RESET_TTL_MS = 24 * 3_600_000
@@ -25,6 +26,7 @@ const userColumns = {
   customerId: users.customerId,
   mfaEnabled: users.mfaEnabled,
   mfaExempt: users.mfaExempt,
+  isRoot: users.isRoot,
   createdAt: users.createdAt,
   decidedAt: users.decidedAt,
 }
@@ -94,6 +96,9 @@ export async function adminRoutes(app: FastifyInstance): Promise<void> {
     if (id === admin.id && (patch.status === 'disabled' || (patch.role && patch.role !== 'admin'))) {
       throw new HttpError(409, 'cannot_demote_self')
     }
+    // The Root Administrator keeps its Role and status; its MFA settings follow the usual rules.
+    const [target] = await db.select({ isRoot: users.isRoot }).from(users).where(eq(users.id, id)).limit(1)
+    if (target && (patch.role !== undefined || patch.status !== undefined)) assertNotRoot(target)
     const [user] = await db
       .update(users)
       .set({ ...patch, updatedAt: dsql`now()` })
