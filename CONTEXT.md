@@ -18,21 +18,28 @@ _Avoid_: Permission, group
 A User who approves registrations, manages Users and settings, and can see every PoC.
 
 **Sales Engineer**:
-A Stellar Cyber employee who runs PoCs. Sees only the PoCs they own.
+A Stellar Cyber employee who runs PoCs. Sees the PoCs they own, plus the PoCs and Customers of the Users of the Partner Companies they registered.
 _Avoid_: SE (allowed only as an abbreviation)
 
 **Partner**:
-A reseller's staff member who runs PoCs. Sees only the PoCs they own.
+A reseller's staff member who runs PoCs, usually a User of a Partner Company. Sees only the PoCs they own.
+
+**Company**:
+An organisation registered in advance by a Sales Engineer or Partner (its Customer Owner), with a Profile of Customer or Partner. Every User who joins it with its Access Key takes its Profile as their Role; changing the Profile changes all of them.
+_Avoid_: Account, organisation, tenant
 
 **Customer**:
-A company evaluating Stellar Cyber, registered in advance by a Sales Engineer or Partner (its Customer Owner). Linking a PoC to a Customer is optional; when it is linked, that Customer's Customer Users can reach the PoC's Reports.
+A Company with the Customer Profile: a company evaluating Stellar Cyber. Linking a PoC to a Customer is optional for the Report flow and required for a PoC Notebook; when it is linked, that Customer's Customer Users can reach the PoC.
 _Avoid_: Client, account, tenant (a Tenant is a data partition in an Instance)
 
+**Partner Company**:
+A Company with the Partner Profile: a reseller whose Users become Partners. The Sales Engineer who registered it follows its Users' PoCs. A Customer that buys and becomes a Partner Company keeps, read-only, the PoCs it was evaluated in; it cannot turn back into a Customer while its Users own PoCs or Companies.
+
 **Customer Owner**:
-The User who registered a Customer. They approve that Customer's Customer Users.
+The User who registered a Company. They approve the Users who join it.
 
 **Access Key**:
-A secret the Customer Owner generates for a Customer and hands over at the first meeting. A Registration that gives the Customer's name and its Access Key is linked to that Customer.
+A secret the Customer Owner generates for a Company and hands over at the first meeting. A Registration that gives the Company's name and its Access Key is linked to that Company.
 _Avoid_: Invite code, password
 
 **Customer User**:
@@ -123,8 +130,11 @@ The working record of a PoC from planning to closeout, kept with the customer: o
 _Avoid_: Tracker, spreadsheet, test notebook, caderno de teste
 
 **PoC Schedule**:
-The PoC Notebook's milestones, from PoC Start Day to Post-PoC Closeout. Each milestone starts where the previous one ends and lasts a number of days; an end date that falls on a weekend moves to the next Monday.
+The PoC Notebook's milestones, from PoC Start Day to PoC Completion. Its dates are suggested from the PoC start date, on Mondays, Wednesdays and Fridays; a date set by hand moves only that milestone. Every milestone after the start day stands for one phase of the PoC Process: it disappears with its phase, and it is done once every item of that phase is completed or not applicable.
 _Avoid_: Timeline, Gantt, POV Schedule
+
+**Notebook Template**:
+The Admin-maintained list of PoC Process items and PoC Schedule milestones that a new PoC Notebook starts from. Hiding, removing or adding an item affects only PoC Notebooks started afterwards. Within one PoC Notebook, only its Sales Engineer, its Owner or an Admin can hide, remove or add items; the Partner and Customer Users fill them in.
 
 **Data Source Catalog**:
 The list of Stellar Cyber log parsers (with their ports) and Connectors, read every week from the official documentation pages an Admin points it to. A PoC Notebook picks its Data Sources and Connectors from it; an entry that later leaves the documentation stays in the PoCs that use it, marked as removed.
@@ -139,7 +149,7 @@ One collection run that pulls a PoC's period data from the Instance API and cond
 _Avoid_: Refresh, import, fetch
 
 **Report Data**:
-The frozen set of figures that one Sync collected for a PoC, together with the status of each Success Criterion at that moment. A Report renders it together with the PoC's current details, so the Report can be regenerated without contacting the Instance again.
+The frozen set of figures that one Sync collected for a PoC, together with the status of each Success Criterion at that moment when the PoC has a PoC Notebook. A PoC without one has Success Criteria but no statuses. A Report renders it together with the PoC's current details, so the Report can be regenerated without contacting the Instance again.
 _Avoid_: Raw data, cache, dump
 
 **Report**:
