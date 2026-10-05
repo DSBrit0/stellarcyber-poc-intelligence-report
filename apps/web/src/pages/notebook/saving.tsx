@@ -24,7 +24,8 @@ interface Tracker {
 const Ctx = createContext<Tracker>({ track: (p) => p, setPending: () => {} })
 const StatusCtx = createContext<{ status: Status; savedAt: Date | null }>({ status: 'idle', savedAt: null })
 
-export function SaveProvider({ pocId, children }: { pocId: string; children: ReactNode }) {
+/** `queryKey`: the query refreshed after each save (the Notebook, or the Notebook Template). */
+export function SaveProvider({ queryKey, children }: { queryKey: readonly unknown[]; children: ReactNode }) {
   const qc = useQueryClient()
   const pending = useRef(new Map<string, () => void>())
   const [inflight, setInflight] = useState(0)
@@ -41,9 +42,9 @@ export function SaveProvider({ pocId, children }: { pocId: string; children: Rea
           const result = await p
           setFailed(false)
           setSavedAt(new Date())
-          // The cached Notebook follows what was saved, so a section reopened later shows it.
+          // The cached data follows what was saved, so a section reopened later shows it.
           clearTimeout(refresh.current)
-          refresh.current = setTimeout(() => void qc.invalidateQueries({ queryKey: ['notebook', pocId] }), 300)
+          refresh.current = setTimeout(() => void qc.invalidateQueries({ queryKey }), 300)
           return result
         } catch (err) {
           setFailed(true)
@@ -58,7 +59,8 @@ export function SaveProvider({ pocId, children }: { pocId: string; children: Rea
         setWaiting(pending.current.size)
       },
     }),
-    [pocId, qc],
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [JSON.stringify(queryKey), qc],
   )
 
   // Leaving the page: send what is still waiting, and let the browser warn while a save is under way.

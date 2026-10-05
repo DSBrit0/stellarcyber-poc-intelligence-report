@@ -118,7 +118,7 @@ export function NotebookTab({ pocId }: { pocId: string }) {
   // A failed background refresh keeps the last data on screen.
   if (!nb) return error ? <p className="card text-sm text-red-600">{t(errorKey(error))}</p> : null
   return (
-    <SaveProvider pocId={pocId}>
+    <SaveProvider queryKey={['notebook', pocId]}>
       <NotebookBody pocId={pocId} nb={nb} />
     </SaveProvider>
   )

@@ -223,6 +223,7 @@ export const notebookTemplateItems = pgTable('notebook_template_items', {
   key: text('key'),
   updatedAt: ts('updated_at').notNull().defaultNow(),
 })
+export type NotebookTemplateItem = typeof notebookTemplateItems.$inferSelect
 
 export const pocProcessItems = pgTable('poc_process_items', {
   id: uuid('id').primaryKey().defaultRandom(),

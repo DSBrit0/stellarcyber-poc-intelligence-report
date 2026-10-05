@@ -27,6 +27,7 @@ export type AuditAction =
   | 'customer.key_rotated'
   | 'customer.profile_changed'
   | 'catalog.updated'
+  | 'template.updated'
   | 'customer.user_approve'
   | 'customer.user_reject'
   | 'customer.user_disable'

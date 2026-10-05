@@ -163,6 +163,16 @@ export function AdminPage() {
 
       <CatalogCard />
 
+      <section className="card flex flex-wrap items-start justify-between gap-3">
+        <div>
+          <h2 className="font-semibold">{t('tpl.title')}</h2>
+          <p className="max-w-3xl text-sm text-slate-500">{t('tpl.cardHelp')}</p>
+        </div>
+        <Link to="/admin/template" className="btn">
+          {t('tpl.open')}
+        </Link>
+      </section>
+
       {settings.data ? <SettingsForm initial={settings.data} onSave={(s) => saveSettings.mutate(s)} saving={saveSettings.isPending} /> : null}
     </div>
   )

@@ -139,3 +139,28 @@ export const MilestonePatch = z.object({
   tone: MilestoneTone.optional(),
 })
 export const MilestoneAdd = z.object({ afterId: z.uuid().nullable(), text: I18nText, days: z.number().int().min(0).max(60).default(2), tone: MilestoneTone.default('poc') })
+
+/** Notebook Template editing (Admin, ADR 0012); changes reach only the Notebooks started afterwards. */
+export const TEMPLATE_SECTIONS = ['process', 'schedule'] as const
+export const TemplateSection = z.enum(TEMPLATE_SECTIONS)
+export type TemplateSection = z.infer<typeof TemplateSection>
+export const TemplatePatch = z.object({
+  text: I18nText.optional(),
+  hidden: z.boolean().optional(),
+  kind: ProcessKind.optional(),
+  indent: z.number().int().min(0).max(1).optional(),
+  days: z.number().int().min(0).max(60).optional(),
+  tone: MilestoneTone.optional(),
+})
+export const TemplateAdd = z.object({
+  section: TemplateSection,
+  afterId: z.uuid().nullable(),
+  kind: z.enum(['phase', 'group', 'item', 'note', 'milestone']),
+  text: I18nText,
+  indent: z.number().int().min(0).max(1).default(0),
+  days: z.number().int().min(0).max(60).default(2),
+  tone: MilestoneTone.default('poc'),
+  /** A new phase gets its PoC Schedule milestone too. */
+  withMilestone: z.boolean().default(true),
+})
+export const TemplateMove = z.object({ direction: z.enum(['up', 'down']) })

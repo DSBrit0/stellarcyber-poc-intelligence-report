@@ -25,6 +25,7 @@ import type { AuthContext } from '../auth/session.js'
 import { db } from '../db/client.js'
 import { catalogEntries, customers, notebookTemplateItems, pocCriteria, pocDataSources, pocMeetings, pocMilestones, pocProcessItems, pocs, reportData, type Poc } from '../db/schema.js'
 import { getCatalogState } from '../catalog/refresh.js'
+import { templateForNewNotebook } from './template.js'
 import { audit } from '../lib/audit.js'
 import { HttpError, notFound, parse } from '../lib/http.js'
 import { canFillNotebook, canShapeNotebook, loadPocAccess, reportTarget } from '../pocs/access.js'
@@ -64,9 +65,7 @@ export async function notebookRoutes(app: FastifyInstance): Promise<void> {
         })
         .returning()
       // The Notebook starts as a copy of the template's visible items (ADR 0012).
-      const template = await tx.select().from(notebookTemplateItems).where(eq(notebookTemplateItems.hidden, false)).orderBy(asc(notebookTemplateItems.position))
-      const process = template.filter((t) => t.section === 'process' && t.kind !== 'milestone')
-      const schedule = template.filter((t) => t.section === 'schedule')
+      const { process, schedule } = templateForNewNotebook(await tx.select().from(notebookTemplateItems))
       const phases = new Map<string, string>()
       if (process.length > 0) {
         const rows = await tx
@@ -75,11 +74,10 @@ export async function notebookRoutes(app: FastifyInstance): Promise<void> {
           .returning({ id: pocProcessItems.id, key: pocProcessItems.key })
         for (const r of rows) if (r.key) phases.set(r.key, r.id)
       }
-      // Each milestone points to the phase it stands for; a phase hidden in the template has no milestone.
-      const milestones = schedule.filter((t) => t.key === 'start' || !t.key || phases.has(t.key))
-      if (milestones.length > 0) {
+      // Each milestone points to the phase it stands for.
+      if (schedule.length > 0) {
         await tx.insert(pocMilestones).values(
-          milestones.map((t, i) => ({ pocId: created!.id, position: i + 1, key: t.key, text: t.text, days: t.days ?? 2, tone: t.tone ?? 'poc', phaseId: t.key ? (phases.get(t.key) ?? null) : null })),
+          schedule.map((t, i) => ({ pocId: created!.id, position: i + 1, key: t.key, text: t.text, days: t.days ?? 2, tone: t.tone ?? 'poc', phaseId: t.key ? (phases.get(t.key) ?? null) : null })),
         )
       }
       return created!

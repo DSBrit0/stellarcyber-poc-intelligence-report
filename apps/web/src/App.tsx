@@ -13,6 +13,7 @@ import { LoginPage } from './pages/Login'
 import { PocDetailPage } from './pages/PocDetail'
 import { PocListPage } from './pages/PocList'
 import { PocNewPage } from './pages/PocNew'
+import { TemplatePage } from './pages/admin/TemplatePage'
 import { ResetPasswordPage } from './pages/ResetPassword'
 
 export function App() {
@@ -25,6 +26,7 @@ export function App() {
         <Route path="/pocs/new" element={<Shell><PocNewPage /></Shell>} />
         <Route path="/pocs/:id" element={<Shell><PocDetailPage /></Shell>} />
         <Route path="/admin" element={<Shell adminOnly><AdminPage /></Shell>} />
+        <Route path="/admin/template" element={<Shell adminOnly><TemplatePage /></Shell>} />
         <Route path="/audit" element={<Shell adminOnly><AuditPage /></Shell>} />
         <Route path="/customers" element={<Shell staffOnly><CustomersPage /></Shell>} />
         <Route path="*" element={<Navigate to="/" replace />} />
