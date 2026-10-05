@@ -25,6 +25,8 @@ export type AuditAction =
   | 'retention.purged'
   | 'customer.created'
   | 'customer.key_rotated'
+  | 'customer.profile_changed'
+  | 'catalog.updated'
   | 'customer.user_approve'
   | 'customer.user_reject'
   | 'customer.user_disable'

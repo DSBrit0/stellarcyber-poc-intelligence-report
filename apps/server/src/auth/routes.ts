@@ -56,12 +56,15 @@ export async function authRoutes(app: FastifyInstance): Promise<void> {
     }
     // A Customer User proves the link with the company name plus the Access Key their SE handed over.
     let customerId: string | null = null
+    let role: 'customer' | 'partner' = 'partner'
     if (input.customer) {
       const [customer] = await db.select().from(customers).where(eq(customers.nameKey, customerNameKey(input.customer.name))).limit(1)
       if (!customer || !safeEqual(customer.accessKeyHash, sha256(normalizeAccessKey(input.customer.accessKey)))) {
         throw new HttpError(400, 'customer_key_invalid')
       }
       customerId = customer.id
+      // The User takes the Company's Profile as their Role (ADR 0011).
+      role = customer.profile
     }
     const inserted = await db
       .insert(users)
@@ -70,7 +73,7 @@ export async function authRoutes(app: FastifyInstance): Promise<void> {
         name: input.name,
         company: input.customer?.name ?? input.company ?? '',
         customerId,
-        role: customerId ? 'customer' : 'partner',
+        role,
         passwordHash: await hashPassword(input.password),
         locale: input.locale ?? resolveLocale(req.headers['accept-language']),
       })

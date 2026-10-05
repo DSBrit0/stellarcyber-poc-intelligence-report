@@ -14,15 +14,18 @@ interface PocRow {
   /** A Sync is queued or running: the PoC cannot be deleted until it ends or is cancelled. */
   syncing: boolean
   draft: boolean
+  /** Started as a PoC Notebook; until it has a Report target it has no Tenant or period. */
+  notebook: boolean
+  startDate: string | null
   customerName: string
   tenantName: string
-  periodStart: string
-  periodEnd: string
+  periodStart: string | null
+  periodEnd: string | null
   updatedAt: string
 }
 
 export function PocListPage() {
-  const { t } = useI18n()
+  const { t, locale } = useI18n()
   const { data: me } = useMe()
   const [params, setParams] = useSearchParams()
   const isAdmin = me?.role === 'admin'
@@ -70,6 +73,13 @@ export function PocListPage() {
             <Link to={`/pocs/${p.id}`} className="card block h-full pr-12 hover:border-brand">
               <div className="flex flex-wrap items-center gap-2 font-semibold">
                 {p.customerName}
+                {p.notebook ? (
+                  p.reports > 0 ? (
+                    <span className="rounded bg-green-100 px-2 py-0.5 text-xs font-medium whitespace-nowrap text-green-800 dark:bg-green-950 dark:text-green-300">{t('poc.phase.report')}</span>
+                  ) : (
+                    <span className="rounded bg-violet-100 px-2 py-0.5 text-xs font-medium whitespace-nowrap text-violet-800 dark:bg-violet-950 dark:text-violet-300">{t('poc.phase.notebook')}</span>
+                  )
+                ) : null}
                 {p.draft ? <span className="rounded bg-amber-100 px-2 py-0.5 text-xs font-medium whitespace-nowrap text-amber-800 dark:bg-amber-950 dark:text-amber-300">{t('poc.draft')}</span> : null}
                 {p.syncing ? (
                   <span className="inline-flex items-center gap-1.5 rounded bg-blue-100 px-2 py-0.5 text-xs font-medium whitespace-nowrap text-blue-800 dark:bg-blue-950 dark:text-blue-300">
@@ -80,7 +90,13 @@ export function PocListPage() {
               </div>
               <div className="text-sm text-slate-500">{p.tenantName}</div>
               <div className="mt-2 text-xs text-slate-500">
-                {p.periodStart} → {p.periodEnd} · {t('poc.reportsCount', { n: p.reports })}
+                {[
+                  p.periodStart ? `${p.periodStart} → ${p.periodEnd}` : null,
+                  !p.periodStart && p.startDate ? t('poc.startsOn', { date: new Date(`${p.startDate}T12:00:00`).toLocaleDateString(locale) }) : null,
+                  t('poc.reportsCount', { n: p.reports }),
+                ]
+                  .filter(Boolean)
+                  .join(' · ')}
               </div>
               {isAdmin || p.linkedCustomer ? (
                 <div className="mt-1 flex flex-wrap gap-x-3 text-xs text-slate-400">

@@ -20,6 +20,17 @@ const KNOWN: Record<string, MessageKey> = {
   stellar_unavailable: 'err.stellar_unavailable',
   stellar_bad_response: 'err.stellar_unavailable',
   customer_exists: 'err.customer_exists',
+  company_users_own_records: 'err.company_users_own_records',
+  customer_is_partner: 'err.customer_is_partner',
+  customer_not_yours: 'err.customer_not_yours',
+  report_target_missing: 'err.report_target_missing',
+  report_target_set: 'err.report_target_set',
+  catalog_host: 'err.catalog_host',
+  catalog_unreachable: 'err.catalog_unreachable',
+  catalog_version_unknown: 'err.catalog_version_unknown',
+  catalog_version_mismatch: 'err.catalog_version_mismatch',
+  catalog_no_parsers: 'err.catalog_no_parsers',
+  catalog_no_connectors: 'err.catalog_no_connectors',
   validation: 'err.validation',
 }
 

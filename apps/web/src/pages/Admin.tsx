@@ -4,6 +4,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { useState } from 'react'
 import { Link } from 'react-router'
 import { api } from '../lib/api'
+import { CatalogCard } from './admin/CatalogCard'
 import { useI18n } from '../lib/i18n'
 
 interface UserRow {
@@ -159,6 +160,8 @@ export function AdminPage() {
         </div>
         {resetUrl ? <p className="rounded bg-amber-50 p-3 text-xs break-all text-amber-900">{resetUrl}</p> : null}
       </section>
+
+      <CatalogCard />
 
       {settings.data ? <SettingsForm initial={settings.data} onSave={(s) => saveSettings.mutate(s)} saving={saveSettings.isPending} /> : null}
     </div>

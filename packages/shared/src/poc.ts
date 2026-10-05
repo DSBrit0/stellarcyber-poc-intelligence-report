@@ -1,6 +1,7 @@
 import { z } from 'zod'
 import { InstanceUrl } from './auth.js'
-import { MAX_POC_DAYS } from './domain.js'
+import { CompanyProfile, MAX_POC_DAYS } from './domain.js'
+import { EmailField, PersonContact, PersonNameField, UrlField } from './fields.js'
 
 const IsoDate = z.iso.date()
 const Text = (max: number) => z.string().trim().max(max)
@@ -62,6 +63,21 @@ export const PocPeriod = z
   )
 export type PocPeriod = z.infer<typeof PocPeriod>
 
+/**
+ * PoC details as typed in a form: e-mails, phones, people's names and web addresses are normalised and
+ * validated. Stored details are read with the lenient PocDetails, so older values still load.
+ */
+export const PocDetailsInput = PocDetails.extend({
+  customerEmail: EmailField.default(''),
+  analysts: z
+    .array(PersonNameField)
+    .max(50)
+    .transform((names) => names.filter(Boolean))
+    .default([]),
+  salesEngineer: PersonContact.default({ name: '', email: '', phone: '' }),
+  partner: z.object({ name: PersonNameField.default(''), email: EmailField.default(''), site: UrlField.default('') }).default({ name: '', email: '', site: '' }),
+})
+
 export const CreatePocInput = z.object({
   instanceUrl: InstanceUrl,
   customerId: z.uuid().nullable().optional(),
@@ -69,13 +85,13 @@ export const CreatePocInput = z.object({
   draft: z.boolean().optional(),
   tenant: z.object({ id: Text(128).min(1), name: Text(200).default('') }),
   period: PocPeriod,
-  details: PocDetails,
+  details: PocDetailsInput,
 })
 export type CreatePocInput = z.infer<typeof CreatePocInput>
 
 export const UpdatePocInput = z.object({
   period: PocPeriod.optional(),
-  details: PocDetails.optional(),
+  details: PocDetailsInput.optional(),
   customerId: z.uuid().nullable().optional(),
   /** Saving the details completes a Draft PoC. */
   finalize: z.boolean().optional(),
@@ -84,8 +100,16 @@ export const UpdatePocInput = z.object({
 /** Customer company name: matching ignores case and repeated spaces. */
 export const customerNameKey = (name: string) => name.trim().toLowerCase().replace(/\s+/g, ' ')
 
-export const CreateCustomerInput = z.object({ name: z.string().trim().min(2).max(160), instanceUrl: InstanceUrl.nullable().optional() })
-export const UpdateCustomerInput = CreateCustomerInput.partial()
+export const CreateCustomerInput = z.object({
+  name: z.string().trim().min(2).max(160),
+  instanceUrl: InstanceUrl.nullable().optional(),
+  profile: CompanyProfile.default('customer'),
+})
+export const UpdateCustomerInput = z.object({
+  name: z.string().trim().min(2).max(160).optional(),
+  instanceUrl: InstanceUrl.nullable().optional(),
+  profile: CompanyProfile.optional(),
+})
 
 export const CommentKind = z.enum(['internal', 'report'])
 export type CommentKind = z.infer<typeof CommentKind>

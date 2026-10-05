@@ -14,6 +14,8 @@ import { loadVersioning } from './report/versioning.js'
 import { purgeExpired } from './retention/purge.js'
 import { createSafeAgent } from './stellar/safe-agent.js'
 import { runSync } from './syncs/run-sync.js'
+import { detailsForReport } from './report/poc-details.js'
+import { scheduledCatalogRefresh } from './catalog/refresh.js'
 import { appLog, flush, setLogSource } from './lib/log-sink.js'
 
 const cfg = config()
@@ -39,13 +41,13 @@ await boss.work<SyncJob>(QUEUES.sync, { localConcurrency: 3 }, async ([job]) => 
 await boss.work<RenderPdfJob>(QUEUES.renderPdf, { localConcurrency: 2 }, async ([job]) => {
   if (!job) return
   const [row] = await db
-    .select({ data: reportData.data, details: pocs.details, archImage: pocs.archImage })
+    .select({ data: reportData.data, details: pocs.details, archImage: pocs.archImage, id: pocs.id, notebook: pocs.notebook })
     .from(reportData)
     .innerJoin(pocs, eq(pocs.id, reportData.pocId))
     .where(eq(reportData.id, job.data.reportDataId))
     .limit(1)
   if (!row) return
-  const html = renderReportHtml(row.data, row.details, Template.parse(job.data.template), Locale.parse(job.data.locale), {
+  const html = renderReportHtml(row.data, await detailsForReport(row), Template.parse(job.data.template), Locale.parse(job.data.locale), {
     archImage: row.archImage,
     versioning: await loadVersioning(job.data.reportDataId),
   })
@@ -66,6 +68,13 @@ await boss.work(QUEUES.retention, async () => {
 })
 // Daily at 03:00 server time.
 await boss.schedule(QUEUES.retention, '0 3 * * *', null, { tz: 'America/Sao_Paulo' })
+
+// The Data Source Catalog: every Monday, re-read the official documentation unless its build is unchanged.
+await boss.work(QUEUES.catalog, async () => {
+  const outcome = await scheduledCatalogRefresh()
+  appLog('info', 'catalog', `Catalog refresh ${outcome}`, {})
+})
+await boss.schedule(QUEUES.catalog, '0 6 * * 1', null, { tz: 'America/Sao_Paulo' })
 
 log.info('worker ready')
 appLog('info', 'system', 'Worker started')

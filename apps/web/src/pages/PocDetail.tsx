@@ -12,14 +12,20 @@ import { useI18n } from '../lib/i18n'
 import { toReportImage } from '../lib/image'
 import { PeriodFields, periodOk } from '../lib/PeriodFields'
 import { PocForm } from '../lib/PocForm'
+import { typedDetailsValid } from '../lib/TypedFields'
 import { SyncBar, type SyncRow } from '../lib/SyncProgress'
+import { NotebookTab } from './notebook/NotebookTab'
 
 interface PocView {
   id: string
-  instanceUrl: string
+  instanceUrl: string | null
   tenantName: string
-  periodStart: string
-  periodEnd: string
+  periodStart: string | null
+  periodEnd: string | null
+  /** The PoC Notebook's overview; null when the PoC has no Notebook. */
+  notebook: { startDate: string } | null
+  /** False while the PoC is only a Notebook: no Tenant or period yet (ADR 0010). */
+  hasReportTarget: boolean
   details: PocDetails
   customerId: string | null
   customerName: string | null
@@ -46,12 +52,13 @@ interface ReportRow {
   periodEnd: string
 }
 
-type Tab = 'reports' | 'details' | 'sync'
+type Tab = 'notebook' | 'reports' | 'details' | 'sync'
 
 export function PocDetailPage() {
   const { id = '' } = useParams()
-  const { t } = useI18n()
-  const [tab, setTab] = useState<Tab>('reports')
+  const { t, locale } = useI18n()
+  const navigate = useNavigate()
+  const [tab, setTab] = useState<Tab | null>(null)
   const { data: poc } = useQuery({
     queryKey: ['poc', id],
     queryFn: () => api<PocView>(`/pocs/${id}`),
@@ -60,6 +67,9 @@ export function PocDetailPage() {
   if (!poc) return null
   const running = poc.syncs.find((x) => x.status === 'queued' || x.status === 'running')
   const latest = poc.syncs[0]
+  // A Notebook PoC opens on its Notebook until it has Reports; any other PoC on its Reports.
+  const current: Tab = tab ?? (poc.notebook && poc.reports.length === 0 ? 'notebook' : 'reports')
+  const back = () => setTab('reports')
   return (
     <div className="space-y-5">
       <div className="flex flex-wrap items-start gap-3">
@@ -70,24 +80,61 @@ export function PocDetailPage() {
             {poc.draft ? <span className="rounded bg-amber-100 px-2 py-0.5 text-xs font-medium text-amber-800 dark:bg-amber-950 dark:text-amber-300">{t('poc.draft')}</span> : null}
           </h1>
           <p className="text-sm text-slate-500 dark:text-slate-400">
-            {poc.tenantName} · {poc.periodStart} → {poc.periodEnd}
-            {poc.customerName ? ` · ${t('nav.customers')}: ${poc.customerName}` : ''}
+            {[
+              poc.hasReportTarget ? `${poc.tenantName} · ${poc.periodStart} → ${poc.periodEnd}` : null,
+              poc.notebook ? t('poc.startsOn', { date: new Date(`${poc.notebook.startDate}T12:00:00`).toLocaleDateString(locale) }) : null,
+              poc.customerName ? `${t('nav.customers')}: ${poc.customerName}` : null,
+            ]
+              .filter(Boolean)
+              .join(' · ')}
           </p>
         </div>
         {poc.canEdit ? (
           <div className="flex flex-wrap gap-2">
-            <button className={tab === 'sync' ? 'btn' : 'btn-ghost'} onClick={() => setTab(tab === 'sync' ? 'reports' : 'sync')}>
-              {t('sync.new')}
-            </button>
-            <button className={tab === 'details' ? 'btn' : 'btn-ghost'} onClick={() => setTab(tab === 'details' ? 'reports' : 'details')}>
-              {t('poc.editDetails')}
-            </button>
+            {poc.hasReportTarget ? (
+              <>
+                <button className={current === 'sync' ? 'btn' : 'btn-ghost'} onClick={() => setTab(current === 'sync' ? 'reports' : 'sync')}>
+                  {t('sync.new')}
+                </button>
+                <button className={current === 'details' ? 'btn' : 'btn-ghost'} onClick={() => setTab(current === 'details' ? 'reports' : 'details')}>
+                  {t('poc.editDetails')}
+                </button>
+              </>
+            ) : (
+              <button className="btn" onClick={() => navigate(`/pocs/new?from=${poc.id}`)}>
+                {t('nb.createReport')}
+              </button>
+            )}
             <DeletePocButton id={poc.id} syncing={Boolean(running)} />
           </div>
         ) : null}
       </div>
+      {poc.notebook ? (
+        <nav className="flex gap-1 border-b border-slate-200 dark:border-slate-800" aria-label="PoC">
+          {(['notebook', 'reports'] as const).map((k) => (
+            <button
+              key={k}
+              type="button"
+              aria-current={current === k || (k === 'reports' && (current === 'details' || current === 'sync')) ? 'page' : undefined}
+              className={`-mb-px border-b-2 px-4 py-2 text-sm font-medium ${current === k || (k === 'reports' && (current === 'details' || current === 'sync')) ? 'border-brand text-brand' : 'border-transparent text-slate-500 hover:text-slate-800 dark:hover:text-slate-200'}`}
+              onClick={() => setTab(k)}
+            >
+              {t(k === 'notebook' ? 'tab.notebook' : 'tab.report')}
+              {k === 'reports' && poc.reports.length > 0 ? <span className="ml-1.5 rounded-full bg-slate-100 px-1.5 text-[11px] text-slate-500 dark:bg-slate-800">{poc.reports.length}</span> : null}
+            </button>
+          ))}
+        </nav>
+      ) : null}
       {running || latest?.status === 'failed' || latest?.status === 'cancelled' ? <SyncBar sync={running ?? latest} canCancel={poc.canEdit} /> : null}
-      {tab === 'reports' ? <ReportsTab poc={poc} /> : tab === 'details' ? <DetailsTab poc={poc} onSaved={() => setTab('reports')} /> : <SyncTab poc={poc} onStarted={() => setTab('reports')} />}
+      {current === 'notebook' ? (
+        <NotebookTab pocId={poc.id} />
+      ) : current === 'reports' ? (
+        <ReportsTab poc={poc} />
+      ) : current === 'details' ? (
+        <DetailsTab poc={poc} onSaved={back} />
+      ) : (
+        <SyncTab poc={poc} onStarted={back} />
+      )}
     </div>
   )
 }
@@ -104,6 +151,19 @@ function Widget({ label, value, sub }: { label: string; value: string; sub?: str
 
 function ReportsTab({ poc }: { poc: PocView }) {
   const { t } = useI18n()
+  const navigate = useNavigate()
+  if (!poc.hasReportTarget) {
+    return (
+      <div className="card space-y-3">
+        <p className="text-sm text-slate-500">{t('nb.createReportHelp')}</p>
+        {poc.canEdit ? (
+          <button className="btn" onClick={() => navigate(`/pocs/new?from=${poc.id}`)}>
+            {t('nb.createReport')}
+          </button>
+        ) : null}
+      </div>
+    )
+  }
   if (poc.reports.length === 0) return <p className="card text-sm text-slate-500">{t('report.empty')}</p>
   return (
     <ul className="space-y-3">
@@ -290,7 +350,7 @@ function DetailsTab({ poc, onSaved }: { poc: PocView; onSaved: () => void }) {
         <CustomerSelect value={customerId} onChange={setCustomerId} />
       </div>
       <div className="card">
-        <PocForm value={details} onChange={setDetails} autoTriageNote={t('form.aiTriageNextSync')} />
+        <PocForm value={details} onChange={setDetails} autoTriageNote={t('form.aiTriageNextSync')} criteriaInNotebook={poc.notebook != null} />
       </div>
       <section className="card space-y-3">
         <h3 className="text-sm font-semibold text-slate-700 dark:text-slate-200">{t('form.sectionArch')}</h3>
@@ -309,9 +369,10 @@ function DetailsTab({ poc, onSaved }: { poc: PocView; onSaved: () => void }) {
         {image.error ? <p className="text-sm text-red-600">{t(errorKey(image.error))}</p> : null}
       </section>
       <div className="flex items-center gap-3">
-        <button className="btn" disabled={save.isPending}>
+        <button className="btn" disabled={save.isPending || !typedDetailsValid(details)}>
           {t('common.save')}
         </button>
+        {!typedDetailsValid(details) ? <span className="text-sm text-red-600">{t('field.fixToSave')}</span> : null}
         {saved ? <span className="text-sm text-green-600">{t('form.saved')}</span> : null}
         {save.error ? <span className="text-sm text-red-600">{t(errorKey(save.error))}</span> : null}
       </div>
@@ -319,7 +380,9 @@ function DetailsTab({ poc, onSaved }: { poc: PocView; onSaved: () => void }) {
   )
 }
 
-function SyncTab({ poc, onStarted }: { poc: PocView; onStarted: () => void }) {
+function SyncTab({ poc: view, onStarted }: { poc: PocView; onStarted: () => void }) {
+  // Only reachable with a Report target (the buttons are hidden without one).
+  const poc = { ...view, instanceUrl: view.instanceUrl ?? '', periodStart: view.periodStart ?? '', periodEnd: view.periodEnd ?? '' }
   const { t, locale } = useI18n()
   const qc = useQueryClient()
   const remembered = useQuery({ queryKey: ['remembered'], queryFn: () => api<{ instanceUrl: string }[]>('/stellar/credentials') })

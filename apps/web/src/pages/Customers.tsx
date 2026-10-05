@@ -1,8 +1,9 @@
+import { COMPANY_PROFILES, type CompanyProfile } from '@poc-intel/shared'
 import type { MessageKey } from '@poc-intel/shared/i18n'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { useState, type FormEvent } from 'react'
 import { api } from '../lib/api'
-import { useCustomers } from '../lib/CustomerSelect'
+import { useCustomers, type CustomerRow } from '../lib/CustomerSelect'
 import { errorKey } from '../lib/errors'
 import { useI18n } from '../lib/i18n'
 
@@ -19,7 +20,13 @@ interface CustomerUser {
   email: string
   status: string
   customerName: string
+  profile: CompanyProfile
   createdAt: string
+}
+
+const PROFILE_STYLE: Record<CompanyProfile, string> = {
+  customer: 'bg-sky-100 text-sky-800 dark:bg-sky-950 dark:text-sky-300',
+  partner: 'bg-violet-100 text-violet-800 dark:bg-violet-950 dark:text-violet-300',
 }
 
 export function CustomersPage() {
@@ -28,6 +35,8 @@ export function CustomersPage() {
   const customers = useCustomers()
   const people = useQuery({ queryKey: ['customer-users'], queryFn: () => api<CustomerUser[]>('/customers/users') })
   const [name, setName] = useState('')
+  const [profile, setProfile] = useState<CompanyProfile>('customer')
+  const [filter, setFilter] = useState<CompanyProfile | ''>('')
   const [shownKey, setShownKey] = useState<{ customer: string; key: string } | null>(null)
   const [error, setError] = useState<string | null>(null)
 
@@ -39,7 +48,7 @@ export function CustomersPage() {
     e.preventDefault()
     setError(null)
     try {
-      const c = await api<{ name: string; accessKey: string }>('/customers', { method: 'POST', body: { name } })
+      const c = await api<{ name: string; accessKey: string }>('/customers', { method: 'POST', body: { name, profile } })
       setShownKey({ customer: c.name, key: c.accessKey })
       setName('')
       refresh()
@@ -51,6 +60,17 @@ export function CustomersPage() {
     const r = await api<{ accessKey: string }>(`/customers/${id}/access-key`, { method: 'POST', body: {} })
     setShownKey({ customer, key: r.accessKey })
   }
+  const changeProfile = async (c: CustomerRow, next: CompanyProfile) => {
+    if (!window.confirm(t('customers.profileConfirm', { name: c.name, profile: t(`customers.profile.${next}`) }))) return
+    setError(null)
+    try {
+      await api(`/customers/${c.id}`, { method: 'PATCH', body: { profile: next } })
+      refresh()
+    } catch (err) {
+      setError(t(errorKey(err)))
+    }
+  }
+  const rows = (customers.data ?? []).filter((c) => !filter || c.profile === filter)
   const decide = useMutation({
     mutationFn: ({ id, action }: { id: string; action: 'approve' | 'reject' | 'disable' }) => api(`/customers/users/${id}/${action}`, { method: 'POST', body: {} }),
     onSuccess: refresh,
@@ -65,8 +85,18 @@ export function CustomersPage() {
 
       <form className="card flex flex-wrap items-end gap-3" onSubmit={create}>
         <label className="block min-w-56 flex-1">
-          <span className="label">{t('form.customerName')}</span>
+          <span className="label">{t('customers.name')}</span>
           <input className="input" required minLength={2} maxLength={160} value={name} onChange={(e) => setName(e.target.value)} />
+        </label>
+        <label className="block w-40">
+          <span className="label">{t('customers.profile')}</span>
+          <select className="input" value={profile} onChange={(e) => setProfile(e.target.value as CompanyProfile)}>
+            {COMPANY_PROFILES.map((p) => (
+              <option key={p} value={p}>
+                {t(`customers.profile.${p}`)}
+              </option>
+            ))}
+          </select>
         </label>
         <button className="btn whitespace-nowrap">{t('customers.new')}</button>
         {error ? <p className="w-full text-sm text-red-600">{error}</p> : null}
@@ -82,26 +112,58 @@ export function CustomersPage() {
       ) : null}
 
       <section className="card overflow-x-auto">
+        <div className="mb-2 flex justify-end">
+          <select className="input w-auto py-1 text-sm" aria-label={t('customers.profile')} value={filter} onChange={(e) => setFilter(e.target.value as CompanyProfile | '')}>
+            <option value="">{t('customers.filterAll')}</option>
+            {COMPANY_PROFILES.map((p) => (
+              <option key={p} value={p}>
+                {t(`customers.profile.${p}`)}
+              </option>
+            ))}
+          </select>
+        </div>
         <table className="w-full text-sm [&_td]:px-2 [&_td:first-child]:pl-0 [&_th]:px-2 [&_th:first-child]:pl-0">
           <thead className="text-left text-xs text-slate-500">
             <tr>
-              <th className="py-2">{t('form.customerName')}</th>
+              <th className="py-2">{t('customers.name')}</th>
+              <th>{t('customers.profile')}</th>
               <th>{t('customers.pocs')}</th>
               <th>{t('customers.users')}</th>
               <th className="hidden sm:table-cell" />
             </tr>
           </thead>
           <tbody>
-            {(customers.data ?? []).map((c) => (
+            {rows.map((c) => (
               <tr key={c.id} className="border-t border-slate-200 dark:border-slate-800">
                 <td className="py-2 font-medium">
                   {c.name}
-                  {/* On narrow screens the key button sits under the name instead of a fourth column. */}
-                  <div className="mt-1 sm:hidden">
-                    <button className="btn-ghost px-2 py-1 text-xs font-normal whitespace-nowrap" onClick={() => void rotate(c.id, c.name)}>
-                      {t('customers.rotate')}
-                    </button>
-                  </div>
+                  {c.manageable ? null : <span className="block text-xs font-normal text-slate-500">{t('customers.registeredBy', { name: c.ownerName })}</span>}
+                  {/* On narrow screens the key button sits under the name instead of a fifth column. */}
+                  {c.manageable ? (
+                    <div className="mt-1 sm:hidden">
+                      <button className="btn-ghost px-2 py-1 text-xs font-normal whitespace-nowrap" onClick={() => void rotate(c.id, c.name)}>
+                        {t('customers.rotate')}
+                      </button>
+                    </div>
+                  ) : null}
+                </td>
+                <td>
+                  {c.manageable ? (
+                    <select
+                      className={`rounded border-0 px-2 py-0.5 text-xs ${PROFILE_STYLE[c.profile]}`}
+                      aria-label={t('customers.profile')}
+                      value={c.profile}
+                      onChange={(e) => void changeProfile(c, e.target.value as CompanyProfile)}
+                    >
+                      {COMPANY_PROFILES.map((p) => (
+                        <option key={p} value={p}>
+                          {t(`customers.profile.${p}`)}
+                        </option>
+                      ))}
+                    </select>
+                  ) : (
+                    <span className={`rounded px-2 text-xs ${PROFILE_STYLE[c.profile]}`}>{t(`customers.profile.${c.profile}`)}</span>
+                  )}
                 </td>
                 <td>{c.pocs}</td>
                 <td>
@@ -113,9 +175,11 @@ export function CustomersPage() {
                   ) : null}
                 </td>
                 <td className="hidden pr-0 text-right sm:table-cell">
-                  <button className="btn-ghost whitespace-nowrap" onClick={() => void rotate(c.id, c.name)}>
-                    {t('customers.rotate')}
-                  </button>
+                  {c.manageable ? (
+                    <button className="btn-ghost whitespace-nowrap" onClick={() => void rotate(c.id, c.name)}>
+                      {t('customers.rotate')}
+                    </button>
+                  ) : null}
                 </td>
               </tr>
             ))}
@@ -132,6 +196,7 @@ export function CustomersPage() {
             <span className="text-slate-500">
               {[u.email, u.customerName].filter(Boolean).join(' · ')}
             </span>
+            <span className={`rounded px-2 text-xs ${PROFILE_STYLE[u.profile]}`}>{t(`customers.profile.${u.profile}`)}</span>
             <span className="text-xs text-slate-400">{new Date(u.createdAt).toLocaleDateString(locale)}</span>
             <span className={`rounded px-2 text-xs whitespace-nowrap ${USER_STATUS_STYLE[u.status] ?? USER_STATUS_STYLE.disabled}`}>{t(`user.status.${u.status}` as MessageKey)}</span>
             <span className="ml-auto flex gap-2">

@@ -11,6 +11,11 @@ export const USER_STATUSES = ['pending', 'active', 'rejected', 'disabled'] as co
 export const UserStatus = z.enum(USER_STATUSES)
 export type UserStatus = z.infer<typeof UserStatus>
 
+/** A Company's Profile: its Users take it as their Role (ADR 0011). */
+export const COMPANY_PROFILES = ['customer', 'partner'] as const
+export const CompanyProfile = z.enum(COMPANY_PROFILES)
+export type CompanyProfile = z.infer<typeof CompanyProfile>
+
 export const LOCALES = ['pt-BR', 'en', 'es'] as const
 export const Locale = z.enum(LOCALES)
 export type Locale = z.infer<typeof Locale>

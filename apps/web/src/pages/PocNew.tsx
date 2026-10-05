@@ -1,7 +1,7 @@
 import type { PocDetails, StellarCredential } from '@poc-intel/shared'
 import { useQuery } from '@tanstack/react-query'
 import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react'
-import { useNavigate } from 'react-router'
+import { useNavigate, useSearchParams } from 'react-router'
 import { api } from '../lib/api'
 import { CredentialFields } from '../lib/CredentialFields'
 import { AutoTriageCheckbox } from '../lib/AutoTriage'
@@ -12,6 +12,8 @@ import { PeriodFields, periodOk } from '../lib/PeriodFields'
 import { errorKey } from '../lib/errors'
 import { useI18n } from '../lib/i18n'
 import { PocForm, emptyDetails } from '../lib/PocForm'
+import { typedDetailsValid } from '../lib/TypedFields'
+import { suggestedPeriod, type Milestone } from './notebook/ScheduleSection'
 import { SyncBar, isRunning, useSync } from '../lib/SyncProgress'
 
 interface Tenant {
@@ -61,14 +63,145 @@ function Block({ title, help, helpTip, done, locked, children }: { title: string
 }
 
 /**
- * Create PoC, one page: Customer (optional) → Instance + API key → Tenant (auto) → period → Run Sync.
- * "Run Sync" creates a Draft PoC; the details form opens while the Sync runs; Save completes the PoC
- * and opens its Report as soon as the collection ends.
+ * New PoC: first the choice between starting a PoC Notebook and creating the Final Report straight away.
+ * `?from=<pocId>` is "Create the Final Report" on an existing Notebook: the Report flow on that PoC.
  */
 export function PocNewPage() {
+  const [params] = useSearchParams()
+  const from = params.get('from')
+  const [mode, setMode] = useState<'notebook' | 'report' | null>(null)
+  if (from) return <ReportFlow key={from} fromId={from} />
+  if (mode === 'report') return <ReportFlow onBack={() => setMode(null)} />
+  if (mode === 'notebook') return <NotebookStart onBack={() => setMode(null)} />
+  return <ChooseStart onChoose={setMode} />
+}
+
+function ChooseStart({ onChoose }: { onChoose: (m: 'notebook' | 'report') => void }) {
+  const { t } = useI18n()
+  const card = (m: 'notebook' | 'report', title: string, help: string, icon: ReactNode) => (
+    <button type="button" className="card group flex h-full flex-col items-start gap-3 text-left transition hover:border-brand focus-visible:border-brand" onClick={() => onChoose(m)}>
+      <span className="flex h-10 w-10 items-center justify-center rounded-lg bg-brand/10 text-brand" aria-hidden="true">
+        {icon}
+      </span>
+      <span className="text-lg font-semibold group-hover:text-brand">{title}</span>
+      <span className="text-sm text-slate-500 dark:text-slate-400">{help}</span>
+    </button>
+  )
+  const svg = (d: string) => (
+    <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <path d={d} />
+    </svg>
+  )
+  return (
+    <div className="mx-auto max-w-3xl space-y-4">
+      <h1 className="text-xl font-semibold">{t('poc.create')}</h1>
+      <p className="text-sm text-slate-500">{t('newpoc.choose')}</p>
+      <div className="grid gap-4 sm:grid-cols-2">
+        {card('notebook', t('newpoc.notebook'), t('newpoc.notebookHelp'), svg('M4 4h12a4 4 0 0 1 4 4v12H8a4 4 0 0 1-4-4zM8 8h8M8 12h8M8 16h5'))}
+        {card('report', t('newpoc.report'), t('newpoc.reportHelp'), svg('M4 20V10M10 20V4M16 20v-7M22 20H2'))}
+      </div>
+    </div>
+  )
+}
+
+/** Start a PoC Notebook: a Customer (required, ADR 0010) and the PoC start date; no Tenant yet. */
+function NotebookStart({ onBack }: { onBack: () => void }) {
   const { t } = useI18n()
   const navigate = useNavigate()
   const customers = useCustomers()
+  const [customerId, setCustomerId] = useState('')
+  const [startDate, setStartDate] = useState('')
+  const [dialog, setDialog] = useState(false)
+  const [error, setError] = useState<string | null>(null)
+  const [busy, setBusy] = useState(false)
+  const options = (customers.data ?? []).filter((c) => c.profile === 'customer' && c.manageable)
+  const start = async () => {
+    setBusy(true)
+    setError(null)
+    try {
+      const poc = await api<{ id: string }>('/pocs/notebook', { method: 'POST', body: { customerId, startDate } })
+      navigate(`/pocs/${poc.id}`)
+    } catch (err) {
+      setError(t(errorKey(err)))
+      setBusy(false)
+    }
+  }
+  return (
+    <div className="mx-auto max-w-3xl space-y-4">
+      <h1 className="text-xl font-semibold">{t('newpoc.notebookTitle')}</h1>
+      <form
+        className="card space-y-4"
+        onSubmit={(e) => {
+          e.preventDefault()
+          void start()
+        }}
+      >
+        <label className="block">
+          <span className="label">{t('nav.customers')}</span>
+          <div className="flex gap-2">
+            <select className="input" required value={customerId} onChange={(e) => setCustomerId(e.target.value)}>
+              <option value="" disabled>
+                {t('newpoc.chooseCustomer')}
+              </option>
+              {options.map((c) => (
+                <option key={c.id} value={c.id}>
+                  {c.name}
+                </option>
+              ))}
+            </select>
+            <button type="button" className="btn shrink-0" onClick={() => setDialog(true)} aria-label={t('wiz.newCustomer')} title={t('wiz.newCustomer')}>
+              +
+            </button>
+          </div>
+          <span className="mt-1 block text-xs text-slate-500">{t('newpoc.customerHelp')}</span>
+        </label>
+        <label className="block max-w-56">
+          <span className="label">{t('newpoc.startDate')}</span>
+          <input className="input" type="date" required value={startDate} onChange={(e) => setStartDate(e.target.value)} />
+        </label>
+        {error ? (
+          <p className="text-sm text-red-600" role="alert">
+            {error}
+          </p>
+        ) : null}
+        <div className="flex gap-2">
+          <button className="btn" disabled={busy || !customerId || !startDate}>
+            {t('newpoc.start')}
+          </button>
+          <button type="button" className="btn-ghost" onClick={onBack}>
+            {t('newpoc.back')}
+          </button>
+        </div>
+      </form>
+      <CustomerDialog open={dialog} onClose={() => setDialog(false)} onCreated={(c) => setCustomerId(c.id)} />
+    </div>
+  )
+}
+
+interface FromPoc {
+  id: string
+  details: PocDetails
+  customerId: string | null
+  customerName: string | null
+  reports: unknown[]
+}
+
+/**
+ * Create PoC, one page: Customer → Instance + API key → Tenant (auto) → period → Run Sync.
+ * "Run Sync" creates a Draft PoC; the details form opens while the Sync runs; Save completes the PoC
+ * and opens its Report as soon as the collection ends. With `fromId`, the PoC is an existing Notebook:
+ * its customer and details are kept, and Run Sync sets its Report target instead of creating a PoC.
+ */
+function ReportFlow({ fromId, onBack }: { fromId?: string; onBack?: () => void }) {
+  const { t } = useI18n()
+  const navigate = useNavigate()
+  const customers = useCustomers()
+  const fromPoc = useQuery({ queryKey: ['poc', fromId], queryFn: () => api<FromPoc>(`/pocs/${fromId}`), enabled: Boolean(fromId) })
+  const fromNotebook = useQuery({
+    queryKey: ['notebook', fromId],
+    queryFn: () => api<{ overview: { startDate: string }; milestones: Milestone[] }>(`/pocs/${fromId}/notebook`),
+    enabled: Boolean(fromId),
+  })
   const remembered = useQuery({ queryKey: ['remembered'], queryFn: () => api<Remembered[]>('/stellar/credentials') })
 
   const [customerId, setCustomerId] = useState<string | null>(null)
@@ -90,6 +223,25 @@ export function PocNewPage() {
   const [error, setError] = useState<string | null>(null)
   const [busy, setBusy] = useState(false)
   const [saved, setSaved] = useState(false)
+  // A Notebook brings its customer and details; one that already has a Report is done here.
+  const from = fromPoc.data
+  useEffect(() => {
+    if (!from) return
+    if (from.reports.length > 0) navigate(`/pocs/${from.id}`, { replace: true })
+    setCustomerId(from.customerId)
+    setDetails(from.details)
+    const c = customers.data?.find((x) => x.id === from.customerId)
+    if (c?.instanceUrl) setInstanceUrl((u) => (u === 'https://' ? c.instanceUrl! : u))
+  }, [from, customers.data, navigate])
+  // The PoC Schedule suggests the period: Kickoff to Closeout, at most 30 days, ending yesterday at the latest.
+  const nb = fromNotebook.data
+  useEffect(() => {
+    if (!nb) return
+    const period = suggestedPeriod(nb.overview.startDate, nb.milestones)
+    if (!period) return
+    setStart((s) => s || period.start)
+    setEnd((e) => e || period.end)
+  }, [nb])
   // Details as last saved (JSON); Save stays disabled until the form differs from it.
   const [savedSnapshot, setSavedSnapshot] = useState<string | null>(null)
   const sync = useSync(syncId).data
@@ -146,7 +298,11 @@ export function PocNewPage() {
     setError(null)
     try {
       const draft = { ...details, customerName: details.customerName || tenant.name }
-      const poc = await api<{ id: string }>('/pocs', { method: 'POST', body: { instanceUrl: url, customerId, draft: true, tenant: { id: tenant.id, name: tenant.name }, period: { start, end }, details: draft } })
+      const target = { instanceUrl: url, tenant: { id: tenant.id, name: tenant.name }, period: { start, end } }
+      const poc = from
+        ? (await api(`/pocs/${from.id}/report-target`, { method: 'POST', body: target }), { id: from.id })
+        : await api<{ id: string }>('/pocs', { method: 'POST', body: { ...target, customerId, draft: true, details: draft } })
+      if (from && details.aiTriageTested !== from.details.aiTriageTested) await api(`/pocs/${from.id}`, { method: 'PATCH', body: { details: draft } })
       setPocId(poc.id)
       setDetails(draft)
       const s = await api<{ syncId: string }>(`/pocs/${poc.id}/syncs`, { method: 'POST', body: { credential: usingStored ? undefined : credential, remember: !usingStored && remember } })
@@ -189,7 +345,14 @@ export function PocNewPage() {
   const locked = Boolean(pocId)
   return (
     <div className="mx-auto max-w-3xl space-y-4">
-      <h1 className="text-xl font-semibold">{t('poc.create')}</h1>
+      <div className="flex flex-wrap items-center justify-between gap-2">
+        <h1 className="text-xl font-semibold">{from ? t('newpoc.fromNotebook', { name: from.details.customerName }) : t('poc.create')}</h1>
+        {onBack && !locked ? (
+          <button type="button" className="btn-ghost" onClick={onBack}>
+            {t('newpoc.back')}
+          </button>
+        ) : null}
+      </div>
 
       <Block
         title={t('wiz.customerTitle')}
@@ -199,11 +362,12 @@ export function PocNewPage() {
             <p>{t('help.customer')}</p>
           </HelpTip>
         }
-        done={Boolean(customerId)} locked={locked}>
+        done={Boolean(customerId)} locked={locked || Boolean(from)}>
         <div className="flex gap-2">
           <select className="input" value={customerId ?? ''} onChange={(e) => pickCustomer(e.target.value || null)}>
             <option value="">{t('form.noCustomer')}</option>
-            {(customers.data ?? []).map((c) => (
+            {from?.customerId && from.customerName ? <option value={from.customerId}>{from.customerName}</option> : null}
+            {(customers.data ?? []).filter((c) => c.profile === 'customer' && c.manageable && c.id !== from?.customerId).map((c) => (
               <option key={c.id} value={c.id}>
                 {c.name}
               </option>
@@ -340,11 +504,12 @@ export function PocNewPage() {
 
       {pocId ? (
         <Block title={t('wiz.detailsTitle')} done={saved}>
-          <PocForm value={details} onChange={setDetails} autoTriage={false} />
+          <PocForm value={details} onChange={setDetails} autoTriage={false} criteriaInNotebook={Boolean(from)} />
           <div className="flex items-center gap-3">
-            <button type="button" className="btn" disabled={busy || !dirty} onClick={() => void save()}>
+            <button type="button" className="btn" disabled={busy || !dirty || !typedDetailsValid(details)} onClick={() => void save()}>
               {t('common.save')}
             </button>
+            {!typedDetailsValid(details) ? <span className="text-sm text-red-600">{t('field.fixToSave')}</span> : null}
             {saved && isRunning(sync) ? <span className="text-sm text-slate-500">{t('wiz.waiting')}</span> : null}
             {saved && sync?.status === 'failed' ? (
               <button type="button" className="btn-ghost" onClick={() => navigate(`/pocs/${pocId}`)}>

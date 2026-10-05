@@ -1,0 +1,392 @@
+<!-- Trimmed copy of the official page (2026-10-03 build), for tests. -->
+<html><body><select id="versionlist" name="versions">
+                                                    <option value="7.0.xs">7.0.0s</option>
+                                                    <option value="7.0.x">7.0.0</option>
+                                                    <option value="6.6.x">6.6.0</option>
+                                                    <!-- <option value="6.5.xs">6.5.0s</option> -->
+                                                    <option value="6.5.x">6.5.0</option>
+                                                </select>
+<table class="TableStyle-TableStyles" cellspacing="0">
+                                                </colgroup><thead>
+                                                    <tr class="TableStyle-TableStyles-Head-Header1">
+                                                        <th class="TableStyle-TableStyles-HeadE-Column1-Header1">
+                                                            <p class="TableHeading">Standard</p>
+                                                        </th>
+                                                        <th class="TableStyle-TableStyles-HeadE-Column1-Header1">
+                                                            <p class="TableHeading">Port</p>
+                                                        </th>
+                                                        <th class="TableStyle-TableStyles-HeadE-Column1-Header1">msg_origin.source</th>
+                                                        <th class="TableStyle-TableStyles-HeadE-Column1-Header1">Index</th>
+                                                        <th class="TableStyle-TableStyles-HeadD-Column1-Header1">Comments</th>
+                                                    </tr>
+                                                </thead>
+                                                <tbody>
+                                                    <tr class="TableStyle-TableStyles-Body-Body1">
+                                                        <td class="TableStyle-TableStyles-BodyE-Column1-Body1">CEF</td>
+                                                        <td class="TableStyle-TableStyles-BodyE-Column1-Body1">5143 and 5870 (TCP)</td>
+                                                        <td class="TableStyle-TableStyles-BodyE-Column1-Body1">cef_device_vendor</td>
+                                                        <td class="TableStyle-TableStyles-BodyE-Column1-Body1">
+                                                            <p> Traffic (srcip, srcport, dstip, dstport, and proto), Syslog (otherwise)</p>
+                                                            <p>The following vendor records are also indexed in IDPS/Malware Sandbox Events, with the threat field being normalized from logs  as indicated below:</p>
+                                                            <ul>
+                                                                <li>
+                                                                    <p>If cef_device_vendor: Check Point, then the threat field is normalized from attack_information.</p>
+                                                                </li>
+                                                                <li>
+                                                                    <p>If cef_device_vendor: F5, then the threat field is normalized from attack_type</p>
+                                                                </li>
+                                                                <li>
+                                                                    <p>If cef_device_vendor: SentinelOne, then the threat field is normalized from classification</p>
+                                                                </li>
+                                                            </ul>
+                                                        </td>
+                                                        <td class="TableStyle-TableStyles-BodyD-Column1-Body1">
+                                                            <p><span class="mc-variable General.ProductName variable">Stellar Cyber</span> recommends using CEF, if available.</p>
+                                                            <p>TCP port 5870 is for CEF messages that use octet counting and port 5143 is for messages that don't.</p>
+                                                        </td>
+                                                    </tr>
+                                                    <tr class="TableStyle-TableStyles-Body-Body2">
+                                                        <td class="TableStyle-TableStyles-BodyE-Column1-Body2">CEF2</td>
+                                                        <td class="TableStyle-TableStyles-BodyE-Column1-Body2">5175</td>
+                                                        <td class="TableStyle-TableStyles-BodyE-Column1-Body2">cef_device_vendor</td>
+                                                        <td class="TableStyle-TableStyles-BodyE-Column1-Body2">Traffic (srcip), Syslog (otherwise)</td>
+                                                        <td class="TableStyle-TableStyles-BodyD-Column1-Body2">-</td>
+                                                    </tr>
+                                                    <tr class="TableStyle-TableStyles-Body-Body1">
+                                                        <td class="TableStyle-TableStyles-BodyE-Column1-Body1"><a href="../LogParser/Generic-Log-Capture.htm">Generic capture</a>
+                                                        </td>
+                                                        <td class="TableStyle-TableStyles-BodyE-Column1-Body1">5201 and 5871 (TCP)</td>
+                                                        <td class="TableStyle-TableStyles-BodyE-Column1-Body1">generic_capture</td>
+                                                        <td class="TableStyle-TableStyles-BodyE-Column1-Body1">Syslog</td>
+                                                        <td class="TableStyle-TableStyles-BodyD-Column1-Body1">TCP port 5871 is for log messages that use octet counting and port 5201 is for messages that don't.</td>
+                                                    </tr>
+                                                    <tr class="TableStyle-TableStyles-Body-Body2">
+                                                        <td class="TableStyle-TableStyles-BodyE-Column1-Body2">Generic syslog </td>
+                                                        <td class="TableStyle-TableStyles-BodyE-Column1-Body2">514</td>
+                                                        <td class="TableStyle-TableStyles-BodyE-Column1-Body2">-</td>
+                                                        <td class="TableStyle-TableStyles-BodyE-Column1-Body2">-</td>
+                                                        <td class="TableStyle-TableStyles-BodyD-Column1-Body2">Use only if you must use a log forwarder.</td>
+                                                    </tr>
+                                                    <tr class="TableStyle-TableStyles-Body-Body1">
+                                                        <td class="TableStyle-TableStyles-BodyE-Column1-Body1">HTTP JSON</td>
+                                                        <td class="TableStyle-TableStyles-BodyE-Column1-Body1">5200 (TCP)</td>
+                                                        <td class="TableStyle-TableStyles-BodyE-Column1-Body1">httpjson</td>
+                                                        <td class="TableStyle-TableStyles-BodyE-Column1-Body1">Syslog</td>
+                                                        <td class="TableStyle-TableStyles-BodyD-Column1-Body1">When you configure your log forwarding for the HTTP JSON parser on this port, you must append /<strong>httpjson</strong> at the end of the URL of the target sensor. 
+Example: http://&lt;sensor-ip&gt;:5200/httpjson</td>
+                                                    </tr>
+                                                    <tr class="TableStyle-TableStyles-Body-Body2">
+                                                        <td class="TableStyle-TableStyles-BodyE-Column1-Body2">JSON stream</td>
+                                                        <td class="TableStyle-TableStyles-BodyE-Column1-Body2">5142</td>
+                                                        <td class="TableStyle-TableStyles-BodyE-Column1-Body2">json</td>
+                                                        <td class="TableStyle-TableStyles-BodyE-Column1-Body2">Syslog</td>
+                                                        <td class="TableStyle-TableStyles-BodyD-Column1-Body2">
+                                                        </td>
+                                                    </tr>
+                                                    <tr class="TableStyle-TableStyles-Body-Body1">
+                                                        <td class="TableStyle-TableStyles-BodyE-Column1-Body1">JSON beats</td>
+                                                        <td class="TableStyle-TableStyles-BodyE-Column1-Body1">5044</td>
+                                                        <td class="TableStyle-TableStyles-BodyE-Column1-Body1">beats</td>
+                                                        <td class="TableStyle-TableStyles-BodyE-Column1-Body1">Syslog</td>
+                                                        <td class="TableStyle-TableStyles-BodyD-Column1-Body1">-</td>
+                                                    </tr>
+                                                    <tr class="TableStyle-TableStyles-Body-Body2">
+                                                        <td class="TableStyle-TableStyles-BodyE-Column1-Body2">LEEF</td>
+                                                        <td class="TableStyle-TableStyles-BodyE-Column1-Body2">5522</td>
+                                                        <td class="TableStyle-TableStyles-BodyE-Column1-Body2">vendor</td>
+                                                        <td class="TableStyle-TableStyles-BodyE-Column1-Body2">Traffic (srcip), Syslog (otherwise)</td>
+                                                        <td class="TableStyle-TableStyles-BodyD-Column1-Body2"> LEEF is primarily useful for logs from QRadar, for which LEEF was developed.</td>
+                                                    </tr>
+                                                </tbody>
+                                            </table>
+<table cellspacing="15" class="TableStyle-TableStyles-column-shading">
+                                                    </colgroup><thead>
+                                                        <tr class="TableStyle-TableStyles-column-shading-Head-Header1">
+                                                            <th class="TableStyle-TableStyles-column-shading-HeadE-Column1-Header1">
+                                                                <p class="TableHeading">Parser Name</p>
+                                                            </th>
+                                                            <th class="TableStyle-TableStyles-column-shading-HeadE-Column2-Header1">
+                                                                <p class="TableHeading">Port</p>
+                                                            </th>
+                                                            <th class="TableStyle-TableStyles-column-shading-HeadE-Column1-Header1">
+                                                                <p class="table">Log Format</p>
+                                                            </th>
+                                                            <th class="TableStyle-TableStyles-column-shading-HeadE-Column2-Header1">msg_origin.source</th>
+                                                            <th class="TableStyle-TableStyles-column-shading-HeadE-Column1-Header1">
+                                                                <p class="table">msg_origin.category</p>
+                                                            </th>
+                                                            <th class="TableStyle-TableStyles-column-shading-HeadD-Column2-Header1">Index</th>
+                                                        </tr>
+                                                    </thead>
+                                                    <tbody>
+                                                        <tr class="TableStyle-TableStyles-column-shading-Body-Body1">
+                                                            <td class="TableStyle-TableStyles-column-shading-BodyE-Column1-Body1">
+                                                                <p>(OpnSense) Zenarmor plugin logs</p>
+                                                            </td>
+                                                            <td class="TableStyle-TableStyles-column-shading-BodyE-Column2-Body1">
+                                                                <p class="table">5604</p>
+                                                            </td>
+                                                            <td class="TableStyle-TableStyles-column-shading-BodyE-Column1-Body1">
+                                                                <p>Sunny Valley Networks custom format</p>
+                                                            </td>
+                                                            <td class="TableStyle-TableStyles-column-shading-BodyE-Column2-Body1">
+                                                                <p>sunny_valley_networks_zenarmor</p>
+                                                            </td>
+                                                            <td class="TableStyle-TableStyles-column-shading-BodyE-Column1-Body1">
+                                                                <p class="table">firewall</p>
+                                                            </td>
+                                                            <td class="TableStyle-TableStyles-column-shading-BodyD-Column2-Body1">
+                                                                <p>Traffic (srcip, srcport, dstip, dstport, and proto), Syslog (otherwise)</p>
+                                                            </td>
+                                                        </tr>
+                                                        <tr class="TableStyle-TableStyles-column-shading-Body-Body2">
+                                                            <td class="TableStyle-TableStyles-column-shading-BodyE-Column1-Body2">A10 vThunder Application Delivery Controller (ADC) <img src="../../Resources/Images/Assets/Icons/550-new.png"></td>
+                                                            <td class="TableStyle-TableStyles-column-shading-BodyE-Column2-Body2">
+                                                                <p class="table">5882</p>
+                                                            </td>
+                                                            <td class="TableStyle-TableStyles-column-shading-BodyE-Column1-Body2">RFC 3164 + A10-specific log header + message</td>
+                                                            <td class="TableStyle-TableStyles-column-shading-BodyE-Column2-Body2">
+                                                                <p>a10_vthunder_adc</p>
+                                                            </td>
+                                                            <td class="TableStyle-TableStyles-column-shading-BodyE-Column1-Body2">netlogs</td>
+                                                            <td class="TableStyle-TableStyles-column-shading-BodyD-Column2-Body2">
+                                                                <p class="table">Traffic (srcip, srcport, dstip, dstport, and proto), Syslog (otherwise)</p>
+                                                            </td>
+                                                        </tr>
+                                                        <tr class="TableStyle-TableStyles-column-shading-Body-Body1">
+                                                            <td class="TableStyle-TableStyles-column-shading-BodyE-Column1-Body1">AAA - Core (CEF) </td>
+                                                            <td class="TableStyle-TableStyles-column-shading-BodyE-Column2-Body1">
+                                                                <p class="table"><a href="#" class="MCTextPopup popup popupHead">5143 or 5870<span class="MCTextPopupBody MCTextPopupBody_Closed needs-pie popupBody" aria-hidden="true"><span class="MCTextPopupArrow"> </span>TCP port 5870 is for CEF logs that use octet counting, and port 5143 is for all other CEF logs.</span></a>
+                                                                </p>
+                                                            </td>
+                                                            <td class="TableStyle-TableStyles-column-shading-BodyE-Column1-Body1">
+                                                                <p class="table">CEF</p>
+                                                            </td>
+                                                            <td class="TableStyle-TableStyles-column-shading-BodyE-Column2-Body1">
+                                                                <p class="table">netiq_advance_auth</p>
+                                                            </td>
+                                                            <td class="TableStyle-TableStyles-column-shading-BodyE-Column1-Body1">
+                                                                <p class="table">iam</p>
+                                                            </td>
+                                                            <td class="TableStyle-TableStyles-column-shading-BodyD-Column2-Body1">
+                                                                <p class="table">Traffic (srcip, srcport, dstip, dstport, and proto), Syslog (otherwise)</p>
+                                                            </td>
+                                                        </tr>
+                                                        <tr class="TableStyle-TableStyles-column-shading-Body-Body2">
+                                                            <td class="TableStyle-TableStyles-column-shading-BodyE-Column1-Body2">Absolute Secure Endpoint <img src="../../Resources/Images/Assets/Icons/640-new.png"></td>
+                                                            <td class="TableStyle-TableStyles-column-shading-BodyE-Column2-Body2">
+                                                                <p class="table">6078</p>
+                                                            </td>
+                                                            <td class="TableStyle-TableStyles-column-shading-BodyE-Column1-Body2">Absolute custom RFC 5424 header + custom CEF payload</td>
+                                                            <td class="TableStyle-TableStyles-column-shading-BodyE-Column2-Body2">
+                                                                <p>absolute_secure_endpoint</p>
+                                                            </td>
+                                                            <td class="TableStyle-TableStyles-column-shading-BodyE-Column1-Body2">endpoint</td>
+                                                            <td class="TableStyle-TableStyles-column-shading-BodyD-Column2-Body2">
+                                                                <p class="table">Traffic (srcip, srcport, dstip, dstport, and proto), Syslog (otherwise)</p>
+                                                            </td>
+                                                        </tr>
+                                                        <tr class="TableStyle-TableStyles-column-shading-Body-Body1">
+                                                            <td class="TableStyle-TableStyles-column-shading-BodyE-Column1-Body1">Acalvio - ShadowPlex (CEF) <img src="../../Resources/Images/Assets/Icons/511-new.png"></td>
+                                                            <td class="TableStyle-TableStyles-column-shading-BodyE-Column2-Body1">
+                                                                <p><a href="#" class="MCTextPopup popup popupHead">5143 or 5870<span class="MCTextPopupBody MCTextPopupBody_Closed needs-pie popupBody" aria-hidden="true"><span class="MCTextPopupArrow"> </span>TCP port 5870 is for CEF logs that use octet counting, and port 5143 is for all other CEF logs.</span></a>
+                                                                </p>
+                                                            </td>
+                                                            <td class="TableStyle-TableStyles-column-shading-BodyE-Column1-Body1">CEF</td>
+                                                            <td class="TableStyle-TableStyles-column-shading-BodyE-Column2-Body1">
+                                                                <p class="table">acalvio_shadowplex</p>
+                                                            </td>
+                                                            <td class="TableStyle-TableStyles-column-shading-BodyE-Column1-Body1">idps</td>
+                                                            <td class="TableStyle-TableStyles-column-shading-BodyD-Column2-Body1">
+                                                                <p>Traffic (srcip, srcport, dstip, dstport, and proto), Syslog (otherwise)</p>
+                                                            </td>
+                                                        </tr>
+                                                        <tr class="TableStyle-TableStyles-column-shading-Body-Body2">
+                                                            <td class="TableStyle-TableStyles-column-shading-BodyE-Column1-Body2">Accops</td>
+                                                            <td class="TableStyle-TableStyles-column-shading-BodyE-Column2-Body2">5526</td>
+                                                            <td class="TableStyle-TableStyles-column-shading-BodyE-Column1-Body2">
+                                                                <p class="table">Accops custom format</p>
+                                                            </td>
+                                                            <td class="TableStyle-TableStyles-column-shading-BodyE-Column2-Body2">accops</td>
+                                                            <td class="TableStyle-TableStyles-column-shading-BodyE-Column1-Body2">
+                                                                <p class="table">vpn</p>
+                                                            </td>
+                                                            <td class="TableStyle-TableStyles-column-shading-BodyD-Column2-Body2">Traffic (srcip), Syslog (otherwise)</td>
+                                                        </tr>
+                                                        <tr class="TableStyle-TableStyles-column-shading-Body-Body1">
+                                                            <td class="TableStyle-TableStyles-column-shading-BodyE-Column1-Body1">Ahnlab AIPS</td>
+                                                            <td class="TableStyle-TableStyles-column-shading-BodyE-Column2-Body1">
+                                                                <p class="table">5647</p>
+                                                            </td>
+                                                            <td class="TableStyle-TableStyles-column-shading-BodyE-Column1-Body1">
+                                                                <p class="table">custom LEEF (RFC 3164 or RFC 5424) </p>
+                                                            </td>
+                                                            <td class="TableStyle-TableStyles-column-shading-BodyE-Column2-Body1">
+                                                                <p class="table">ahnlab_aips</p>
+                                                            </td>
+                                                            <td class="TableStyle-TableStyles-column-shading-BodyE-Column1-Body1">
+                                                                <p class="table">idps</p>
+                                                            </td>
+                                                            <td class="TableStyle-TableStyles-column-shading-BodyD-Column2-Body1">
+                                                                <p class="table">Traffic (srcip, srcport, dstip, dstport, and proto), Syslog (otherwise)</p>
+                                                            </td>
+                                                        </tr>
+                                                        <tr class="TableStyle-TableStyles-column-shading-Body-Body2">
+                                                            <td class="TableStyle-TableStyles-column-shading-BodyE-Column1-Body2">Ahnlab Cloud Protection Platform <img src="../../Resources/Images/Assets/Icons/530-new.png"></td>
+                                                            <td class="TableStyle-TableStyles-column-shading-BodyE-Column2-Body2">
+                                                                <p class="table">5755</p>
+                                                            </td>
+                                                            <td class="TableStyle-TableStyles-column-shading-BodyE-Column1-Body2">CEF</td>
+                                                            <td class="TableStyle-TableStyles-column-shading-BodyE-Column2-Body2">
+                                                                <p class="table">ahnlab_cpp</p>
+                                                            </td>
+                                                            <td class="TableStyle-TableStyles-column-shading-BodyE-Column1-Body2">paas</td>
+                                                            <td class="TableStyle-TableStyles-column-shading-BodyD-Column2-Body2">
+                                                                <p class="table">Traffic (srcip, srcport, dstip, dstport, and proto), Syslog (otherwise)</p>
+                                                            </td>
+                                                        </tr>
+                                                    </tbody>
+                                                </table>
+<table class="TableStyle-TableStyles" cellspacing="0">
+                                                    </colgroup><thead>
+                                                        <tr class="TableStyle-TableStyles-Head-Header1">
+                                                            <th class="TableStyle-TableStyles-HeadE-Column1-Header1">
+                                                                <p class="table">Version</p>
+                                                            </th>
+                                                            <th class="TableStyle-TableStyles-HeadE-Column1-Header1">
+                                                                <p class="table">Vendor-specific CEF&nbsp;Parsers Introduced or Updated</p>
+                                                            </th>
+                                                            <th class="TableStyle-TableStyles-HeadD-Column1-Header1">
+                                                                <p class="table">Link to Release Notes</p>
+                                                            </th>
+                                                        </tr>
+                                                    </thead>
+                                                    <tbody>
+                                                        <tr class="TableStyle-TableStyles-Body-Body1">
+                                                            <td class="TableStyle-TableStyles-BodyE-Column1-Body1">
+                                                                <p class="table">7.0.0</p>
+                                                            </td>
+                                                            <td class="TableStyle-TableStyles-BodyE-Column1-Body1">
+                                                                <p>Check Point CloudGuard WAF</p>
+                                                            </td>
+                                                            <td class="TableStyle-TableStyles-BodyD-Column1-Body1">
+                                                                <p class="table"><a href="../../Release-Notes/Stellar-Cyber-7.0.0-Release-Notes.htm" target="_blank" title="View the release notes in a new browser tab or window" alt="Link to the release notes" class="MCXref xref">Stellar Cyber 7.0.0s Release Notes</a>
+                                                                </p>
+                                                            </td>
+                                                        </tr>
+                                                        <tr class="TableStyle-TableStyles-Body-Body2">
+                                                            <td class="TableStyle-TableStyles-BodyE-Column1-Body2">
+                                                                <p class="table">6.6.0</p>
+                                                            </td>
+                                                            <td class="TableStyle-TableStyles-BodyE-Column1-Body2">
+                                                                <p>Trend Micro Worry-Free Business Security Service</p>
+                                                            </td>
+                                                            <td class="TableStyle-TableStyles-BodyD-Column1-Body2">
+                                                                <p class="table"><a href="../../Release-Notes/Stellar-Cyber-6.6.0-Release-Notes.htm" target="_blank" title="View the release notes in a new browser tab or window" alt="Link to the release notes" class="MCXref xref">Stellar Cyber 6.6.0s Release Notes</a>
+                                                                </p>
+                                                            </td>
+                                                        </tr>
+                                                        <tr class="TableStyle-TableStyles-Body-Body1">
+                                                            <td class="TableStyle-TableStyles-BodyE-Column1-Body1">
+                                                                <p class="table">6.5.0</p>
+                                                            </td>
+                                                            <td class="TableStyle-TableStyles-BodyE-Column1-Body1">
+                                                                <p>CheckPoint VPN-1 &amp; FireWall-1 (CEF)</p>
+                                                                <p>CrowdStrike (CEF)</p>
+                                                                <p>DefensX - DefensX&nbsp;(CEF)</p>
+                                                                <p>Fortinet Fortigate (Note:&nbsp;This is the modular parser in Parser Studio.)</p>
+                                                                <p>NetScout Omnis</p>
+                                                                <p>OpenText - Open Enterprise Server (CEF)</p>
+                                                                <p>Salt Security</p>
+                                                                <p>Trend Micro - Apex Central (CEF)</p>
+                                                                <p>Trend Micro - Deep Discovery Email Inspector (CEF)</p>
+                                                                <p>Zecurion - DLP&nbsp;(CEF)</p>
+                                                                <p>Zscaler ZIA&nbsp;Web</p>
+                                                            </td>
+                                                            <td class="TableStyle-TableStyles-BodyD-Column1-Body1">
+                                                                <p class="table"><a href="../../Release-Notes/Stellar-Cyber-6.5.0-Release-Notes.htm" target="_blank" title="View the release notes in a new browser tab or window" alt="Link to the release notes" class="MCXref xref">Stellar Cyber 6.5.0s Release Notes</a>
+                                                                </p>
+                                                            </td>
+                                                        </tr>
+                                                        <tr class="TableStyle-TableStyles-Body-Body2">
+                                                            <td class="TableStyle-TableStyles-BodyE-Column1-Body2">
+                                                                <p class="table">6.4.0</p>
+                                                            </td>
+                                                            <td class="TableStyle-TableStyles-BodyE-Column1-Body2">
+                                                                <p>Absolute Secure Endpoint</p>
+                                                                <p>Check Point - SmartConsole (CEF)</p>
+                                                                <p>Check Point - SmartDefense (CEF)</p>
+                                                                <p>Darktrace - DCIP&nbsp;(CEF)</p>
+                                                                <p>Imperva SecureSphere</p>
+                                                            </td>
+                                                            <td class="TableStyle-TableStyles-BodyD-Column1-Body2">
+                                                                <p class="table"><a href="../../Release-Notes/Stellar-Cyber-6.4.0-Release-Notes.htm" target="_blank" title="View the release notes in a new browser tab or window" alt="Link to the release notes" class="MCXref xref">Stellar Cyber 6.4.0s Release Notes</a>
+                                                                </p>
+                                                            </td>
+                                                        </tr>
+                                                        <tr class="TableStyle-TableStyles-Body-Body1">
+                                                            <td class="TableStyle-TableStyles-BodyE-Column1-Body1">
+                                                                <p class="table">6.3.0</p>
+                                                            </td>
+                                                            <td class="TableStyle-TableStyles-BodyE-Column1-Body1">
+                                                                <p>Akamai WAF</p>
+                                                                <p>NetScout Omnis</p>
+                                                                <p>SonicWall NSa</p>
+                                                            </td>
+                                                            <td class="TableStyle-TableStyles-BodyD-Column1-Body1">
+                                                                <p class="table"><a href="../../Release-Notes/Stellar-Cyber-6.3.0-Release-Notes.htm" target="_blank" title="View the release notes in a new browser tab or window" alt="Link to the release notes" class="MCXref xref">Stellar Cyber 6.3.0s Release Notes</a>
+                                                                </p>
+                                                            </td>
+                                                        </tr>
+                                                        <tr class="TableStyle-TableStyles-Body-Body2">
+                                                            <td class="TableStyle-TableStyles-BodyE-Column1-Body2">
+                                                                <p class="table">6.2.0</p>
+                                                            </td>
+                                                            <td class="TableStyle-TableStyles-BodyE-Column1-Body2">
+                                                                <p>Barracuda WAF</p>
+                                                                <p>Check Point Firewall</p>
+                                                                <p>Cynet (CEF)</p>
+                                                                <p>Fortinet FortiGate</p>
+                                                                <p>Fortinet FortiMail</p>
+                                                                <p>IRONSCALES IronTraps</p>
+                                                                <p>Sangfor NDR</p>
+                                                                <p>Segura (CEF)</p>
+                                                            </td>
+                                                            <td class="TableStyle-TableStyles-BodyD-Column1-Body2">
+                                                                <p class="table"><a href="../../Release-Notes/Stellar-Cyber-6.2.0-Release-Notes.htm" target="_blank" title="View the release notes in a new browser tab or window" alt="Link to the release notes" class="MCXref xref">Stellar Cyber 6.2.0s Release Notes</a>
+                                                                </p>
+                                                            </td>
+                                                        </tr>
+                                                        <tr class="TableStyle-TableStyles-Body-Body1">
+                                                            <td class="TableStyle-TableStyles-BodyE-Column1-Body1">
+                                                                <p class="table">6.1.0</p>
+                                                            </td>
+                                                            <td class="TableStyle-TableStyles-BodyE-Column1-Body1">
+                                                                <p>Cynet (CEF)</p>
+                                                                <p>Gigamon</p>
+                                                                <p>Seqrite Endpoint Security</p>
+                                                            </td>
+                                                            <td class="TableStyle-TableStyles-BodyD-Column1-Body1">
+                                                                <p class="table"><a href="../../Release-Notes/Stellar-Cyber-6.1.0-Release-Notes.htm" target="_blank" title="View the release notes in a new browser tab or window" alt="Link to the release notes" class="MCXref xref">Stellar Cyber 6.1.0s Release Notes</a>
+                                                                </p>
+                                                            </td>
+                                                        </tr>
+                                                        <tr class="TableStyle-TableStyles-Body-Body2">
+                                                            <td class="TableStyle-TableStyles-BodyE-Column1-Body2">6.0.0</td>
+                                                            <td class="TableStyle-TableStyles-BodyE-Column1-Body2">
+                                                                <p>Cisco</p>
+                                                                <p>Cisco Email Security Appliance (ESA)</p>
+                                                                <p>Cisco IronPort</p>
+                                                                <p>CyberArk</p>
+                                                                <p>F5 BIG-IP ASM</p>
+                                                                <p>Fortinet</p>
+                                                                <p>McAfee Enterprise Security Manager (ESM) / Nitro SIEM</p>
+                                                                <p>Progress Kemp LoadMaster</p>
+                                                                <p>Symantec Data Loss Prevention (DLP)</p>
+                                                                <p>Zscaler</p>
+                                                            </td>
+                                                            <td class="TableStyle-TableStyles-BodyD-Column1-Body2"><a href="../../Release-Notes/Stellar-Cyber-6.0.0-Release-Notes.htm" target="_blank" title="View the release notes in a new browser tab or window" alt="Link to the release notes" class="MCXref xref">Stellar Cyber 6.0.0s Release Notes</a>
+                                                            </td>
+                                                        </tr>
+                                                    </tbody>
+                                                </table></body></html>

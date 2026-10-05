@@ -1,7 +1,7 @@
 // Mirrors migrations/*.sql — the SQL files are the source of truth; keep both in step.
-import type { PocDetails, ReportData, Role, SyncProgress, SyncStatus, UserStatus, Locale } from '@poc-intel/shared'
+import type { CatalogKind, MilestoneTone, CompanyProfile, CriterionStatus, DataSourceStatus, I18nText, NotebookOverview, PocDetails, ProcessKind, ProcessStatus, ReportData, Role, SyncProgress, SyncStatus, UserStatus, Locale } from '@poc-intel/shared'
 import type { SyncMetrics } from '../stellar/request-stats.js'
-import { bigint, boolean, date, integer, jsonb, pgTable, primaryKey, text, timestamp, uuid } from 'drizzle-orm/pg-core'
+import { bigint, boolean, date, doublePrecision, integer, jsonb, pgTable, primaryKey, smallint, text, timestamp, uuid } from 'drizzle-orm/pg-core'
 
 const ts = (name: string) => timestamp(name, { withTimezone: true })
 
@@ -63,12 +63,15 @@ export const passwordResets = pgTable('password_resets', {
 export const pocs = pgTable('pocs', {
   id: uuid('id').primaryKey().defaultRandom(),
   ownerId: uuid('owner_id').notNull(),
-  instanceUrl: text('instance_url').notNull(),
-  tenantId: text('tenant_id').notNull(),
+  /** The Report target; NULL while the PoC is only a PoC Notebook (ADR 0010). */
+  instanceUrl: text('instance_url'),
+  tenantId: text('tenant_id'),
   tenantName: text('tenant_name').notNull().default(''),
-  periodStart: date('period_start').notNull(),
-  periodEnd: date('period_end').notNull(),
+  periodStart: date('period_start'),
+  periodEnd: date('period_end'),
   details: jsonb('details').$type<PocDetails>().notNull(),
+  /** The PoC Notebook's overview; NULL when the PoC has no Notebook. */
+  notebook: jsonb('notebook').$type<NotebookOverview>(),
   archImage: text('arch_image'),
   customerId: uuid('customer_id'),
   draft: boolean('draft').notNull().default(false),
@@ -85,6 +88,8 @@ export const customers = pgTable('customers', {
   ownerId: uuid('owner_id').notNull(),
   accessKeyHash: text('access_key_hash').notNull(),
   instanceUrl: text('instance_url'),
+  /** customer or partner: the Role its Users take (ADR 0011). */
+  profile: text('profile').$type<CompanyProfile>().notNull().default('customer'),
   createdAt: ts('created_at').notNull().defaultNow(),
   updatedAt: ts('updated_at').notNull().defaultNow(),
 })
@@ -176,4 +181,105 @@ export const auditLog = pgTable('audit_log', {
   target: text('target'),
   ip: text('ip'),
   meta: jsonb('meta'),
+})
+
+// PoC Notebook rows (ADR 0010, 0012): each one is saved on its own.
+export const pocCriteria = pgTable('poc_criteria', {
+  id: uuid('id').primaryKey().defaultRandom(),
+  pocId: uuid('poc_id').notNull(),
+  position: doublePrecision('position').notNull(),
+  text: text('text').notNull(),
+  status: text('status').$type<CriterionStatus>(),
+  notes: text('notes').notNull().default(''),
+  weight: smallint('weight'),
+  updatedBy: uuid('updated_by'),
+  updatedAt: ts('updated_at').notNull().defaultNow(),
+})
+
+export const pocMeetings = pgTable('poc_meetings', {
+  id: uuid('id').primaryKey().defaultRandom(),
+  pocId: uuid('poc_id').notNull(),
+  date: date('date'),
+  link: text('link').notNull().default(''),
+  passcode: text('passcode').notNull().default(''),
+  notes: text('notes').notNull().default(''),
+  nextSteps: text('next_steps').notNull().default(''),
+  updatedBy: uuid('updated_by'),
+  createdAt: ts('created_at').notNull().defaultNow(),
+  updatedAt: ts('updated_at').notNull().defaultNow(),
+})
+
+export const notebookTemplateItems = pgTable('notebook_template_items', {
+  id: uuid('id').primaryKey().defaultRandom(),
+  section: text('section').$type<'process' | 'schedule'>().notNull(),
+  kind: text('kind').$type<ProcessKind | 'milestone'>().notNull(),
+  position: doublePrecision('position').notNull(),
+  indent: smallint('indent').notNull().default(0),
+  text: jsonb('text').$type<I18nText>().notNull(),
+  hidden: boolean('hidden').notNull().default(false),
+  /** Milestones only. */
+  days: smallint('days'),
+  tone: text('tone').$type<MilestoneTone>(),
+  key: text('key'),
+  updatedAt: ts('updated_at').notNull().defaultNow(),
+})
+
+export const pocProcessItems = pgTable('poc_process_items', {
+  id: uuid('id').primaryKey().defaultRandom(),
+  pocId: uuid('poc_id').notNull(),
+  kind: text('kind').$type<ProcessKind>().notNull(),
+  position: doublePrecision('position').notNull(),
+  indent: smallint('indent').notNull().default(0),
+  text: jsonb('text').$type<I18nText>().notNull(),
+  hidden: boolean('hidden').notNull().default(false),
+  status: text('status').$type<ProcessStatus>(),
+  /** Phases: the template key that ties a phase to its PoC Schedule milestone. */
+  key: text('key'),
+  updatedBy: uuid('updated_by'),
+  updatedAt: ts('updated_at').notNull().defaultNow(),
+})
+
+// The Data Source Catalog, read from the official documentation.
+export const catalogEntries = pgTable('catalog_entries', {
+  id: uuid('id').primaryKey().defaultRandom(),
+  kind: text('kind').$type<CatalogKind>().notNull(),
+  key: text('key').notNull(),
+  name: text('name').notNull(),
+  port: text('port').notNull().default(''),
+  category: text('category').notNull().default(''),
+  source: text('source').notNull().default(''),
+  detail: text('detail').notNull().default(''),
+  docUrl: text('doc_url').notNull().default(''),
+  firstSeenAt: ts('first_seen_at').notNull().defaultNow(),
+  updatedAt: ts('updated_at').notNull().defaultNow(),
+  removedAt: ts('removed_at'),
+})
+
+export const pocDataSources = pgTable('poc_data_sources', {
+  id: uuid('id').primaryKey().defaultRandom(),
+  pocId: uuid('poc_id').notNull(),
+  kind: text('kind').$type<CatalogKind>().notNull(),
+  catalogId: uuid('catalog_id'),
+  name: text('name').notNull(),
+  port: text('port').notNull().default(''),
+  status: text('status').$type<DataSourceStatus>(),
+  notes: text('notes').notNull().default(''),
+  position: doublePrecision('position').notNull(),
+  updatedBy: uuid('updated_by'),
+  updatedAt: ts('updated_at').notNull().defaultNow(),
+})
+
+export const pocMilestones = pgTable('poc_milestones', {
+  id: uuid('id').primaryKey().defaultRandom(),
+  pocId: uuid('poc_id').notNull(),
+  position: doublePrecision('position').notNull(),
+  key: text('key'),
+  text: jsonb('text').$type<I18nText>().notNull(),
+  days: smallint('days').notNull().default(2),
+  tone: text('tone').$type<MilestoneTone>().notNull().default('poc'),
+  dateOverride: date('date_override'),
+  /** The PoC Process phase this milestone stands for; NULL for the start day or a milestone added by hand. */
+  phaseId: uuid('phase_id'),
+  updatedBy: uuid('updated_by'),
+  updatedAt: ts('updated_at').notNull().defaultNow(),
 })

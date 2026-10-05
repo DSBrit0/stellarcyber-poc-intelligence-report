@@ -12,7 +12,7 @@ export interface CreatedCustomer {
   accessKey: string
 }
 
-/** Name + Instance URL; on success shows the Access Key once. Used by the Customers page and the "+" dialog. */
+/** Name + Instance URL of a new Customer (Customer Profile); on success shows the Access Key once. Used by the "+" dialog. */
 export function CustomerForm({ onCreated, compact }: { onCreated?: (c: CreatedCustomer) => void; compact?: boolean }) {
   const { t } = useI18n()
   const qc = useQueryClient()
@@ -32,7 +32,7 @@ export function CustomerForm({ onCreated, compact }: { onCreated?: (c: CreatedCu
       setCreated(c)
       setName('')
       setInstanceUrl('')
-      qc.setQueryData<CustomerRow[]>(['customers'], (rows) => [...(rows ?? []), { id: c.id, name: c.name, instanceUrl: c.instanceUrl, pocs: 0, users: 0, pending: 0 }])
+      qc.setQueryData<CustomerRow[]>(['customers'], (rows) => [...(rows ?? []), { id: c.id, name: c.name, instanceUrl: c.instanceUrl, profile: 'customer', ownerId: '', ownerName: '', manageable: true, pocs: 0, users: 0, pending: 0 }])
       void qc.invalidateQueries({ queryKey: ['customers'] })
       onCreated?.(c)
     } catch (err) {

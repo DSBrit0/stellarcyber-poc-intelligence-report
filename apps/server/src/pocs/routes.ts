@@ -1,5 +1,5 @@
 import { ACTIVE_SYNC_STATUSES, ArchImageInput, CreatePocInput, InstanceUrl, PocPeriod, StellarCredential, UpdatePocInput } from '@poc-intel/shared'
-import { and, desc, eq, inArray, notExists, sql as dsql } from 'drizzle-orm'
+import { and, desc, eq, inArray, notExists, or, sql as dsql } from 'drizzle-orm'
 import type { FastifyInstance } from 'fastify'
 import { z } from 'zod'
 import { requireAuth, requireRole } from '../auth/guards.js'
@@ -16,7 +16,7 @@ import type { FastifyReply, FastifyRequest } from 'fastify'
 import type { StellarDeps } from '../app.js'
 import { StellarClient } from '../stellar/client.js'
 import { listTenants } from '../stellar/tenants.js'
-import { canEdit, loadPoc } from './access.js'
+import { canEdit, loadPoc, ownedOrFollowedBy, reportTarget } from './access.js'
 
 const IdParam = z.object({ id: z.uuid() })
 const staff = (req: Parameters<typeof requireAuth>[0]) => requireRole(req, 'admin', 'sales_engineer', 'partner')
@@ -42,8 +42,10 @@ function resolveCredential(
 
 async function checkCustomer(auth: AuthContext, customerId: string | null | undefined) {
   if (!customerId) return
-  const [c] = await db.select({ ownerId: customers.ownerId }).from(customers).where(eq(customers.id, customerId)).limit(1)
+  const [c] = await db.select({ ownerId: customers.ownerId, profile: customers.profile }).from(customers).where(eq(customers.id, customerId)).limit(1)
   if (!c || (auth.user.role !== 'admin' && c.ownerId !== auth.user.id)) throw new HttpError(400, 'customer_not_yours')
+  // A PoC is linked to the Customer under evaluation, never to a reseller.
+  if (c.profile !== 'customer') throw new HttpError(400, 'customer_is_partner')
 }
 
 const expiresAt = (createdAt: Date, retentionDays: number) => new Date(createdAt.getTime() + retentionDays * 86_400_000)
@@ -72,7 +74,8 @@ export async function pocRoutes(app: FastifyInstance, { dispatcher }: StellarDep
     return reply.code(204).send()
   })
 
-  // An Admin sees every PoC (optionally one Owner's: `owner=me` or a User id); an SE/Partner their own;
+  // An Admin sees every PoC (optionally one Owner's: `owner=me` or a User id); a Partner their own, plus
+  // the ones their Company was evaluated in; an SE their own plus their Partner Companies' (ADR 0011);
   // a Customer User the PoCs linked to their Customer.
   app.get('/pocs', async (req) => {
     const auth = requireAuth(req)
@@ -84,7 +87,11 @@ export async function pocRoutes(app: FastifyInstance, { dispatcher }: StellarDep
           : undefined
         : auth.user.role === 'customer'
           ? eq(pocs.customerId, auth.user.customerId ?? '00000000-0000-0000-0000-000000000000')
-          : eq(pocs.ownerId, auth.user.id)
+          : auth.user.role === 'sales_engineer'
+            ? ownedOrFollowedBy(auth.user.id)
+            : auth.user.customerId
+              ? or(eq(pocs.ownerId, auth.user.id), eq(pocs.customerId, auth.user.customerId))
+              : eq(pocs.ownerId, auth.user.id)
     return db
       .select({
         id: pocs.id,
@@ -96,6 +103,8 @@ export async function pocRoutes(app: FastifyInstance, { dispatcher }: StellarDep
         periodStart: pocs.periodStart,
         periodEnd: pocs.periodEnd,
         draft: pocs.draft,
+        notebook: dsql<boolean>`${pocs.notebook} IS NOT NULL`,
+        startDate: dsql<string | null>`${pocs.notebook}->>'startDate'`,
         updatedAt: pocs.updatedAt,
         reports: dsql<number>`(SELECT count(*)::int FROM report_data r WHERE r.poc_id = ${pocs.id})`,
         syncing: dsql<boolean>`EXISTS (SELECT 1 FROM syncs s WHERE s.poc_id = ${pocs.id} AND s.status IN ('queued', 'running'))`,
@@ -180,6 +189,7 @@ export async function pocRoutes(app: FastifyInstance, { dispatcher }: StellarDep
       hasArchImage: poc.archImage != null,
       customerName: customer?.name ?? null,
       canEdit: canEdit(auth, poc),
+      hasReportTarget: reportTarget(poc) != null,
       reports: reports.map((r) => ({ ...r, expiresAt: expiresAt(r.createdAt, retentionDays) })),
       syncs: recentSyncs,
     }
@@ -228,7 +238,10 @@ export async function pocRoutes(app: FastifyInstance, { dispatcher }: StellarDep
     const input = parse(z.object({ credential: StellarCredential.optional(), remember: z.boolean().optional(), period: PocPeriod.optional() }), req.body)
     // Data is complete only for past days: the period must end yesterday (UTC) at the latest.
     if (input.period && input.period.end >= new Date().toISOString().slice(0, 10)) throw new HttpError(400, 'period_future')
-    const credential = resolveCredential(req, reply, auth.user.id, poc.instanceUrl, input.credential, input.remember)
+    // A PoC Notebook has no Report target until "Create the Final Report" sets one.
+    const target = reportTarget(poc)
+    if (!target) throw new HttpError(409, 'report_target_missing')
+    const credential = resolveCredential(req, reply, auth.user.id, target.instanceUrl, input.credential, input.remember)
 
     const [active] = await db
       .select({ id: syncs.id })

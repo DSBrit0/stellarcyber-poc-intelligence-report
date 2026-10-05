@@ -5,7 +5,7 @@ import { z } from 'zod'
 import { requireRole } from '../auth/guards.js'
 import { revokeUserSessions } from '../auth/session.js'
 import { db } from '../db/client.js'
-import { passwordResets, users } from '../db/schema.js'
+import { customers, passwordResets, users } from '../db/schema.js'
 import { audit } from '../lib/audit.js'
 import { config } from '../config.js'
 import { randomToken, sha256 } from '../lib/crypto.js'
@@ -53,9 +53,14 @@ export async function adminRoutes(app: FastifyInstance): Promise<void> {
     const admin = req.auth!.user
     const { id } = parse(IdParam, req.params)
     const { role } = parse(z.object({ role: Role }), req.body)
-    // A Registration linked to a Customer can only become a Customer User.
-    const [current] = await db.select({ customerId: users.customerId }).from(users).where(eq(users.id, id)).limit(1)
-    const finalRole = current?.customerId ? 'customer' : role
+    // A Registration linked to a Company takes the Company's Profile as its Role (ADR 0011).
+    const [current] = await db
+      .select({ profile: customers.profile })
+      .from(users)
+      .innerJoin(customers, eq(customers.id, users.customerId))
+      .where(eq(users.id, id))
+      .limit(1)
+    const finalRole = current?.profile ?? role
     const [user] = await db
       .update(users)
       .set({ status: 'active', role: finalRole, decidedBy: admin.id, decidedAt: dsql`now()`, updatedAt: dsql`now()` })

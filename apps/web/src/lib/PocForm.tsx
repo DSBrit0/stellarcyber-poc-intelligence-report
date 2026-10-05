@@ -1,8 +1,9 @@
-import { EFFORT_DEFAULTS, VERDICTS, type PocDetails } from '@poc-intel/shared'
+import { EFFORT_DEFAULTS, VERDICTS, fieldValid, normalizeField, type PocDetails } from '@poc-intel/shared'
 import type { MessageKey } from '@poc-intel/shared/i18n'
 import type { ReactNode } from 'react'
 import { AutoTriageCheckbox } from './AutoTriage'
 import { HelpTip } from './HelpTip'
+import { ContactFields, TypedInput, linesOf } from './TypedFields'
 import { useI18n } from './i18n'
 
 export const emptyDetails = (customerName = ''): PocDetails => ({
@@ -103,7 +104,10 @@ export function PocForm({
   readOnly,
   autoTriage = true,
   autoTriageNote,
+  criteriaInNotebook,
 }: {
+  /** The PoC has a Notebook: its Success Criteria are edited there, one row per criterion. */
+  criteriaInNotebook?: boolean
   value: PocDetails
   onChange: (v: PocDetails) => void
   readOnly?: boolean
@@ -112,23 +116,12 @@ export function PocForm({
 }) {
   const { t } = useI18n()
   const set = <K extends keyof PocDetails>(k: K, v: PocDetails[K]) => onChange({ ...value, [k]: v })
-  const text = (k: 'customerName' | 'department' | 'customerEmail' | 'platformVersion' | 'region', label: MessageKey, max: number, type = 'text') => (
+  const text = (k: 'customerName' | 'department' | 'platformVersion' | 'region', label: MessageKey, max: number, type = 'text') => (
     <Field label={t(label)}>
       <input className="input" type={type} maxLength={max} disabled={readOnly} value={value[k]} onChange={(e) => set(k, e.target.value)} required={k === 'customerName'} />
     </Field>
   )
-  const nested = <G extends 'salesEngineer' | 'partner'>(g: G, k: keyof PocDetails[G] & string, label: MessageKey, max: number, type = 'text') => (
-    <Field label={t(label)}>
-      <input
-        className="input"
-        type={type}
-        maxLength={max}
-        disabled={readOnly}
-        value={String(value[g][k] ?? '')}
-        onChange={(e) => onChange({ ...value, [g]: { ...value[g], [k]: e.target.value } })}
-      />
-    </Field>
-  )
+  const badAnalysts = linesOf(value.analysts).filter((a) => !fieldValid('personName', normalizeField('personName', a)))
   const effort = (k: keyof PocDetails['effort'], label: MessageKey) => (
     <Field label={t(label)}>
       <input
@@ -149,7 +142,7 @@ export function PocForm({
         <Row cols="sm:grid-cols-3">
           {text('customerName', 'form.customerName', 160)}
           {text('department', 'form.department', 160)}
-          {text('customerEmail', 'form.customerEmail', 254, 'email')}
+          <TypedInput kind="email" label={t('form.customerEmail')} maxLength={254} disabled={Boolean(readOnly)} value={value.customerEmail} onChange={(v) => set('customerEmail', v)} />
         </Row>
         <Field label={t('form.analysts')}>
           <textarea
@@ -158,27 +151,32 @@ export function PocForm({
             disabled={readOnly}
             value={value.analysts.join('\n')}
             onChange={(e) => set('analysts', e.target.value.split('\n').map((s) => s.slice(0, 60)).slice(0, 50))}
+            onBlur={() => set('analysts', linesOf(value.analysts).map((a) => normalizeField('personName', a)))}
           />
+          {badAnalysts.length ? <span className="mt-1 block text-xs text-red-600">{t('field.invalid.personName')} ({badAnalysts.join(', ')})</span> : null}
         </Field>
-        <Field label={`${t('form.successCriteria')} (${value.successCriteria.length}/550)`}>
-          <textarea className="input" rows={3} maxLength={550} disabled={readOnly} value={value.successCriteria} onChange={(e) => set('successCriteria', e.target.value)} />
-        </Field>
+        {criteriaInNotebook ? (
+          <p className="text-sm text-slate-500">
+            <span className="label">{t('form.successCriteria')}</span>
+            {t('nb.criteriaInNotebook')}
+          </p>
+        ) : (
+          <Field label={`${t('form.successCriteria')} (${value.successCriteria.length}/550)`}>
+            <textarea className="input" rows={3} maxLength={550} disabled={readOnly} value={value.successCriteria} onChange={(e) => set('successCriteria', e.target.value)} />
+          </Field>
+        )}
       </Section>
 
       <Section title={t('form.sectionSe')}>
-        <Row cols="sm:grid-cols-3">
-          {nested('salesEngineer', 'name', 'form.seName', 120)}
-          {nested('salesEngineer', 'email', 'form.seEmail', 254, 'email')}
-          {nested('salesEngineer', 'phone', 'form.sePhone', 40, 'tel')}
-        </Row>
+        <ContactFields disabled={Boolean(readOnly)} value={value.salesEngineer} onChange={(v) => set('salesEngineer', v)} />
       </Section>
 
       <Section title={t('form.sectionPartner')}>
-        <Row cols="sm:grid-cols-3">
-          {nested('partner', 'name', 'form.partnerName', 120)}
-          {nested('partner', 'email', 'form.partnerEmail', 254, 'email')}
-          {nested('partner', 'site', 'form.partnerSite', 254)}
-        </Row>
+        <div className="grid items-start gap-3 sm:grid-cols-3">
+          <TypedInput kind="personName" label={t('form.partnerName')} maxLength={120} disabled={Boolean(readOnly)} value={value.partner.name} onChange={(v) => set('partner', { ...value.partner, name: v })} />
+          <TypedInput kind="email" label={t('form.partnerEmail')} maxLength={254} disabled={Boolean(readOnly)} value={value.partner.email} onChange={(v) => set('partner', { ...value.partner, email: v })} />
+          <TypedInput kind="url" label={t('form.partnerSite')} maxLength={254} disabled={Boolean(readOnly)} value={value.partner.site} onChange={(v) => set('partner', { ...value.partner, site: v })} />
+        </div>
       </Section>
 
       <Section title={t('form.sectionGeneral')}>
