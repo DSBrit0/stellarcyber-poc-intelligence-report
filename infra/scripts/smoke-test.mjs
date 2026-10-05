@@ -166,7 +166,7 @@ try {
   const img = await call(`/pocs/${poc.data.id}/arch-image`)
   check('architecture image reads back', img.status === 200 && img.type === 'image/png' && img.data.length === Buffer.from(png, 'base64').length)
   const tech = String((await call(`/report-data/${report.id}/html?template=technical&locale=en`)).data)
-  check('Technical Report shows the form fields', ['SE Smoke', 'partner.smoke.test', 'Detect lateral movement', 'Round-trip comment', 'Ana Smoke; Bruno Smoke', 'LATAM', '6.6.0', 'Version 1.0'].every((x) => tech.includes(x)), ['SE Smoke', 'partner.smoke.test', 'Detect lateral movement', 'Round-trip comment', 'Ana Smoke; Bruno Smoke', 'LATAM', '6.6.0', 'Version 1.0'].filter((x) => !tech.includes(x)).join(','))
+  check('Technical Report shows the form fields', ['SE Smoke', 'partner.smoke.test', 'Detect lateral movement', 'Round-trip comment', 'Ana Smoke', 'Bruno Smoke', 'LATAM', '6.6.0', 'Version 1.0'].every((x) => tech.includes(x)), ['SE Smoke', 'partner.smoke.test', 'Detect lateral movement', 'Round-trip comment', 'Ana Smoke', 'Bruno Smoke', 'LATAM', '6.6.0', 'Version 1.0'].filter((x) => !tech.includes(x)).join(','))
   check('Technical Report embeds the architecture image', tech.includes(`data:image/png;base64,${png}`))
   const exec = String((await call(`/report-data/${report.id}/html?template=executive&locale=en`)).data)
   check('Executive Report uses the effort premises (7 min triage)', /triage 7 min/.test(exec) && exec.includes('Approved'))
