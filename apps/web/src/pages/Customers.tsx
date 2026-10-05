@@ -5,6 +5,8 @@ import { useState, type FormEvent } from 'react'
 import { api } from '../lib/api'
 import { useCustomers, type CustomerRow } from '../lib/CustomerSelect'
 import { errorKey } from '../lib/errors'
+import { DeleteCompanyButton, DeleteUserButton } from '../lib/DeleteAccount'
+import { useMe } from '../lib/auth'
 import { useI18n } from '../lib/i18n'
 
 const USER_STATUS_STYLE: Record<string, string> = {
@@ -31,6 +33,9 @@ const PROFILE_STYLE: Record<CompanyProfile, string> = {
 
 export function CustomersPage() {
   const { t, locale } = useI18n()
+  const { data: me } = useMe()
+  // Deleting accounts and Companies: Admins, and Sales Engineers for the Companies they registered.
+  const canDelete = me?.role === 'admin' || me?.role === 'sales_engineer'
   const qc = useQueryClient()
   const customers = useCustomers()
   const people = useQuery({ queryKey: ['customer-users'], queryFn: () => api<CustomerUser[]>('/customers/users') })
@@ -129,7 +134,7 @@ export function CustomersPage() {
               <th>{t('customers.profile')}</th>
               <th>{t('customers.pocs')}</th>
               <th>{t('customers.users')}</th>
-              <th className="hidden sm:table-cell" />
+              <th />
             </tr>
           </thead>
           <tbody>
@@ -174,11 +179,14 @@ export function CustomersPage() {
                     </span>
                   ) : null}
                 </td>
-                <td className="hidden pr-0 text-right sm:table-cell">
+                <td className="pr-0 text-right">
                   {c.manageable ? (
-                    <button className="btn-ghost whitespace-nowrap" onClick={() => void rotate(c.id, c.name)}>
-                      {t('customers.rotate')}
-                    </button>
+                    <span className="inline-flex items-center gap-1">
+                      <button className="btn-ghost hidden whitespace-nowrap sm:inline-flex" onClick={() => void rotate(c.id, c.name)}>
+                        {t('customers.rotate')}
+                      </button>
+                      {canDelete ? <DeleteCompanyButton companyId={c.id} name={c.name} /> : null}
+                    </span>
                   ) : null}
                 </td>
               </tr>
@@ -210,10 +218,11 @@ export function CustomersPage() {
                   {t('admin.reject')}
                 </button>
               ) : u.status === 'active' ? (
-                <button className="btn-ghost" onClick={() => decide.mutate({ id: u.id, action: 'disable' })}>
-                  ✕
+                <button className="btn-ghost" title={t('del.disable')} onClick={() => decide.mutate({ id: u.id, action: 'disable' })}>
+                  {t('del.disable')}
                 </button>
               ) : null}
+              {canDelete ? <DeleteUserButton userId={u.id} label={u.name} /> : null}
             </span>
           </div>
         ))}

@@ -28,6 +28,8 @@ export type AuditAction =
   | 'customer.profile_changed'
   | 'catalog.updated'
   | 'template.updated'
+  | 'user.deleted'
+  | 'customer.deleted'
   | 'customer.user_approve'
   | 'customer.user_reject'
   | 'customer.user_disable'

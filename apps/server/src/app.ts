@@ -15,6 +15,7 @@ import { customerRoutes } from './customers/routes.js'
 import { notebookRoutes } from './notebook/routes.js'
 import { catalogAdminRoutes, catalogRoutes } from './catalog/routes.js'
 import { templateRoutes } from './notebook/template-routes.js'
+import { accountRoutes } from './accounts/routes.js'
 import { pocRoutes } from './pocs/routes.js'
 import type { RenderPdfJob } from './queue.js'
 import { reportRoutes } from './report/routes.js'
@@ -126,6 +127,7 @@ export async function buildApp(deps: AppDeps): Promise<FastifyInstance> {
   await app.register(catalogRoutes, { prefix: '/api' })
   await app.register(catalogAdminRoutes, { prefix: '/api/admin' })
   await app.register(templateRoutes, { prefix: '/api/admin' })
+  await app.register(accountRoutes, { prefix: '/api' })
   await app.register(commentRoutes, { prefix: '/api' })
   return app
 }

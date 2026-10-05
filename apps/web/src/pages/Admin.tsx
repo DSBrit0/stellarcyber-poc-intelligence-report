@@ -5,6 +5,8 @@ import { useState } from 'react'
 import { Link } from 'react-router'
 import { api } from '../lib/api'
 import { CatalogCard } from './admin/CatalogCard'
+import { DeleteUserButton } from '../lib/DeleteAccount'
+import { useMe } from '../lib/auth'
 import { useI18n } from '../lib/i18n'
 
 interface UserRow {
@@ -35,6 +37,7 @@ interface Settings {
 
 export function AdminPage() {
   const { t } = useI18n()
+  const { data: me } = useMe()
   const qc = useQueryClient()
   const users = useQuery({ queryKey: ['admin', 'users'], queryFn: () => api<UserRow[]>('/admin/users') })
   const settings = useQuery({ queryKey: ['admin', 'settings'], queryFn: () => api<Settings>('/admin/settings') })
@@ -151,6 +154,7 @@ export function AdminPage() {
                       >
                         {t('admin.passwordLink')}
                       </button>
+                      {u.id !== me?.id ? <DeleteUserButton userId={u.id} label={u.name} /> : null}
                     </div>
                   </td>
                 </tr>
