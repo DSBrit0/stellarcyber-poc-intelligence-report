@@ -1,33 +1,42 @@
 import { C, Bars, Donut, Gauge, HBars, PALETTE } from '../charts.js'
 import type { ReportContext } from '../context.js'
 import { rate } from '../model/derived.js'
-import { Card, Grid, Kpis, Muted, Note, P, Section, Sub, Table } from '../ui.js'
+import { Banner, Card, Grid, Kpis, Muted, Note, P, Section, Sub, Table, VolumeNote } from '../ui.js'
 
 // Cover, sections 1–3 and the architecture page (spec T1.0–T1.3, E.0–E.3).
 
-function InfoBlock({ title, lines }: { title: string; lines: (string | undefined)[] }) {
-  const shown = lines.filter(Boolean)
+/** A cover line: names wrap to 2 lines at most, contacts (e-mail, site, phone) stay on 1 line; both end in "…". */
+type Line = { text: string | undefined; kind?: 'name' | 'line' }
+
+function InfoBlock({ title, lines, list }: { title: string; lines: Line[]; list?: boolean }) {
+  const shown = lines.filter((l) => l.text)
   if (shown.length === 0) return null
   return (
     <div className="info-block">
       <div className="info-title">{title}</div>
       {shown.map((l, i) => (
-        <div key={i} className={i === 0 ? 'info-strong' : ''}>
-          {l}
+        <div key={i} className={`${i === 0 && !list ? 'info-strong ' : ''}${l.kind === 'name' ? 'clamp2' : 'clamp1'}`} title={l.text}>
+          {l.text}
         </div>
       ))}
     </div>
   )
 }
 
+/** Stakeholders shown on the cover; the rest are counted ("+{n} others"). */
+const COVER_STAKEHOLDERS = 6
+
 export function Cover({ rc }: { rc: ReportContext }) {
   const { details: p, t, fmt, data } = rc
   const exec = rc.template === 'executive'
+  const analysts = p.analysts.map((a) => a.trim()).filter(Boolean)
+  const shownAnalysts = analysts.slice(0, COVER_STAKEHOLDERS)
+  const more = analysts.length - shownAnalysts.length
   return (
     <header className={`cover ${exec ? 'cover-exec' : 'cover-tech'}`}>
       <div className="cover-top">
         <div className="brand">
-          STELLAR CYBER <span>| ISOC Platform</span>
+          STELLAR CYBER <span>| Open XDR</span>
         </div>
         <span className="pill">{t('coverConfidential')}</span>
       </div>
@@ -39,16 +48,35 @@ export function Cover({ rc }: { rc: ReportContext }) {
           {t('coverTitle2')}
         </h1>
         {exec ? (
-          p.customerName ? <div className="cover-client">{[p.customerName, p.department].filter(Boolean).join('  ·  ')}</div> : null
+          p.customerName ? (
+            <div className="cover-client">
+              <div className="clamp2">{p.customerName}</div>
+              {p.department ? <div className="cover-dept clamp2">{p.department}</div> : null}
+            </div>
+          ) : null
         ) : (
           <div className="cover-sub">{t('coverReportType')}</div>
         )}
       </div>
       <div className="info-blocks">
-        <InfoBlock title={t('blockPreparedFor')} lines={[p.customerName, p.department, p.customerEmail]} />
-        <InfoBlock title={t('blockStellarCyber')} lines={[p.salesEngineer.name, p.salesEngineer.email, p.salesEngineer.phone]} />
-        <InfoBlock title={t('blockStakeholders')} lines={[p.analysts.filter(Boolean).join('; ')]} />
-        <InfoBlock title={t('blockPartner')} lines={[p.partner.name, p.partner.email, p.partner.site]} />
+        <InfoBlock
+          title={t('blockPreparedFor')}
+          lines={[
+            { text: p.customerName, kind: 'name' },
+            { text: p.department, kind: 'name' },
+            { text: p.customerEmail },
+          ]}
+        />
+        <InfoBlock
+          title={t('blockStellarCyber')}
+          lines={[{ text: p.salesEngineer.name, kind: 'name' }, { text: p.salesEngineer.email }, { text: p.salesEngineer.phone }]}
+        />
+        <InfoBlock
+          title={t('blockStakeholders')}
+          list
+          lines={[...shownAnalysts.map((a) => ({ text: a })), ...(more > 0 ? [{ text: rc.x('stakeholdersMore', { n: fmt.num(more) }) }] : [])]}
+        />
+        <InfoBlock title={t('blockPartner')} lines={[{ text: p.partner.name, kind: 'name' }, { text: p.partner.email }, { text: p.partner.site }]} />
       </div>
       <div className="cover-foot">
         {t('footerVersion')} {rc.version} | {t('footerPocPeriod')} {fmt.date(data.period.start)}–{fmt.date(data.period.end)} | {t('footerReportDate')} {fmt.date(rc.generatedAt)}
@@ -57,11 +85,32 @@ export function Cover({ rc }: { rc: ReportContext }) {
   )
 }
 
-const clientName = (rc: ReportContext) => rc.details.customerName || rc.t('clientNamePlaceholder')
+/** The customer's short name for running text; the full name appears only on the cover and in the environment table. */
+export const clientName = (rc: ReportContext) => rc.client
+
+/** Sources counted in running text: data sources that sent data, else the detection sources seen in the Alerts. */
+export function activeSourceCount(rc: ReportContext): number {
+  const { d, data } = rc
+  return d.sources.withData || data.tactics.sources?.length || d.sources.all.length
+}
+
+/** The executive summary lead: a finding with the period's numbers (or why there is none). */
+export function summaryText(rc: ReportContext): string {
+  const { t, x, fmt, data, d } = rc
+  const vars = {
+    startDate: fmt.date(data.period.start),
+    endDate: fmt.date(data.period.end),
+    connCount: fmt.num(activeSourceCount(rc)),
+    caseCount: fmt.num(d.totalCases),
+    mitrePct: d.mitreCovPct,
+  }
+  if (d.noCases) return d.volumeZero && d.sources.withData === 0 ? x('summaryNoData', vars) : x('summaryNoCases', vars)
+  return d.critHigh.length || d.sev.critical + d.sev.high > 0 ? t('body1_2', vars) : x('summaryNoCritHigh', vars)
+}
 
 /** Context paragraph, success criteria and the summary paragraph (1.2, drawn before 1.1). */
 function Context({ rc }: { rc: ReportContext }) {
-  const { t, fmt, data, d, details } = rc
+  const { t, details } = rc
   const criteria = details.successCriteria
     .split(/[;\n]/)
     .map((s) => s.trim())
@@ -69,26 +118,15 @@ function Context({ rc }: { rc: ReportContext }) {
   return (
     <>
       <Sub rc={rc}>{t('sub1_2')}</Sub>
-      <P>{t('body1_1', { clientName: clientName(rc), client: clientName(rc), pocStartDate: fmt.date(data.period.start), pocEndDate: fmt.date(data.period.end) })}</P>
+      <p className="body strong">{summaryText(rc)}</p>
+      <P>{`${t('body1_1', { clientName: clientName(rc), client: clientName(rc) })}${criteria.length ? ':' : '.'}`}</P>
       {criteria.length ? (
-        <>
-          <p className="body strong">{t('successCriteriaTitle')}</p>
-          <ul className="bullets">
-            {criteria.map((c) => (
-              <li key={c}>{c}</li>
-            ))}
-          </ul>
-        </>
+        <ul className="bullets">
+          {criteria.map((c) => (
+            <li key={c}>{c}</li>
+          ))}
+        </ul>
       ) : null}
-      <P>
-        {t('body1_2', {
-          startDate: fmt.date(data.period.start),
-          endDate: fmt.date(data.period.end),
-          connCount: data.connectors.length,
-          caseCount: d.totalCases,
-          mitrePct: d.mitreCovPct,
-        })}
-      </P>
     </>
   )
 }
@@ -98,21 +136,33 @@ function entDaysNote(rc: ReportContext) {
   return s ? rc.t('entitiesDaysNote', { days: s.days, zero: s.zeroDays }) : ''
 }
 
+/** "withData/total (pct%)" of the data sources, or "—" without any. */
+export function integrationText(rc: ReportContext): string {
+  const { d, fmt } = rc
+  return d.integrationPct == null ? '—' : `${fmt.num(d.sources.withData)}/${fmt.num(d.sources.all.length)} (${d.integrationPct}%)`
+}
+
+/** Technical 1.1 KPI table (the Executive Template shows the same figures as tiles). */
 export function KpiTable({ rc }: { rc: ReportContext }) {
-  const { t, fmt, d, data } = rc
+  const { t, fmt, d } = rc
   const s = d.assetStats
   const note = entDaysNote(rc)
+  const caseRows = d.noCases
+    ? []
+    : [
+        [t('kpiCasesDetected'), fmt.num(d.totalCases), `${fmt.num(d.sev.critical)} ${t('critLabel')}, ${fmt.num(d.sev.high)} ${t('highLabel')}`],
+        [t('kpiMitreCov'), `${d.mitreCovPct}% (${d.detectedTactics.size}/14)`, t('kpiMitreNote')],
+        [t('kpiOpenCases'), fmt.num(d.openCount), `${fmt.pct(d.openCount, d.statusBase)} ${t('ofTotal')}`],
+      ]
   return (
     <Table
       head={[t('kpiMetric'), t('kpiValue'), t('kpiNotes')]}
       rows={[
-        [t('kpiCasesDetected'), fmt.num(d.totalCases), `${d.crit.length} ${t('critLabel')}, ${d.high.length} ${t('highLabel')}`],
+        ...caseRows,
         [t('kpiAvgEntities'), s ? fmt.num(s.avg) : '—', `${t('kpiEntitiesNote')}${note ? ` · ${note}` : ''}`],
         [t('kpiMinEntities'), s ? fmt.num(s.min) : '—', t('minEntitiesNote')],
         [t('kpiMaxEntities'), s ? fmt.num(s.max) : '—', t('maxEntitiesNote')],
-        [t('kpiActiveConn'), `${d.activeConnectors} / ${data.connectors.length}`, t('kpiConnNote')],
-        [t('kpiMitreCov'), `${d.mitreCovPct}% (${d.detectedTactics.size}/14)`, t('kpiMitreNote')],
-        [t('kpiOpenCases'), fmt.num(d.openCount), `${fmt.pct(d.openCount, d.statusBase)} ${t('ofTotal')}`],
+        [t('kpiActiveConn'), integrationText(rc), t('kpiConnNote')],
       ]}
     />
   )
@@ -121,8 +171,8 @@ export function KpiTable({ rc }: { rc: ReportContext }) {
 function severitySlices(rc: ReportContext) {
   const { t, d } = rc
   return [
-    { label: t('sevCritical'), value: d.crit.length, color: C.critical },
-    { label: t('sevHigh'), value: d.high.length, color: C.high },
+    { label: t('sevCritical'), value: d.sev.critical, color: C.critical },
+    { label: t('sevHigh'), value: d.sev.high, color: C.high },
     { label: t('sevMedium'), value: d.sev.medium, color: C.medium },
     { label: t('sevLow'), value: d.sev.low, color: C.low },
   ]
@@ -132,10 +182,45 @@ function categorySlices(rc: ReportContext) {
   return rc.d.connByCategory.map(([k, v], i) => ({ label: k || rc.t('connectorCatOther'), value: v, color: PALETTE[i % PALETTE.length] }))
 }
 
+/** KPIs that do not depend on Cases: shown alone (under a banner) when the period has none. */
+function sourceKpis(rc: ReportContext) {
+  const { t, fmt, d, x } = rc
+  return [
+    { label: t('kpiAvgEntities'), value: d.assetStats ? fmt.num(d.assetStats.avg) : '—', tone: 'mid' as const, tip: x('kpiTipAssets') },
+    { label: t('metTotalIngested'), value: d.vol ? fmt.vol(d.volTotal) : '—', tone: 'cyan' as const, tip: x('kpiTipVolume') },
+    { label: t('kpiActiveConn'), value: d.integrationPct == null ? '—' : `${fmt.num(d.sources.withData)}/${fmt.num(d.sources.all.length)}`, tone: 'navy' as const, tip: x('kpiTipConnectors') },
+  ]
+}
+
+/** The non-Case KPIs and the volume note, left out when none of them has a value. */
+function SourceKpis({ rc }: { rc: ReportContext }) {
+  const items = sourceKpis(rc)
+  if (items.every((k) => k.value === '—')) return null
+  return (
+    <>
+      <Kpis rc={rc} items={items} />
+      <VolumeNote rc={rc} />
+    </>
+  )
+}
+
+function NoCasesBanner({ rc }: { rc: ReportContext }) {
+  return <Banner>{rc.x('noCasesBanner', { start: rc.fmt.date(rc.data.period.start), end: rc.fmt.date(rc.data.period.end) })}</Banner>
+}
+
 /** Technical 1.1: KPI cards and the 2×2 doughnuts. */
 function TechnicalKpis({ rc }: { rc: ReportContext }) {
-  const { t, fmt, d, data } = rc
-  const sevSum = d.crit.length + d.high.length + d.sev.medium + d.sev.low
+  const { t, fmt, d } = rc
+  if (d.noCases) {
+    return (
+      <div className="page-break">
+        <Sub rc={rc}>{t('sub1_1')}</Sub>
+        <NoCasesBanner rc={rc} />
+        <SourceKpis rc={rc} />
+      </div>
+    )
+  }
+  const sevSum = d.sev.critical + d.sev.high + d.sev.medium + d.sev.low
   const statusTotal = d.openCount + d.resolvedCount
   return (
     <div className="page-break">
@@ -144,64 +229,67 @@ function TechnicalKpis({ rc }: { rc: ReportContext }) {
         rc={rc}
         items={[
           { label: t('kpiCasesDetected'), value: fmt.num(d.totalCases), tone: 'brand', tip: rc.x('kpiTipCases') },
-          { label: t('kpiCritCases'), value: String(d.crit.length), tone: 'crit' },
+          { label: t('kpiCritCases'), value: fmt.num(d.sev.critical), tone: 'crit' },
           { label: t('kpiOpenCases'), value: fmt.num(d.openCount), tone: 'high', tip: `${rc.x('kpiTipOpen')} ${fmt.pct(d.openCount, d.statusBase)}` },
           { label: t('kpiResolvedCases'), value: fmt.num(d.resolvedCount), tone: 'ok' },
           { label: t('kpiAvgEntities'), value: d.assetStats ? fmt.num(d.assetStats.avg) : '—', tone: 'navy', tip: rc.x('kpiTipAssets') },
-          { label: t('kpiActiveConn'), value: `${d.activeConnectors}/${data.connectors.length}`, tone: 'mid', tip: rc.x('kpiTipConnectors') },
+          { label: t('kpiActiveConn'), value: d.integrationPct == null ? '—' : `${fmt.num(d.sources.withData)}/${fmt.num(d.sources.all.length)}`, tone: 'mid', tip: rc.x('kpiTipConnectors') },
           { label: t('kpiMitreCov'), value: `${d.mitreCovPct}%`, tone: 'brand', tip: rc.x('kpiTipMitre') },
         ]}
       />
       <Grid>
-        <Card title={t('chartSeverity')}>{sevSum ? <Donut slices={severitySlices(rc)} center={fmt.num(sevSum)} sub={t('totalLabel')} /> : null}</Card>
+        <Card title={t('chartSeverity')}>{sevSum ? <Donut slices={severitySlices(rc)} center={fmt.num(sevSum)} sub={t('totalLabel')} format={fmt.num} /> : null}</Card>
         <Card title={t('chartStatus')}>
-          {statusTotal ? (
+          {d.openCount && d.resolvedCount ? (
             <Donut
               slices={[
                 { label: t('statusOpen'), value: d.openCount, color: C.orange },
                 { label: t('statusClosed'), value: d.resolvedCount, color: C.mid },
               ]}
               center={fmt.num(d.openCount)}
-              sub={`${t('statusOpen').toLowerCase()} · ${Math.round((d.openCount / statusTotal) * 100)}%`}
+              sub={`${t('statusOpen').toLowerCase()} · ${fmt.pct(d.openCount, statusTotal)}`}
+              format={fmt.num}
             />
           ) : null}
         </Card>
-        <Card title={t('chartMitre')}>
-          <Gauge pct={d.mitreCovPct} label={t('chartMitreLabel')} />
-        </Card>
+        <Card title={t('chartMitre')}>{d.mitreCovPct > 0 ? <Gauge pct={d.mitreCovPct} label={t('chartMitreLabel')} /> : null}</Card>
         <Card title={t('chartSources')}>
-          {data.connectors.length ? <Donut slices={categorySlices(rc)} center={fmt.num(data.connectors.length)} sub={t('sourcesLabel')} /> : null}
+          {d.connByCategory.length ? <Donut slices={categorySlices(rc)} center={fmt.num(d.sources.connectors.length)} sub={t('sourcesLabel')} format={fmt.num} /> : null}
         </Card>
       </Grid>
     </div>
   )
 }
 
-/** Detection Capability, Investigation Efficiency, Integration and MITRE as rated bars. */
+/** Detection Capability (average score), Investigation Efficiency, Integration and MITRE as rated bars. */
 export function scorecardRows(rc: ReportContext) {
-  const { d } = rc
-  return [
-    { key: 'sc10_1' as const, pct: d.avgScore },
-    { key: 'sc10_2' as const, pct: d.investigation.pct },
-    { key: 'sc10_4' as const, pct: d.integrationPct },
-    { key: 'sc10_6' as const, pct: d.mitreCovPct },
-  ]
+  const { d, x, fmt } = rc
+  const rows: { key: 'sc10_1' | 'sc10_2' | 'sc10_4' | 'sc10_6'; pct: number; value: string }[] = []
+  if (!d.noCases) {
+    rows.push({ key: 'sc10_1', pct: d.avgScore, value: x('scoreAvg', { n: fmt.num(d.avgScore) }) })
+    rows.push({ key: 'sc10_2', pct: d.investigation.pct, value: `${d.investigation.pct}%` })
+  }
+  if (d.integrationPct != null) rows.push({ key: 'sc10_4', pct: d.integrationPct, value: `${d.integrationPct}%` })
+  if (!d.noCases) rows.push({ key: 'sc10_6', pct: d.mitreCovPct, value: `${d.mitreCovPct}%` })
+  return rows
 }
 
 const RATING_KEY = { high: 'ratingHigh', medium: 'ratingMed', low: 'ratingLow' } as const
 
 export function ScoreBars({ rc }: { rc: ReportContext }) {
   const { t } = rc
+  const rows = scorecardRows(rc)
+  if (rows.length === 0) return null
   return (
     <div className="score-bars">
-      {scorecardRows(rc).map((r) => {
+      {rows.map((r) => {
         const level = rate(r.pct)
         return (
           <div key={r.key} className={`score-row rating-${level}`}>
             <div className="score-head">
               <span>{rc.fmt.trunc(t(r.key), 34)}</span>
               <span>
-                {t(RATING_KEY[level])} · {r.pct}%
+                {t(RATING_KEY[level])} · {r.value}
               </span>
             </div>
             <div className="score-track">
@@ -217,7 +305,15 @@ export function ScoreBars({ rc }: { rc: ReportContext }) {
   )
 }
 
-function Findings({ rc }: { rc: ReportContext }) {
+/** The data source with the most raw data received, and its share of everything received. */
+export function topSource(rc: ReportContext) {
+  const known = rc.d.sources.all.filter((s) => s.bytes != null && s.bytes > 0)
+  const total = known.reduce((s, x) => s + x.bytes!, 0)
+  const top = [...known].sort((a, b) => b.bytes! - a.bytes!)[0]
+  return top && total > 0 ? { name: top.name, pct: Math.round((top.bytes! / total) * 100) } : null
+}
+
+function findingItems(rc: ReportContext): string[] {
   const { t, fmt, d, data } = rc
   const items: string[] = []
   const sums = d.daily.days.map((_, i) => (d.daily.critical[i] ?? 0) + (d.daily.high[i] ?? 0))
@@ -225,11 +321,14 @@ function Findings({ rc }: { rc: ReportContext }) {
   if (peak >= 0 && sums[peak]! > 0) items.push(t('t2FindPeak', { n: fmt.num(sums[peak]!), d: fmt.date(d.daily.days[peak]!) }))
   const topTactic = [...data.tactics.mitre.tactics].sort((a, b) => b.alertCount - a.alertCount)[0]
   if (topTactic) items.push(t('t2FindTactic', { t: topTactic.name, a: fmt.num(topTactic.alertCount), c: fmt.num(topTactic.caseCount) }))
-  const sensorTotal = data.ingestion.bySensor.reduce((s, x) => s + x.bytes, 0)
-  const topSensor = [...data.ingestion.bySensor].sort((a, b) => b.bytes - a.bytes)[0]
-  if (topSensor && sensorTotal > 0) items.push(t('t2FindSource', { s: topSensor.name || '—', p: Math.round((topSensor.bytes / sensorTotal) * 100) }))
-  if (data.assets.compliance.recommended != null) items.push(t('t2FindLicense', { l: fmt.num(data.assets.compliance.recommended) }))
-  if (data.volume.compliance.recommended != null) items.push(t('t2FindVolume', { l: fmt.vol(data.volume.compliance.recommended) }))
+  const top = topSource(rc)
+  if (top) items.push(t('t2FindSource', { s: top.name, p: top.pct }))
+  if (!d.assetsZero && data.assets.compliance.recommended) items.push(t('t2FindLicense', { l: fmt.num(data.assets.compliance.recommended) }))
+  if (!d.volumeZero && data.volume.compliance.recommended) items.push(t('t2FindVolume', { l: fmt.vol(data.volume.compliance.recommended) }))
+  return items
+}
+
+function Findings({ items }: { items: string[] }) {
   return (
     <ul className="bullets findings">
       {items.map((i) => (
@@ -241,46 +340,62 @@ function Findings({ rc }: { rc: ReportContext }) {
 
 /** Executive 1.1 dashboard. */
 function ExecutiveDashboard({ rc }: { rc: ReportContext }) {
-  const { t, fmt, d } = rc
+  const { t, fmt, d, x } = rc
   const sev = severitySlices(rc)
+  const findings = findingItems(rc)
+  if (d.noCases) {
+    return (
+      <>
+        <Sub rc={rc}>{t('sub1_1')}</Sub>
+        <NoCasesBanner rc={rc} />
+        <SourceKpis rc={rc} />
+        {findings.length ? (
+          <Card title={t('t2Findings')}>
+            <Findings items={findings} />
+          </Card>
+        ) : null}
+      </>
+    )
+  }
+  const perDay = d.daily.days.length && [...d.daily.critical, ...d.daily.high].some((v) => v > 0)
   return (
     <>
       <Sub rc={rc}>{t('sub1_1')}</Sub>
       <Kpis
         rc={rc}
         items={[
-          { label: t('kpiCasesDetected'), value: fmt.num(d.totalCases), tone: 'navy', tip: rc.x('kpiTipCases') },
-          { label: t('sevCritical'), value: fmt.num(d.crit.length), tone: 'crit' },
-          { label: t('sevHigh'), value: fmt.num(d.high.length), tone: 'high' },
-          { label: `${t('kpiMitreCov')} (${d.detectedTactics.size}/14)`, value: `${d.mitreCovPct}%`, tone: 'brand', tip: rc.x('kpiTipMitre') },
-          { label: t('kpiAvgEntities'), value: d.assetStats ? fmt.num(d.assetStats.avg) : '—', tone: 'mid', tip: rc.x('kpiTipAssets') },
-          { label: t('metTotalIngested'), value: d.vol ? fmt.vol(d.vol.total) : '—', tone: 'cyan', tip: rc.x('kpiTipVolume') },
+          { label: t('kpiCasesDetected'), value: fmt.num(d.totalCases), tone: 'navy', tip: x('kpiTipCases') },
+          { label: x('kpiCritical'), value: fmt.num(d.sev.critical), tone: 'crit' },
+          { label: x('kpiHigh'), value: fmt.num(d.sev.high), tone: 'high' },
+          { label: `${t('kpiMitreCov')} (${d.detectedTactics.size}/14)`, value: `${d.mitreCovPct}%`, tone: 'brand', tip: x('kpiTipMitre') },
+          { label: t('kpiAvgEntities'), value: d.assetStats ? fmt.num(d.assetStats.avg) : '—', tone: 'mid', tip: x('kpiTipAssets') },
+          { label: t('metTotalIngested'), value: d.vol ? fmt.vol(d.volTotal) : '—', tone: 'cyan', tip: x('kpiTipVolume') },
         ]}
       />
+      <VolumeNote rc={rc} />
       <div className="grid cols-57">
         <Card title={t('t2ChartPerDay')}>
-          {d.daily.days.length ? (
+          {perDay ? (
             <Bars
               labels={d.daily.days.map((x) => fmt.dayMonth(x))}
               series={[
                 { name: t('sevCritical'), values: d.daily.critical, color: C.critical },
                 { name: t('sevHigh'), values: d.daily.high, color: C.high },
               ]}
+              width={380}
+              height={210}
+              yFormat={fmt.num}
             />
           ) : null}
         </Card>
-        <Card title={t('t2ChartSevPie')}>{sev.some((s) => s.value > 0) ? <Donut slices={sev} cutout={0} /> : null}</Card>
+        <Card title={t('t2ChartSevPie')}>{sev.some((s) => s.value > 0) ? <Donut slices={sev} cutout={0} format={fmt.num} /> : null}</Card>
       </div>
       <Grid cols={3}>
-        <Card title={t('chartMitre')}>
-          <Gauge pct={d.mitreCovPct} label={`${d.detectedTactics.size} / 14 ${t('sc_tactics')}`} />
-        </Card>
+        <Card title={t('chartMitre')}>{d.mitreCovPct > 0 ? <Gauge pct={d.mitreCovPct} label={`${d.detectedTactics.size} / 14 ${t('sc_tactics')}`} /> : null}</Card>
         <Card title={t('t2ChartScore')}>
           <ScoreBars rc={rc} />
         </Card>
-        <Card title={t('t2Findings')}>
-          <Findings rc={rc} />
-        </Card>
+        <Card title={t('t2Findings')}>{findings.length ? <Findings items={findings} /> : null}</Card>
       </Grid>
     </>
   )
@@ -289,22 +404,59 @@ function ExecutiveDashboard({ rc }: { rc: ReportContext }) {
 export function Section1({ rc }: { rc: ReportContext }) {
   const exec = rc.template === 'executive'
   return (
-    <Section rc={rc} n={1} title={rc.t('sec1')}>
+    <Section rc={rc} title={rc.t('sec1')}>
       <Context rc={rc} />
-      {exec ? <ExecutiveDashboard rc={rc} /> : null}
-      <KpiTable rc={rc} />
-      {exec ? null : <TechnicalKpis rc={rc} />}
+      {exec ? (
+        <ExecutiveDashboard rc={rc} />
+      ) : (
+        <>
+          <KpiTable rc={rc} />
+          <TechnicalKpis rc={rc} />
+        </>
+      )}
     </Section>
   )
 }
 
+type GoalStatus = 'achieved' | 'partial' | 'notAchieved'
+const grade = (v: number | null, ok: (v: number) => boolean, partial: (v: number) => boolean): GoalStatus | null =>
+  v == null ? null : ok(v) ? 'achieved' : partial(v) ? 'partial' : 'notAchieved'
+
+/** 2.3 reference targets: the measured value and whether the PoC met it. Case and MITRE rows need Cases. */
+export function goals(rc: ReportContext) {
+  const { t, d, fmt } = rc
+  const rows: { name: string; target: string; result: string; status: GoalStatus | null }[] = []
+  if (!d.noCases) {
+    rows.push({ name: t('sc1'), target: t('sc1target'), result: `${d.mitreCovPct}%`, status: grade(d.mitreCovPct, (v) => v > 85, (v) => v >= 43) })
+    rows.push({
+      name: t('sc2'),
+      target: t('sc2target'),
+      result: d.mttdMinutes == null ? '—' : fmt.dur(d.mttdMinutes),
+      status: grade(d.mttdMinutes, (v) => v <= 5, (v) => v <= 15),
+    })
+  }
+  rows.push({ name: t('sc3'), target: t('sc3target'), result: integrationText(rc), status: grade(d.integrationPct, (v) => v >= 100, (v) => v >= 80) })
+  if (!d.noCases) {
+    rows.push({
+      name: t('sc4'),
+      target: t('sc4target'),
+      result: d.noise ? `${d.noise.pct}% (${fmt.ratio(d.noise.ratio)})` : '—',
+      status: grade(d.noise?.pct ?? null, (v) => v > 80, (v) => v >= 50),
+    })
+  }
+  return rows
+}
+
 export function Section2({ rc }: { rc: ReportContext }) {
-  const { t, fmt, d, details: p, data } = rc
-  const integStr = data.connectors.length ? `${d.activeConnectors}/${data.connectors.length} (${d.integrationPct}%)` : '—'
-  const noiseStr = d.noise ? `${d.noise.pct}% (${d.noise.ratio}:1)` : '—'
+  const { t, x, fmt, d, details: p, data } = rc
   const phases = [1, 2, 3, 4, 5].map((n) => ({ n, name: t(`phase${n}` as 'phase1'), desc: t(`phase${n}desc` as 'phase1desc') }))
+  const rows = goals(rc)
+  const rated = rows.filter((r) => r.status != null)
+  const missed = rated.filter((r) => r.status !== 'achieved')
+  const latency = data.tactics.detectionLatency
+  const hasGoals = rows.some((r) => r.result !== '—')
   return (
-    <Section rc={rc} n={2} title={t('sec2')}>
+    <Section rc={rc} title={t('sec2')}>
       <Sub rc={rc}>{t('sub2_1')}</Sub>
       <Table
         head={[t('envParam'), t('envValue')]}
@@ -319,16 +471,28 @@ export function Section2({ rc }: { rc: ReportContext }) {
           [t('envRegion'), p.region || '—'],
         ]}
       />
-      <Sub rc={rc}>{t('sub2_3')}</Sub>
-      <Table
-        head={[t('scCriteria'), t('scTarget'), t('scResult')]}
-        rows={[
-          [t('sc1'), t('sc1target'), `${d.mitreCovPct}%`],
-          [t('sc2'), t('sc2target'), d.mttdMinutes == null ? '—' : `${d.mttdMinutes.toFixed(1)} min`],
-          [t('sc3'), t('sc3target'), integStr],
-          [t('sc4'), t('sc4target'), noiseStr],
-        ]}
-      />
+      {hasGoals ? (
+        <>
+          <Sub rc={rc}>{t('sub2_3')}</Sub>
+          {rated.length ? (
+            <p className="body strong">
+              {missed.length ? x('goalsLead', { met: rated.length - missed.length, total: rated.length, missed: missed.map((r) => r.name).join(', ') }) : x('goalsLeadAll', { total: rated.length })}
+            </p>
+          ) : null}
+          <Table
+            head={[t('scCriteria'), t('scTarget'), t('scResult'), t('successStatus')]}
+            rows={[
+              ...rows.map((r) => [
+                r.name,
+                r.target,
+                r.result,
+                r.status ? <span className={r.status === 'achieved' ? 'ok strong' : r.status === 'partial' ? 'warn strong' : 'bad strong'}>{t(r.status)}</span> : '—',
+              ]),
+              ...(latency && !d.noCases ? [[x('latencyLabel'), x('noTarget'), fmt.dur(latency.medianMs / 60_000), '—']] : []),
+            ]}
+          />
+        </>
+      ) : null}
       <Sub rc={rc}>{t('sub2_2')}</Sub>
       {rc.template === 'executive' ? (
         <ol className="flow">
@@ -351,36 +515,124 @@ export function Section2({ rc }: { rc: ReportContext }) {
   )
 }
 
-/** Technical only: the customer's architecture image. */
+/** Technical only: the customer's architecture image; the section is left out without one. */
 export function ArchitecturePage({ rc, image }: { rc: ReportContext; image: string | null }) {
+  if (!image) return null
   return (
-    <Section rc={rc} title={rc.t('secArch')}>
-      {image ? <img className="arch" src={image} alt="" /> : <Note>{rc.t('noArchImage')}</Note>}
+    <Section rc={rc} numbered={false} title={rc.t('secArch')}>
+      <img className="arch" src={image} alt="" />
     </Section>
   )
 }
 
+const STATE_KEY = { online: 'stOnline', offline: 'stOffline', error: 'stError', nodata: 'stNoData' } as const
+
+/** Sensor names repeat (several "modular" appliances): tell them apart by IP. */
+function sensorLabel(rc: ReportContext, id: string, name: string): string {
+  const all = rc.data.dataSensors
+  const s = all.find((x) => x.id === id)
+  if (!s || all.filter((x) => x.name === s.name).length < 2) return name
+  return `${name} (${s.localIp || s.natIp || id.slice(0, 8)})`
+}
+
+/** 3.x Detections by source: Alerts and Cases per engine, joined with the raw data each one sent. */
+function DetectionsBySource({ rc }: { rc: ReportContext }) {
+  const { x, fmt, data, d } = rc
+  if (d.noCases) return null
+  const engines = data.tactics.engines ?? []
+  const bySensor = new Map(data.ingestion.bySensor.map((s) => [s.id, s.bytes]))
+  const connBytes = (name: string) => d.sources.connectors.find((c) => c.name === name)?.bytes ?? data.ingestion.byConnector.find((c) => c.name === name)?.bytes ?? null
+  const rows = engines.length
+    ? engines.slice(0, 15).map((e) => {
+        const sensor = e.sensorId ? data.dataSensors.find((s) => s.id === e.sensorId) : undefined
+        const name = e.connector ?? (sensor ? sensorLabel(rc, sensor.id, sensor.name) : e.name)
+        const bytes = e.sensorId ? (bySensor.get(e.sensorId) ?? null) : e.connector ? connBytes(e.connector) : null
+        return [fmt.trunc(name, 48), bytes == null ? '—' : fmt.bytes(bytes), fmt.num(e.alerts), fmt.num(e.cases), fmt.num(e.criticalHighCases)]
+      })
+    : (data.tactics.sources ?? []).slice(0, 15).map((s) => [fmt.trunc([s.source, s.vendor, s.product].filter(Boolean).join(' · '), 48), '—', fmt.num(s.alerts), fmt.num(s.cases), fmt.num(s.criticalHighCases)])
+  if (rows.length === 0) return null
+  return (
+    <>
+      <Sub rc={rc}>{x('subDetBySource')}</Sub>
+      <Table compact cols={['40%', '17%', '13%', '12%', '18%']} head={[x('colSource'), x('colReceived'), x('colAlerts'), rc.t('xtaCases'), x('colCritHigh')]} rows={rows} />
+    </>
+  )
+}
+
+/** Technical 3.3: Data Sensor health and the raw data each one sent. */
+function SensorHealth({ rc }: { rc: ReportContext }) {
+  const { t, x, fmt, data } = rc
+  const ingest = new Map(data.ingestion.bySensor.map((s) => [s.id, s]))
+  const known = data.dataSensors.map((s) => {
+    const status = s.online ? (
+      <span className="ok">{x('stOnline')}</span>
+    ) : (
+      <>
+        <span className="bad strong">{x('stOffline')}</span>
+        {s.message ? <small className="cell-note clamp2">{s.message}</small> : null}
+      </>
+    )
+    const version = (
+      <>
+        {s.version || '—'}
+        {s.needUpgrade ? <small className="cell-note warn">{x('upgradePending')}</small> : null}
+      </>
+    )
+    const usage = s.cpuPct != null || s.diskPct != null ? `${s.cpuPct == null ? '—' : `${fmt.dec(s.cpuPct, 0)}%`} / ${s.diskPct == null ? '—' : `${fmt.dec(s.diskPct, 0)}%`}` : '—'
+    const bytes = ingest.get(s.id)?.bytes
+    return [fmt.trunc(sensorLabel(rc, s.id, s.name), 40), s.kind || '—', status, version, s.lastSeen ? fmt.dayTimeUTC(s.lastSeen) : '—', usage, bytes == null ? '—' : fmt.bytes(bytes)]
+  })
+  const removed = data.ingestion.bySensor
+    .filter((s) => !data.dataSensors.some((x2) => x2.id === s.id))
+    .map((s) => [fmt.trunc(`${s.name} (${x('removed')})`, 40), s.type || '—', '—', '—', '—', '—', fmt.bytes(s.bytes)])
+  const rows = [...known, ...removed]
+  if (rows.length === 0) return null
+  return (
+    <Table
+      compact
+      className="sensors"
+      cols={['17%', '13%', '24%', '13%', '13%', '9%', '11%']}
+      head={[t('sensorName'), t('sensorType'), x('colStatus'), x('colVersion'), x('colLastSeen'), x('colCpuDisk'), x('colReceived')]}
+      rows={rows}
+    />
+  )
+}
+
 export function Section3({ rc }: { rc: ReportContext }) {
-  const { t, fmt, d, data } = rc
+  const { t, x, fmt, d, data } = rc
   const exec = rc.template === 'executive'
   const sensorTypes = new Set(data.dataSensors.map((s) => s.kind)).size // FIX: distinct types, as labelled
-  const ingestByName = new Map(data.ingestion.byConnector.map((c) => [c.name, c.bytes]))
   const sensorBytes = data.ingestion.bySensor.reduce((s, x) => s + x.bytes, 0)
-  const connectorBytes = data.ingestion.byConnector.reduce((s, x) => s + x.bytes, 0)
-  const toGb = (b: number) => b / 1024 ** 3
+  const connectorBytes = d.sources.connectors.reduce((s, c) => s + (c.bytes ?? 0), 0)
+  const toGb = (b: number) => b / 1e9
+  const src = d.sources
+  const noSources = src.all.length === 0
+  const top = topSource(rc)
+  const sensorsWithData = data.ingestion.bySensor.filter((s) => s.bytes > 0)
   return (
-    <Section rc={rc} n={3} title={t('sec3')}>
+    <Section rc={rc} title={t('sec3')}>
       <Sub rc={rc}>{t('sub3_1')}</Sub>
-      <Kpis
-        rc={rc}
-        items={[
-          { label: t('statTotalSources'), value: fmt.num(data.connectors.length), tone: 'navy' },
-          { label: t('statActiveSources'), value: fmt.num(d.activeConnectors), tone: 'ok' },
-          { label: t('statTotalIngested'), value: d.vol ? fmt.vol(d.vol.total) : '—', tone: 'brand' },
-          { label: t('statSensorTypes'), value: fmt.num(sensorTypes), tone: 'mid' },
-        ]}
-      />
-      {exec ? (
+      {noSources ? null : (
+        <p className="body strong">
+          {top ? x('sourcesLead', { active: fmt.num(src.withData), total: fmt.num(src.all.length), top: top.name, p: top.pct }) : x('sourcesLeadShort', { active: fmt.num(src.withData), total: fmt.num(src.all.length) })}
+        </p>
+      )}
+      {noSources && !d.vol ? null : (
+        <>
+          <Kpis
+            rc={rc}
+            items={[
+              { label: t('statTotalSources'), value: fmt.num(src.all.length), tone: 'navy' },
+              { label: t('statActiveSources'), value: fmt.num(src.withData), tone: 'ok' },
+              { label: t('statTotalIngested'), value: d.vol ? fmt.vol(d.volTotal) : '—', tone: 'brand' },
+              { label: t('statSensorTypes'), value: fmt.num(sensorTypes), tone: 'mid' },
+            ]}
+          />
+          <VolumeNote rc={rc} />
+        </>
+      )}
+      {d.outside31 ? <Note>{x('window31')}</Note> : null}
+      {exec && !noSources ? (
         <>
           <Grid>
             <Card title={t('t2ChartOrigin')} note={t('t2OriginNote')}>
@@ -395,89 +647,68 @@ export function Section3({ rc }: { rc: ReportContext }) {
                 />
               ) : null}
             </Card>
-            <Card title={t('t2ChartConnCat')} note={t('t2ConnCatNote')}>
-              {data.connectors.length ? <Donut cutout={0} slices={categorySlices(rc)} /> : null}
-            </Card>
+            <Card title={t('t2ChartConnCat')}>{d.connByCategory.length > 1 ? <Donut cutout={0} slices={categorySlices(rc)} format={fmt.num} /> : null}</Card>
           </Grid>
-          {data.ingestion.bySensor.length ? (
-            <Card wide title={t('t2ChartSensorGB')} note={t('t2SensorGBNote')}>
+          {sensorsWithData.length ? (
+            <Card wide title={t('t2ChartSensorGB')}>
               <HBars
                 format={fmt.gb}
-                items={[...data.ingestion.bySensor]
+                items={[...sensorsWithData]
                   .sort((a, b) => b.bytes - a.bytes)
                   .slice(0, 10)
-                  .map((s) => ({ label: fmt.trunc(s.name, 28), value: toGb(s.bytes), color: /modular/i.test(s.type) ? C.navy : C.brand }))}
+                  .map((s) => ({ label: fmt.trunc(sensorLabel(rc, s.id, s.name), 28), value: toGb(s.bytes), color: /modular/i.test(s.type) ? C.navy : C.brand }))}
               />
             </Card>
           ) : null}
-          <Grid>
-            <Card title={t('t2ChartSensorType')} note={t('t2SensorTypeNote')}>
-              {data.dataSensors.length ? (
-                <Donut cutout={0} slices={countSlices(data.dataSensors.map((s) => s.kind || '—'))} />
-              ) : null}
-            </Card>
-            <Card title={t('t2ChartConnStatus')} note={t('t2ConnStatusNote')}>
-              {data.connectors.length ? (
-                <Donut
-                  cutout={0.58}
-                  slices={countSlices(data.connectors.map((c) => (c.active ? 'online' : 'offline'))).map((s) => ({
-                    ...s,
-                    color: /online|active|connected/i.test(s.label) ? C.green : C.red,
-                  }))}
-                />
-              ) : null}
-            </Card>
-          </Grid>
         </>
       ) : null}
 
       <Sub rc={rc}>{t('sub3_2')}</Sub>
-      {data.connectors.length === 0 ? (
-        <Note>{t('noConnectors')}</Note>
+      {noSources ? (
+        <Note>{x('noSources')}</Note>
+      ) : src.connectors.length === 0 ? (
+        <Note>{x('noConnectorsSensors')}</Note>
       ) : (
         <Table
           compact
-          head={exec ? [t('connName'), t('connType'), t('connIngested')] : [t('connName'), t('connType'), t('connStatus'), t('connLastSeen'), t('connIngested')]}
-          rows={data.connectors.map((c) => {
-            const ingested = fmt.bytes(ingestByName.get(c.name) ?? 0)
-            const name = fmt.trunc(c.name || c.id, 35)
-            const type = c.type || c.category || '—'
-            return exec ? [name, type, ingested] : [name, type, c.active ? 'online' : 'offline', fmt.date(c.lastDataReceived ?? c.lastActivity), ingested]
+          cols={exec ? ['32%', '18%', '32%', '18%'] : ['26%', '15%', '29%', '14%', '16%']}
+          head={exec ? [t('connName'), t('connType'), t('connStatus'), t('connIngested')] : [t('connName'), t('connType'), t('connStatus'), t('connLastSeen'), t('connIngested')]}
+          rows={src.connectors.map((c) => {
+            const raw = data.connectors.find((x2) => x2.id === c.id)
+            const ingested = c.bytes == null ? '—' : fmt.bytes(c.bytes)
+            const name = <span className="clamp2">{c.name}</span>
+            const status = (
+              <>
+                <span className={c.state === 'online' ? 'ok' : 'bad strong'}>{x(STATE_KEY[c.state])}</span>
+                {c.reason ? <small className="cell-note clamp2">{c.reason}</small> : null}
+              </>
+            )
+            return exec ? [name, c.type || '—', status, ingested] : [name, c.type || '—', status, fmt.date(raw?.lastDataReceived ?? raw?.lastActivity), ingested]
           })}
         />
       )}
+      {src.responders.length ? <Muted>{x('responders', { names: src.responders.map((r) => r.name).join(', ') })}</Muted> : null}
 
-      {data.ingestion.bySensor.length || data.ingestion.byConnector.length ? (
+      {exec ? (
+        <DetectionsBySource rc={rc} />
+      ) : (
         <>
-          <Sub rc={rc}>{t('sub3_3')}</Sub>
-          {data.ingestion.bySensor.length ? (
-            <Table
-              compact
-              head={[t('sensorName'), t('sensorType'), t('sensorVersion'), t('sensorBytes')]}
-              rows={data.ingestion.bySensor.map((s, _i, all) => {
-                const meta = data.dataSensors.find((x) => x.id === s.id)
-                // Hostnames repeat (e.g. several "modular" appliances): add the id prefix to tell them apart.
-                const duplicated = all.filter((o) => o.name === s.name).length > 1
-                const name = !s.known ? `${s.name} (${rc.x('removed')})` : duplicated ? `${s.name} · ${s.id.slice(0, 8)}` : s.name
-                return [fmt.trunc(name, 40), s.type || '—', meta?.version || '—', fmt.bytes(s.bytes)]
-              })}
-            />
+          {data.dataSensors.length || data.ingestion.bySensor.length || data.ingestion.byConnector.length ? (
+            <>
+              <Sub rc={rc}>{t('sub3_3')}</Sub>
+              <SensorHealth rc={rc} />
+              {data.ingestion.byConnector.length ? (
+                <Table
+                  compact
+                  head={[t('connIngName'), t('connIngBytes')]}
+                  rows={data.ingestion.byConnector.map((c) => [fmt.trunc(c.known ? c.name : `${c.name} (${x('removed')})`, 50), fmt.bytes(c.bytes)])}
+                />
+              ) : null}
+            </>
           ) : null}
-          {data.ingestion.byConnector.length ? (
-            <Table
-              compact
-              head={[t('connIngName'), t('connIngBytes')]}
-              rows={data.ingestion.byConnector.map((c) => [fmt.trunc(c.known ? c.name : `${c.name} (${rc.x('removed')})`, 50), fmt.bytes(c.bytes)])}
-            />
-          ) : null}
+          <DetectionsBySource rc={rc} />
         </>
-      ) : null}
+      )}
     </Section>
   )
-}
-
-function countSlices(keys: string[]) {
-  const m = new Map<string, number>()
-  for (const k of keys) m.set(k, (m.get(k) ?? 0) + 1)
-  return [...m].sort((a, b) => b[1] - a[1]).map(([label, value], i) => ({ label, value, color: PALETTE[i % PALETTE.length] }))
 }

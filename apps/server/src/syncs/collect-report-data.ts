@@ -12,6 +12,7 @@ import {
 import { StellarApiError, type StellarClient } from '../stellar/client.js'
 import { PAGING } from '../stellar/endpoints.js'
 import type { SyncMetrics } from '../stellar/request-stats.js'
+import { rankEntitiesByCase } from '../metrics/tactics.js'
 import {
   collectAssets,
   collectCaseCounts,
@@ -128,20 +129,27 @@ const ctx: CollectContext = { client, tenantId: target.tenant.id, period: target
     void report('alerts')
   }
   const emptyTactics: ReportData['tactics'] = { mitre: { tactics: [], techniques: [] }, xdr: { tactics: [], techniques: [] }, byCase: {}, topAlerts: {}, pages: { fetched: 0, failed: 0, forbidden: 0 }, alertsMissing: 0, casesWithoutAlertAccess: 0 }
-  // The key Cases' tactics and the exact Alert count of the period run side by side. collectTactics
-  // plans its pages from the full Case sizes before the count changes them.
-  const [tacticsResult, exact] = await Promise.all([
+  // The key Cases' tactics, the exact Alert count of the period and the Auto Triage verdicts of every
+  // Case run side by side. collectTactics plans its pages from the full Case sizes before the count changes them.
+  const [tacticsResult, exact, aiResult] = await Promise.all([
     keyCases.length ? guard('tactics', () => timed('tactics', () => collectTactics(ctx, keyCases, onPage))) : null,
     allCases.length ? guard('alertCount', () => timed('alertCount', () => countAlertsInPeriod(ctx, allCases, from, to, onPage))) : null,
+    target.aiTriage && results.cases ? guard('aiTriage', () => timed('aiTriage', () => collectAiTriage(ctx, allCases))) : null,
   ])
   // Alert pages that fail are counted, not thrown: after a cancel they all fail at once, so stop here.
   signal?.throwIfAborted()
-  const tactics = tacticsResult ?? emptyTactics
+  // Without the Case list (its collector failed) the verdicts cannot be asked for either.
+  const aiTriage = target.aiTriage ? (aiResult ?? { available: false, status: 'failed' as const, verdicts: {} }) : null
+  const tactics = tacticsResult ? withEngineLinks(tacticsResult, results.dataSensors, results.connectors, keyCases, aiTriage?.verdicts) : emptyTactics
   const stats = results.cases ? periodCaseStats(allCases, results.cases.total, exact) : null
 
   // /ingestion-stats/sensor only carries sensor ids: name them from /data_sensors.
   const sensorNames = new Map((results.dataSensors ?? []).map((s) => [s.id, s]))
   const connectorNames = new Set((results.connectors ?? []).map((c) => c.name))
+  const connectorBytes = new Map<string, number>()
+  for (const e of results.ingestion?.byConnector ?? []) connectorBytes.set(e.name, (connectorBytes.get(e.name) ?? 0) + e.bytes)
+  // ingestion.byConnector is keyed by Connector name: a Connector absent from it received nothing.
+  const connectors = (results.connectors ?? []).map((c) => (results.ingestion ? { ...c, bytesInPeriod: connectorBytes.get(c.name) ?? 0 } : c))
   const ingestion = results.ingestion
     ? {
         ...results.ingestion,
@@ -156,7 +164,6 @@ const ctx: CollectContext = { client, tenantId: target.tenant.id, period: target
 
   await report('process', true)
   const emptyCompliance = { stats: null, recommended: null, recommendedWindow: null, scenarios: [] }
-  const aiTriage = target.aiTriage && keyCases.length ? await guard('aiTriage', () => timed('aiTriage', () => collectAiTriage(ctx, keyCases))) : null
 
   onMetrics?.({
     totalMs: Math.round(performance.now() - t0),
@@ -182,13 +189,35 @@ const ctx: CollectContext = { client, tenantId: target.tenant.id, period: target
     cases: results.caseCounts ?? { total: 0, bySeverity: { critical: 0, high: 0, medium: 0, low: 0 } },
     assets: results.assets ?? { daily: [], compliance: emptyCompliance },
     volume: results.volume ?? { dailyGb: [], compliance: emptyCompliance },
-    connectors: results.connectors ?? [],
+    connectors,
     dataSensors: results.dataSensors ?? [],
     caseStats: stats,
     keyCases,
     tactics,
     ingestion,
-    aiTriage: target.aiTriage ? (aiTriage ?? { available: false, verdicts: {} }) : null,
+    aiTriage,
     gaps,
   } satisfies ReportData)
+}
+
+/**
+ * Names the engine of each detection source as a Data Sensor (its id is the sensor id) or a Connector
+ * (`msg_origin.processor.id` is the Connector id; otherwise engid reads "{type}_{name}"), so the Report
+ * can join detections with ingestion. Keeps the per-Case entities only for the Cases likely to be cards.
+ */
+export function withEngineLinks(
+  tactics: ReportData['tactics'],
+  sensors: ReportData['dataSensors'] | null,
+  connectors: ReportData['connectors'] | null,
+  keyCases: ReportData['keyCases'],
+  verdicts: Record<string, string> = {},
+): ReportData['tactics'] {
+  const sensorIds = new Set((sensors ?? []).map((s) => s.id))
+  const connectorFor = (e: NonNullable<ReportData['tactics']['engines']>[number]) =>
+    (connectors ?? []).find((c) => c.id === e.processorId || e.id === `${c.type}_${c.name}` || e.name === c.name)?.name ?? null
+  return {
+    ...tactics,
+    engines: tactics.engines?.map((e) => ({ ...e, sensorId: sensorIds.has(e.id) ? e.id : null, connector: sensorIds.has(e.id) ? null : connectorFor(e) })),
+    entitiesByCase: tactics.entitiesByCase && rankEntitiesByCase(tactics.entitiesByCase, keyCases, verdicts),
+  }
 }

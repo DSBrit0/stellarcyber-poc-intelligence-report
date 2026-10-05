@@ -11,6 +11,13 @@ export const yesterday = () => isoDay(Date.now() - DAY)
 const addDays = (iso: string, n: number) => isoDay(Date.parse(`${iso}T00:00:00Z`) + n * DAY)
 const minIso = (a: string, b: string) => (a < b ? a : b)
 
+/**
+ * Assets and licensing volume come from APIs that only cover the last 31 complete days (ending
+ * yesterday): a period starting earlier loses those figures for the days outside the window.
+ */
+export const LICENSE_WINDOW_DAYS = 31
+export const outsideLicenseWindow = (start: string) => Boolean(start) && start < addDays(yesterday(), -(LICENSE_WINDOW_DAYS - 1))
+
 export const periodOk = (start: string, end: string) =>
   Boolean(start && end && start <= end && end <= yesterday() && (Date.parse(end) - Date.parse(start)) / DAY + 1 <= MAX_DAYS)
 
@@ -32,6 +39,11 @@ export function PeriodFields({ start, end, onChange }: { start: string; end: str
         <DateInput label={t('wiz.end')} required value={end} min={start || undefined} max={start ? minIso(addDays(start, MAX_DAYS - 1), yesterday()) : yesterday()} onChange={(iso) => onChange(start, iso)} />
       </div>
       {start && !periodOk(start, end) ? <p className="text-sm text-red-600">{t('err.period')}</p> : null}
+      {periodOk(start, end) && outsideLicenseWindow(start) ? (
+        <p className="rounded-lg border border-amber-300 bg-amber-50 px-3 py-2 text-sm text-amber-900 dark:border-amber-800 dark:bg-amber-950/40 dark:text-amber-200" role="note">
+          {t('sync.licenseWindow', { days: LICENSE_WINDOW_DAYS })}
+        </p>
+      ) : null}
     </>
   )
 }

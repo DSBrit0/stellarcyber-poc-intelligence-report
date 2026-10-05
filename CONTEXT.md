@@ -36,7 +36,7 @@ A secret the Customer Owner generates for a Customer and hands over at the first
 _Avoid_: Invite code, password
 
 **Customer User**:
-A User with the Customer Role: someone from a Customer who can view, download and comment on the Reports of the PoCs linked to their Customer, and nothing else.
+A User with the Customer Role: someone from a Customer who can view, download and comment on the Reports of the PoCs linked to their Customer, and view and edit every part of those PoCs' PoC Notebooks. Nothing else.
 
 **Comment**:
 A remark a User leaves on a Report. An **Internal Comment** stays in the app; a **Report Comment** is a change note that creates a new minor Report Version and is printed in the Report's version history. Staff can mark an Internal Comment **Private**: the Customer Users do not see it.
@@ -115,8 +115,20 @@ The assessment of Asset Count or Licensing Volume against the licensed amount un
 ### PoC and reporting
 
 **PoC**:
-One customer's evaluation of Stellar Cyber on one Tenant over a period of up to 30 days. It is owned by a User, and holds the customer details, contacts, success criteria and Verdict.
+One customer's evaluation of Stellar Cyber, owned by a User. It starts either as a PoC Notebook, with no Tenant yet, or straight in the Report flow; a Report always covers one Tenant over a period of up to 30 days. It holds the customer details, contacts, success criteria and Verdict.
 _Avoid_: Project, trial, evaluation
+
+**PoC Notebook**:
+The working record of a PoC from planning to closeout, kept with the customer: overview, Data Sources and Connectors, Success Criteria and Use Cases, Meeting Notes, PoC Process and PoC Schedule. It shares the PoC's details (customer, contacts, success criteria) with the PoC's Reports, so they are entered once. A PoC Notebook always belongs to a Customer; a PoC started straight in the Report flow may have none.
+_Avoid_: Tracker, spreadsheet, test notebook, caderno de teste
+
+**PoC Schedule**:
+The PoC Notebook's milestones, from PoC Start Day to Post-PoC Closeout. Each milestone starts where the previous one ends and lasts a number of days; an end date that falls on a weekend moves to the next Monday.
+_Avoid_: Timeline, Gantt, POV Schedule
+
+**Data Source Catalog**:
+The list of Stellar Cyber log parsers (with their ports) and Connectors, read every week from the official documentation pages an Admin points it to. A PoC Notebook picks its Data Sources and Connectors from it; an entry that later leaves the documentation stays in the PoCs that use it, marked as removed.
+_Avoid_: Integrations list, parser list
 
 **Draft PoC**:
 A PoC whose first Sync was started but whose details were never saved. It shows in the list marked as a draft, so it can be resumed or deleted.
@@ -127,7 +139,7 @@ One collection run that pulls a PoC's period data from the Instance API and cond
 _Avoid_: Refresh, import, fetch
 
 **Report Data**:
-The frozen set of figures that one Sync collected for a PoC. A Report renders it together with the PoC's current details, so the Report can be regenerated without contacting the Instance again.
+The frozen set of figures that one Sync collected for a PoC, together with the status of each Success Criterion at that moment. A Report renders it together with the PoC's current details, so the Report can be regenerated without contacting the Instance again.
 _Avoid_: Raw data, cache, dump
 
 **Report**:

@@ -4,7 +4,7 @@ import { Section4 } from '../sections/detection.js'
 import { Section5 } from '../sections/mitre.js'
 import { ArchitecturePage, Cover, Section1, Section2, Section3 } from '../sections/overview.js'
 
-/** Template 1 — Technical: the previous tool's section order (spec §1). */
+/** Template 1 — Technical: the Executive Template's section order, plus the architecture page and the response flow. */
 export function TechnicalTemplate({ rc, archImage }: { rc: ReportContext; archImage: string | null }) {
   return (
     <main className="report technical">
@@ -15,9 +15,9 @@ export function TechnicalTemplate({ rc, archImage }: { rc: ReportContext; archIm
       <Section3 rc={rc} />
       <Section4 rc={rc} />
       <Section5 rc={rc} />
+      <SectionRisks rc={rc} />
       <SectionOperations rc={rc} />
       <SectionRoi rc={rc} />
-      <SectionRisks rc={rc} />
       <SectionNextSteps rc={rc} />
       <SectionConclusion rc={rc} />
       <Appendices rc={rc} />

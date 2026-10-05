@@ -26,10 +26,12 @@ export function renderReportHtml(data: ReportData, details: PocDetails, template
     template === 'technical' ? <TechnicalTemplate rc={rc} archImage={opts.archImage ?? null} /> : template === 'executive' ? <ExecutiveTemplate rc={rc} /> : <InsightTemplate rc={rc} />,
   )
   const title = `${details.customerName} · ${rc.t('coverReportType')}`.replace(/[<>&"]/g, '')
+  // The PDF footer's text (see pdfFooter in pdf.ts), in the Report's language.
+  const footer = `${rc.client} · ${rc.x('footerConfidential')} · ${rc.x('footerPage')}`.replace(/[<>&"]/g, '')
   const extras = interactive
     ? `${toolbarHtml({ prev: rc.x('presentPrev'), next: rc.x('presentNext'), full: rc.x('presentFullscreen'), print: rc.x('presentPrint') })}<script nonce="${opts.interactiveNonce}">${INTERACTIVE_JS}</script>`
     : ''
-  return `<!doctype html><html lang="${locale}"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>${title}</title><style>${REPORT_CSS}${interactive ? INTERACTIVE_CSS : ''}</style></head><body${interactive ? ' class="interactive"' : ''}>${body}${extras}</body></html>`
+  return `<!doctype html><html lang="${locale}"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>${title}</title><meta name="report-footer" content="${footer}"><style>${REPORT_CSS}${interactive ? INTERACTIVE_CSS : ''}</style></head><body${interactive ? ' class="interactive"' : ''}>${body}${extras}</body></html>`
 }
 
 /** CSP for serving a Report page: static, so nothing beyond its own inline styles (and, when presenting, its one script). */

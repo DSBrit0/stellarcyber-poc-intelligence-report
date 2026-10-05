@@ -37,4 +37,12 @@ describe('casesInRange', () => {
     expect(out.map((x) => x._id)).toEqual(['a', 'b'])
     expect(calls.map((q) => q.skip)).toEqual([0, 1])
   })
+
+  it('advances skip by the Cases received when the Instance caps the page size', async () => {
+    const page = (ids: string[]) => ({ total: 5, cases: ids.map(c) })
+    const { calls, ctx } = fakeClient([page(['a', 'b']), page(['c', 'd']), page(['e'])])
+    const out = await casesInRange(ctx, {}, 0, 1_000_000)
+    expect(out.map((x) => x._id)).toEqual(['a', 'b', 'c', 'd', 'e'])
+    expect(calls.map((q) => q.skip)).toEqual([0, 2, 4])
+  })
 })

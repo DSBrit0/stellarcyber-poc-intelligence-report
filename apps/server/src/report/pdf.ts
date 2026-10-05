@@ -11,6 +11,23 @@ function getBrowser(): Promise<Browser> {
   return browser
 }
 
+const escapeHtml = (s: string) => s.replace(/[&<>"']/g, (c) => `&#${c.charCodeAt(0)};`)
+
+/**
+ * Chromium's page footer: "{client} · Confidential · p. X/Y". The text comes from the Report HTML's
+ * `report-footer` meta (written by renderReportHtml in the Report's language); none, no footer.
+ */
+export function pdfFooter(html: string): { displayHeaderFooter: boolean; headerTemplate?: string; footerTemplate?: string } {
+  const m = /<meta name="report-footer" content="([^"]*)"/.exec(html)
+  if (!m) return { displayHeaderFooter: false }
+  const label = m[1]!
+  return {
+    displayHeaderFooter: true,
+    headerTemplate: '<span></span>',
+    footerTemplate: `<div style="width:100%;margin:0 13mm 2mm;font:7.5pt Helvetica,Arial,sans-serif;color:#5f6b7a;text-align:right">${escapeHtml(label)} <span class="pageNumber"></span>/<span class="totalPages"></span></div>`,
+  }
+}
+
 export async function renderPdf(html: string, outputPath: string): Promise<void> {
   const context = await (await getBrowser()).newContext({ javaScriptEnabled: false, offline: true })
   try {
@@ -20,7 +37,7 @@ export async function renderPdf(html: string, outputPath: string): Promise<void>
     await page.emulateMedia({ media: 'print' })
     await mkdir(dirname(outputPath), { recursive: true })
     const tmp = `${outputPath}.${process.pid}.tmp`
-    await page.pdf({ path: tmp, format: 'A4', printBackground: true, preferCSSPageSize: true })
+    await page.pdf({ path: tmp, format: 'A4', printBackground: true, preferCSSPageSize: true, ...pdfFooter(html) })
     await rename(tmp, outputPath)
   } finally {
     await context.close()

@@ -1,6 +1,6 @@
 import type { ReportData } from '@poc-intel/shared'
 import { licenseCompliance } from '../metrics/license-compliance.js'
-import type { StellarClient } from './client.js'
+import { StellarApiError, type StellarClient } from './client.js'
 import { ENDPOINTS, PAGING } from './endpoints.js'
 import { CasesResponse, ConnectorsResponse, DataSensorsResponse, EntityUsageResponse, StorageUsagesResponse, type DataSensor } from './schemas.js'
 
@@ -94,10 +94,12 @@ export async function casesInRange(
       return
     }
     out.push(...first.cases)
-    for (let skip = first.cases.length; skip < first.total && out.length < cap; skip += PAGING.casesPage) {
+    // Advance by what the page returned: an Instance may cap `limit` below PAGING.casesPage.
+    for (let skip = first.cases.length; skip < first.total && out.length < cap; ) {
       const next = await page(a, b, { skip })
       if (next.cases.length === 0) break
       out.push(...next.cases)
+      skip += next.cases.length
     }
   }
   await walk(from, to)
@@ -119,17 +121,33 @@ export async function collectAssets(ctx: CollectContext): Promise<ReportData['as
   return { daily, compliance: licenseCompliance(daily, { integer: true }) }
 }
 
+/**
+ * Licensing Volume per day. aggr_type=tenant_index returns the same daily total_usage as aggr_type=tenant,
+ * with usages[] split per index (Syslog, Windows Events, Traffic…) instead of one row for the Tenant.
+ */
 export async function collectVolume(ctx: CollectContext): Promise<ReportData['volume']> {
-  const res = await ctx.client.get(ENDPOINTS.storageUsages, { aggr_type: 'tenant', cust_id: ctx.tenantId }, StorageUsagesResponse)
+  // An Instance that rejects tenant_index still gets the daily totals, without the split.
+  const res = await ctx.client
+    .get(ENDPOINTS.storageUsages, { aggr_type: 'tenant_index', cust_id: ctx.tenantId }, StorageUsagesResponse)
+    .catch((err: unknown) => {
+      if (err instanceof StellarApiError && err.code !== 'auth_failed' && err.code !== 'network') {
+        return ctx.client.get(ENDPOINTS.storageUsages, { aggr_type: 'tenant', cust_id: ctx.tenantId }, StorageUsagesResponse)
+      }
+      throw err
+    })
   const today = new Date().toISOString().slice(0, 10)
-  const dailyGb = res.data
-    .map((d) => ({
-      date: (typeof d.time === 'number' ? new Date(d.time).toISOString() : d.time).slice(0, 10),
-      value: d.total_usage ?? d.usages.reduce((sum, u) => sum + u.usage, 0),
-    }))
+  const days = res.data
+    .map((d) => ({ date: (typeof d.time === 'number' ? new Date(d.time).toISOString() : d.time).slice(0, 10), row: d }))
     .filter((d) => d.date < today && inPeriod(d.date, ctx.period))
     .sort((a, b) => a.date.localeCompare(b.date))
-  return { dailyGb, compliance: licenseCompliance(dailyGb, { integer: false }) }
+  const dailyGb = days.map(({ date, row }) => ({ date, value: row.total_usage ?? row.usages.reduce((sum, u) => sum + u.usage, 0) }))
+  const perIndex = new Map<string, number>()
+  for (const { row } of days) for (const u of row.usages) if (u.index) perIndex.set(u.index, (perIndex.get(u.index) ?? 0) + u.usage)
+  const indexTotal = [...perIndex.values()].reduce((sum, v) => sum + v, 0)
+  const byIndex = [...perIndex]
+    .map(([index, gb]) => ({ index, gb, share: indexTotal > 0 ? gb / indexTotal : 0 }))
+    .sort((a, b) => b.gb - a.gb)
+  return { dailyGb, compliance: licenseCompliance(dailyGb, { integer: false }), byIndex }
 }
 
 export async function collectConnectors(ctx: CollectContext): Promise<ReportData['connectors']> {
@@ -144,6 +162,8 @@ export async function collectConnectors(ctx: CollectContext): Promise<ReportData
     lastDataReceived: toEpochMs(c.last_data_received),
     healthCode: c.status?.code ?? null,
     healthMessage: c.status?.message ?? '',
+    ...(c.is_collect != null ? { collect: c.is_collect } : {}),
+    ...(c.is_respond != null ? { respond: c.is_respond } : {}),
   }))
 }
 
@@ -169,5 +189,13 @@ export async function collectDataSensors(ctx: CollectContext): Promise<ReportDat
     version: s.sw_version.match(/\d+\.\d+\.\d+/)?.[0] ?? s.sw_version,
     status: s.connection_status,
     online: s.connection_status === 'connected',
+    message: s.message ?? '',
+    ...(s.need_upgrade != null ? { needUpgrade: s.need_upgrade } : {}),
+    lastSeen: toEpochMs(s.last_stats_time),
+    cpuPct: s.cpu_usage ?? null,
+    diskPct: s.disk_usage ?? null,
+    ...(s.local_ip_address ? { localIp: s.local_ip_address } : {}),
+    ...(s.nat_ip_address ? { natIp: s.nat_ip_address } : {}),
+    ...(s.sensor_profile_name ? { profile: s.sensor_profile_name } : {}),
   }))
 }

@@ -1,54 +1,67 @@
 import { C, Donut, Gauge, HBars, Lines } from '../charts.js'
 import type { ReportContext } from '../context.js'
-import { ScoreBars } from '../sections/overview.js'
-import { Card, Grid, Kpis } from '../ui.js'
+import { conclusionText } from '../sections/closing.js'
+import { ScoreBars, summaryText } from '../sections/overview.js'
+import { Banner, Card, Grid, Kpis, VolumeNote } from '../ui.js'
+
+/** The Insight is a two-page brief: the SE's comments are cut at this length ("…"); the full text is in the other Templates. */
+const COMMENTS_MAX = 1800
 
 // Insight — the new Template, built on the same model as Technical/Executive. Decision-first: the
 // verdict and the numbers that matter above the fold; evidence as cards that reflow down to one column.
 export function InsightTemplate({ rc }: { rc: ReportContext }) {
   const { t, fmt, d, data, details } = rc
   const verdict = details.verdict
+  const trend = [...d.daily.critical, ...d.daily.high].some((v) => v > 0)
   return (
     <main className="report insight">
       <header className="hero">
         <div className="eyebrow">
           {t('coverReportType')} · {fmt.date(data.period.start)} – {fmt.date(data.period.end)} · {data.tenant.name || data.tenant.id}
         </div>
-        <h1>{details.customerName}</h1>
-        <span className={`verdict-pill verdict-${verdict ?? 'pending'}`}>{verdict ? rc.strings.verdict[verdict] : t('verdictPending')}</span>
+        <h1 className="clamp2" title={details.customerName}>
+          {details.customerName}
+        </h1>
+        <span className={`verdict-pill verdict-${verdict ?? 'pending'}`}>{verdict ? rc.strings.verdict[verdict] : d.noCases ? rc.x('verdictInconclusive') : t('verdictPending')}</span>
+        <p className="body strong">{summaryText(rc)}</p>
         <Kpis
           rc={{ ...rc, template: 'executive' }}
           items={[
-            { label: t('kpiCasesDetected'), value: fmt.num(d.totalCases), tone: 'navy' },
-            { label: `${t('sevCritical')} + ${t('sevHigh')}`, value: fmt.num(d.critHigh.length), tone: 'crit' },
-            { label: t('kpiMitreCov'), value: `${d.mitreCovPct}%`, tone: 'brand' },
+            ...(d.noCases
+              ? []
+              : [
+                  { label: t('kpiCasesDetected'), value: fmt.num(d.totalCases), tone: 'navy' as const },
+                  { label: `${t('sevCritical')} + ${t('sevHigh')}`, value: fmt.num(d.sev.critical + d.sev.high), tone: 'crit' as const },
+                  { label: t('kpiMitreCov'), value: `${d.mitreCovPct}%`, tone: 'brand' as const },
+                ]),
             { label: t('kpiAvgEntities'), value: d.assetStats ? fmt.num(d.assetStats.avg) : '—', tone: 'mid' },
-            { label: t('metTotalIngested'), value: d.vol ? fmt.vol(d.vol.total) : '—', tone: 'cyan' },
+            { label: t('metTotalIngested'), value: d.vol ? fmt.vol(d.volTotal) : '—', tone: 'cyan' },
           ]}
         />
+        <VolumeNote rc={rc} />
       </header>
+      {d.noCases ? <Banner>{rc.x('noCasesBanner', { start: fmt.date(data.period.start), end: fmt.date(data.period.end) })}</Banner> : null}
       <Grid cols={3}>
-        <Card title={t('chartMitre')}>
-          <Gauge pct={d.mitreCovPct} label={`${d.detectedTactics.size} / 14 ${t('sc_tactics')}`} />
-        </Card>
+        <Card title={t('chartMitre')}>{d.mitreCovPct > 0 ? <Gauge pct={d.mitreCovPct} label={`${d.detectedTactics.size} / 14 ${t('sc_tactics')}`} /> : null}</Card>
         <Card title={t('t2ChartSevPie')}>
-          <Donut
+          {d.noCases ? null : <Donut
             cutout={0.6}
             center={fmt.num(d.totalCases)}
             sub={t('totalLabel')}
             slices={[
-              { label: t('sevCritical'), value: d.crit.length, color: C.critical },
-              { label: t('sevHigh'), value: d.high.length, color: C.high },
+              { label: t('sevCritical'), value: d.sev.critical, color: C.critical },
+              { label: t('sevHigh'), value: d.sev.high, color: C.high },
               { label: t('sevMedium'), value: d.sev.medium, color: C.medium },
               { label: t('sevLow'), value: d.sev.low, color: C.low },
             ]}
-          />
+            format={fmt.num}
+          />}
         </Card>
         <Card title={t('t2ChartScore')}>
           <ScoreBars rc={rc} />
         </Card>
       </Grid>
-      {d.daily.days.length ? (
+      {trend ? (
         <Card wide title={t('t2ChartTrend')}>
           <Lines
             labels={d.daily.days.map((x) => fmt.dayMonth(x))}
@@ -56,34 +69,40 @@ export function InsightTemplate({ rc }: { rc: ReportContext }) {
               { name: t('sevCritical'), values: d.daily.critical, color: C.critical },
               { name: t('sevHigh'), values: d.daily.high, color: C.high },
             ]}
+            yFormat={fmt.num}
           />
         </Card>
       ) : null}
       <Grid>
         {data.tactics.mitre.techniques.length ? (
           <Card title={t('chartTechniques')}>
-            <HBars items={data.tactics.mitre.techniques.slice(0, 8).map((x) => ({ label: fmt.trunc(`${x.id} ${x.name}`, 36), value: x.caseCount }))} />
+            <HBars format={fmt.num} items={data.tactics.mitre.techniques.slice(0, 8).map((x) => ({ label: fmt.trunc(`${x.id} ${x.name}`, 60), value: x.caseCount }))} />
           </Card>
         ) : null}
-        {data.assets.compliance.recommended != null ? (
+        {!d.assetsZero && data.assets.compliance.recommended != null ? (
           <Card title={t('t2ChartAssets')}>
             <Lines
               labels={data.assets.daily.map((x) => fmt.dayMonth(x.date))}
               series={[{ name: t('t2SeriesAssets'), values: data.assets.daily.map((x) => x.value), color: C.brand }]}
               refs={[{ name: `${t('t2SeriesLicense')} (${fmt.num(data.assets.compliance.recommended)})`, value: data.assets.compliance.recommended, color: C.green }]}
+              width={340}
+              yFormat={fmt.num}
             />
           </Card>
         ) : null}
       </Grid>
       {/* No numbered sections here: the add-on license note becomes a card. */}
-      {data.aiTriage ? (
-        <Card wide title={rc.x('licAutoTriageTitle').replace(/^\d+\.\d+\s+/, '')}>
-          <p className="body">{rc.x('licAutoTriage')}</p>
+      {d.ai ? (
+        <Card wide title={rc.x('licAutoTriageTitle')}>
+          <p className="body">{d.ai.status === 'no_cases' ? rc.x('licAutoTriageNoCases') : rc.x('licAutoTriage')}</p>
         </Card>
       ) : null}
+      <Card wide title={t('sec10')}>
+        <p className="body">{conclusionText(rc)}</p>
+      </Card>
       {details.comments ? (
-        <Card wide title={t('seCommentsTitle')}>
-          <p className="body prose">{details.comments}</p>
+        <Card wide className="breakable" title={t('seCommentsTitle')}>
+          <p className="body prose">{fmt.trunc(details.comments, COMMENTS_MAX)}</p>
         </Card>
       ) : null}
     </main>

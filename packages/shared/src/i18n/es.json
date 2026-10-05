@@ -382,5 +382,6 @@
   "help.effortInv": "Investigación por caso ({ch} min Crítico/Alto, {m} min Medio, {l} min Bajo): tiempo para investigar cada caso. Es el mismo con o sin correlación, por eso no entra en el ahorro.",
   "help.effortMonth": "Horas por analista-mes ({v} h): convierte las horas ahorradas en analistas (FTE).",
   "help.effortCalc": "Cálculo: sin correlación, triaje = alertas × {a} min; con Stellar Cyber, triaje = casos × {a} min. La diferencia es el triaje evitado, mostrado en horas, en % del triaje manual y en analistas-mes.",
-  "help.effortDefaults": "Los valores actuales son los predeterminados. Cámbielos si el SOC del cliente tiene tiempos propios: el Report indica entonces que las premisas fueron definidas por el SE."
+  "help.effortDefaults": "Los valores actuales son los predeterminados. Cámbielos si el SOC del cliente tiene tiempos propios: el Report indica entonces que las premisas fueron definidas por el SE.",
+  "sync.licenseWindow": "Los assets y el volumen de licenciamiento solo están disponibles para los últimos {days} días. Este período empieza antes, por lo que el Report no tendrá esas cifras para los días fuera de esa ventana."
 }

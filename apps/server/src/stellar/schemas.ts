@@ -29,7 +29,8 @@ export const StorageUsagesResponse = z.object({
       z.object({
         time: z.union([z.string(), z.number()]),
         total_usage: z.number().nullish(),
-        usages: z.array(z.object({ usage: num })).default([]),
+        /** One row per index with aggr_type=tenant_index (`index`), per Tenant with aggr_type=tenant. */
+        usages: z.array(z.object({ usage: num, index: z.string().nullish().catch(null) })).default([]),
       }),
     )
     .default([]),
@@ -45,6 +46,9 @@ const Connector = z.object({
   last_activity: z.union([z.number(), z.string()]).nullish(),
   last_data_received: z.union([z.number(), z.string()]).nullish(),
   status: z.object({ code: z.number().nullish(), message: z.string().nullish() }).nullish().catch(null),
+  /** Collector (sends data) and/or Responder (receives actions: webhooks, JIRA…). */
+  is_collect: z.boolean().nullish().catch(null),
+  is_respond: z.boolean().nullish().catch(null),
 })
 export const ConnectorsResponse = z.union([
   z.object({ connectors: z.array(Connector) }).transform((r) => r.connectors),
@@ -61,6 +65,15 @@ const DataSensor = z.object({
   os: z.string().optional(),
   sw_version: z.string().default(''),
   connection_status: z.string().default(''),
+  /** Why the sensor is unhealthy, e.g. "Disconnected, No activity in 16 days…"; empty when healthy. */
+  message: z.string().nullish().catch(null),
+  need_upgrade: z.boolean().nullish().catch(null),
+  last_stats_time: z.union([z.number(), z.string()]).nullish().catch(null),
+  cpu_usage: z.number().nullish().catch(null),
+  disk_usage: z.number().nullish().catch(null),
+  local_ip_address: z.string().nullish().catch(null),
+  nat_ip_address: z.string().nullish().catch(null),
+  sensor_profile_name: z.string().nullish().catch(null),
 })
 export type DataSensor = z.infer<typeof DataSensor>
 export const DataSensorsResponse = z.union([

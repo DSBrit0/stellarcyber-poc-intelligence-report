@@ -382,5 +382,6 @@
   "help.effortInv": "Investigação por case ({ch} min Crítico/Alto, {m} min Médio, {l} min Baixo): tempo para investigar cada case. É o mesmo com ou sem correlação, por isso não entra na economia.",
   "help.effortMonth": "Horas por analista-mês ({v} h): converte as horas economizadas em analistas (FTE).",
   "help.effortCalc": "Cálculo: sem correlação, triagem = alertas × {a} min; com a Stellar Cyber, triagem = cases × {a} min. A diferença é a triagem evitada, mostrada em horas, em % da triagem manual e em analistas-mês.",
-  "help.effortDefaults": "Os valores atuais são os padrões. Altere-os se o SOC do cliente tiver tempos próprios: o Report passa a indicar que as premissas foram definidas pelo SE."
+  "help.effortDefaults": "Os valores atuais são os padrões. Altere-os se o SOC do cliente tiver tempos próprios: o Report passa a indicar que as premissas foram definidas pelo SE.",
+  "sync.licenseWindow": "Assets e volume de licenciamento só estão disponíveis para os últimos {days} dias. Este período começa antes disso: o Report sai sem esses números para os dias fora da janela."
 }

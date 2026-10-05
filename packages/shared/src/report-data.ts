@@ -9,6 +9,7 @@ export const REPORT_DATA_VERSION = 3
 
 export const AI_VERDICTS = ['True Positive', 'False Positive', 'Benign True Positive', 'Benign', 'Inconclusive'] as const
 export type AiVerdict = (typeof AI_VERDICTS)[number]
+export const AI_TRIAGE_STATUSES = ['ok', 'not_exposed', 'no_cases', 'failed'] as const
 
 const DailyPoint = z.object({ date: z.iso.date(), value: z.number() })
 
@@ -30,6 +31,11 @@ const LicenseCompliance = z.object({
   recommended: z.number().nullable(),
   recommendedWindow: z.object({ from: z.string(), to: z.string() }).nullable(),
   scenarios: z.array(LicenseScenario),
+  /**
+   * First day with a value above 0; stats, recommendation and scenarios start there (the days before
+   * onboarding are zeros). null when every day is 0. Absent on Report Data from before it was recorded.
+   */
+  firstDataDate: z.string().nullable().optional(),
 })
 export type LicenseCompliance = z.infer<typeof LicenseCompliance>
 
@@ -53,6 +59,18 @@ const DetectionAggregate = z.object({
 })
 
 const Severity = z.enum(['critical', 'high', 'medium', 'low'])
+
+/** Alerts and Cases per value (a detection source, a Kill Chain stage, an entity…). */
+const AlertCaseCount = z.object({ alerts: z.number(), cases: z.number() })
+
+/** A user name, host name or external IP seen in the Alerts of Critical and High Key Cases. */
+const EntityCount = AlertCaseCount.extend({ value: z.string() })
+const ExternalIpCount = EntityCount.extend({
+  /** ISO country code (`*_geo.countryCode`), reputation (`*_reputation`) and ASN organization (`*_asn_org`), first seen. */
+  country: z.string().nullable(),
+  reputation: z.string().nullable(),
+  asnOrg: z.string().nullable(),
+})
 
 /** Case fields kept for the Cases whose Alerts are analysed (Critical, High and the most recent Medium). */
 export const CaseSummary = z.object({
@@ -109,6 +127,44 @@ const Tactics = z.object({
   alertsMissing: z.number(),
   /** Key Cases whose Alerts the credential may not read at all. */
   casesWithoutAlertAccess: z.number(),
+  /** Alert documents received (found or not); with alertsMissing gives the share of aged-out Alerts. */
+  alertsRead: z.number().optional(),
+  /** XDR Kill Chain stage of each Alert (`xdr_event.xdr_killchain_stage`), in Kill Chain order. */
+  killChain: z.array(AlertCaseCount.extend({ stage: z.string() })).optional(),
+  /** Alerts per data source (`msg_origin.source`/`vendor`/`product`), most Alerts first. */
+  sources: z
+    .array(AlertCaseCount.extend({ source: z.string(), vendor: z.string(), product: z.string(), criticalHighCases: z.number() }))
+    .optional(),
+  /**
+   * Alerts per engine (`engid`/`engid_name`), most Alerts first. `sensorId` is set when the engine is a
+   * Data Sensor (joins ingestion.bySensor[].id); `connector` when it is a Connector (joins connectors[].name
+   * and ingestion.byConnector[].name), matched by `msg_origin.processor.id` or by engid = "{type}_{name}".
+   */
+  engines: z
+    .array(
+      AlertCaseCount.extend({
+        id: z.string(),
+        name: z.string(),
+        processorId: z.string().nullable(),
+        criticalHighCases: z.number(),
+        sensorId: z.string().nullable().optional(),
+        connector: z.string().nullable().optional(),
+      }),
+    )
+    .optional(),
+  /** Most frequent entities (top 10 each) in the Alerts of Critical and High Key Cases. */
+  entities: z
+    .object({ users: z.array(EntityCount), hosts: z.array(EntityCount), externalIps: z.array(ExternalIpCount) })
+    .optional(),
+  /**
+   * Top 2 entities of each Critical/High Key Case, for the threat cards. Capped: the Cases with an Auto Triage
+   * True Positive first, then by Severity, score and Alerts.
+   */
+  entitiesByCase: z
+    .record(z.string(), z.object({ users: z.array(z.string()), hosts: z.array(z.string()), externalIps: z.array(z.string()) }))
+    .optional(),
+  /** Median `stellar.detection_time` (ms) over the Key Cases' Alerts of the period; absent when no Alert has it. */
+  detectionLatency: z.object({ medianMs: z.number(), alerts: z.number() }).optional(),
 })
 
 /** `known` is false when the entry's sensor/connector no longer exists (ingestion history outlives it). */
@@ -122,7 +178,12 @@ export const ReportData = z.object({
   period: z.object({ start: z.iso.date(), end: z.iso.date() }),
   cases: z.object({ total: z.number(), bySeverity: SeverityCounts }),
   assets: z.object({ daily: z.array(DailyPoint), compliance: LicenseCompliance }),
-  volume: z.object({ dailyGb: z.array(DailyPoint), compliance: LicenseCompliance }),
+  volume: z.object({
+    dailyGb: z.array(DailyPoint),
+    compliance: LicenseCompliance,
+    /** Licensing Volume per index over the period (GB), largest first; share is of their sum (0–1). */
+    byIndex: z.array(z.object({ index: z.string(), gb: z.number(), share: z.number() })).optional(),
+  }),
   connectors: z.array(
     z.object({
       id: z.string(),
@@ -135,6 +196,11 @@ export const ReportData = z.object({
       /** Health reported by the API: code 0 = healthy; message explains anything else. */
       healthCode: z.number().nullable(),
       healthMessage: z.string(),
+      /** `is_collect`/`is_respond`: a Responder (webhook, JIRA…) only receives actions and is not a data source. */
+      collect: z.boolean().optional(),
+      respond: z.boolean().optional(),
+      /** Raw bytes ingested in the period (ingestion.byConnector, joined by name); absent when ingestion failed. */
+      bytesInPeriod: z.number().optional(),
     }),
   ),
   dataSensors: z.array(
@@ -145,20 +211,43 @@ export const ReportData = z.object({
       version: z.string(),
       status: z.string(),
       online: z.boolean(),
+      /** Why the sensor is not healthy ("Disconnected, No activity in…"); empty when healthy. */
+      message: z.string().optional(),
+      needUpgrade: z.boolean().optional(),
+      /** Last statistics received (epoch ms): when the sensor was last seen. */
+      lastSeen: z.number().nullable().optional(),
+      cpuPct: z.number().nullable().optional(),
+      diskPct: z.number().nullable().optional(),
+      localIp: z.string().optional(),
+      natIp: z.string().optional(),
+      profile: z.string().optional(),
     }),
   ),
   caseStats: CaseStats.nullable(),
   keyCases: z.array(CaseSummary),
   tactics: Tactics,
   ingestion: z.object({ bySensor: z.array(IngestionEntry), byConnector: z.array(IngestionEntry) }),
-  /** Collectors that failed; the Report shows their sections as unavailable. */
-  /** Present when the Owner marked AI Triage as tested. verdicts maps Key Case id → AI verdict. */
+  /**
+   * Present when the Owner marked AI Triage as tested. verdicts maps Case id → AI verdict: Key Cases only
+   * on older Report Data; every Case of the period with a verdict when `bySeverity` is present.
+   */
   aiTriage: z
     .object({
       available: z.boolean(),
       verdicts: z.record(z.string(), z.enum(AI_VERDICTS)),
+      /**
+       * ok: verdicts collected; not_exposed: the Instance has no Auto Triage endpoint (404/403);
+       * no_cases: no Case in the period to triage; failed: the collection failed (a gap).
+       * Absent on older Report Data: derive it from `available` and keyCases.
+       */
+      status: z.enum(AI_TRIAGE_STATUSES).optional(),
+      /** Cases sent for a verdict (every Case of the period). */
+      requested: z.number().optional(),
+      /** Verdicts per Case Severity, over every Case of the period. */
+      bySeverity: z.record(Severity, z.partialRecord(z.enum(AI_VERDICTS), z.number())).optional(),
     })
     .nullable(),
+  /** Collectors that failed; the Report shows their sections as unavailable. */
   gaps: z.array(z.object({ collector: z.string(), reason: z.string() })),
 })
 export type ReportData = z.infer<typeof ReportData>

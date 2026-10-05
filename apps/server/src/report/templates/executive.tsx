@@ -4,7 +4,7 @@ import { Section4 } from '../sections/detection.js'
 import { Section5 } from '../sections/mitre.js'
 import { Cover, Section1, Section2, Section3 } from '../sections/overview.js'
 
-/** Template 2 — Executive: Risks moves right after MITRE and becomes section 6 (spec §2.0). */
+/** Template 2 — Executive: Risks right after MITRE; sections are numbered by render order. */
 export function ExecutiveTemplate({ rc }: { rc: ReportContext }) {
   return (
     <main className="report executive">

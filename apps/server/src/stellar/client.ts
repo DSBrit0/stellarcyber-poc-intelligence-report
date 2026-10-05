@@ -8,6 +8,8 @@ import { RequestStats, endpointGroup } from './request-stats.js'
 
 const RETRYABLE = new Set([429, 502, 503, 504])
 const MAX_RETRIES = 3
+/** Backoff before retry n (0-based): RETRY_BASE_MS × 2ⁿ. */
+const RETRY_BASE_MS = 800
 const RENEW_BEFORE_MS = 60_000
 const DEFAULT_TOKEN_TTL_MS = 10 * 60_000
 
@@ -85,14 +87,24 @@ export class StellarClient {
     for (let attempt = 0, reauthed = false; ; attempt++) {
       this.signal?.throwIfAborted()
       await this.#ensureToken()
-      const res = await this.#send(method, path, query, { authorization: `Bearer ${this.#token}` }, timeoutMs, body, attempt > 0)
+      let res: { status: number; body: unknown }
+      try {
+        res = await this.#send(method, path, query, { authorization: `Bearer ${this.#token}` }, timeoutMs, body, attempt > 0)
+      } catch (err) {
+        // A dropped connection or a timeout is retried like a 5xx; a cancelled Sync is not (#send rethrows its reason).
+        if (err instanceof StellarApiError && err.code === 'network' && attempt < MAX_RETRIES && !this.signal?.aborted) {
+          await sleep(RETRY_BASE_MS * 2 ** attempt, undefined, { signal: this.signal })
+          continue
+        }
+        throw err
+      }
       if (res.status === 401 && !reauthed) {
         reauthed = true
         this.#token = null
         continue
       }
       if (RETRYABLE.has(res.status) && attempt < MAX_RETRIES) {
-        await sleep(800 * 2 ** attempt, undefined, { signal: this.signal })
+        await sleep(RETRY_BASE_MS * 2 ** attempt, undefined, { signal: this.signal })
         continue
       }
       if (res.status === 401) throw new StellarApiError('auth_failed', `${path}: unauthorized`, 401)

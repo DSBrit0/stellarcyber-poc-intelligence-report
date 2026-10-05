@@ -14,7 +14,14 @@ export function reportStrings(locale: Locale): ReportStrings {
   return catalogues[locale]
 }
 
-/** Replaces every {name} placeholder. Unknown placeholders are left as they are. */
+/**
+ * Replaces every {name} placeholder. Unknown placeholders are left as they are.
+ * {{name|one|other}} picks the singular form when the value is 1, the plural otherwise; # stands for the value.
+ */
 export function fill(text: string, vars: Record<string, string | number> = {}): string {
-  return text.replace(/\{(\w+)\}/g, (m, name: string) => (name in vars ? String(vars[name]) : m))
+  return text
+    .replace(/\{\{(\w+)\|([^|}]*)\|([^}]*)\}\}/g, (m, name: string, one: string, other: string) =>
+      name in vars ? (String(vars[name]) === '1' ? one : other).replace(/#/g, String(vars[name])) : m,
+    )
+    .replace(/\{(\w+)\}/g, (m, name: string) => (name in vars ? String(vars[name]) : m))
 }

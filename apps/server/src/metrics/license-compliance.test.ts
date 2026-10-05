@@ -51,6 +51,22 @@ describe('licenseCompliance', () => {
     expect(result.scenarios.find((s) => s.key === 'recommended')?.level).toBe('none')
   })
   it('is empty for an empty series', () => {
-    expect(licenseCompliance([], { integer: true })).toEqual({ stats: null, recommended: null, recommendedWindow: null, scenarios: [] })
+    expect(licenseCompliance([], { integer: true })).toEqual({ stats: null, recommended: null, recommendedWindow: null, scenarios: [], firstDataDate: null })
+  })
+  it('measures from the first day with data, leaving out the zeros before onboarding', () => {
+    const result = licenseCompliance(series([0, 0, 0, 0, 90, 100, 95, 100, 90]), { integer: true })
+    expect(result.firstDataDate).toBe('2026-09-05')
+    expect(result.stats).toMatchObject({ days: 5, zeroDays: 0, avg: 95 })
+    expect(result.recommended).toBe(95)
+    // Averaged over all nine days (53) the average scenario would be a false Warning.
+    expect(result.scenarios.find((s) => s.key === 'average')?.license).toBe(95)
+    expect(result.scenarios.find((s) => s.key === 'average')?.level).toBe('none')
+  })
+  it('recommends nothing (null, not 0) when every day is 0', () => {
+    const result = licenseCompliance(series([0, 0, 0, 0]), { integer: true })
+    expect(result.recommended).toBeNull()
+    expect(result.scenarios).toEqual([])
+    expect(result.firstDataDate).toBeNull()
+    expect(result.stats).toMatchObject({ days: 4, zeroDays: 4, max: 0 })
   })
 })

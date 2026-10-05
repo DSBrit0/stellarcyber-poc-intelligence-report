@@ -41,12 +41,14 @@ export function exactPageCount(cases: CaseSummary[], from: number, to: number): 
 }
 
 /**
- * When the Instance received the Alert, in ms. Not `timestamp`: that is the event time at the source,
- * which for some products (e.g. CylancePROTECT) is weeks before Stellar Cyber saw the Alert.
+ * Whether an Alert belongs to the period: true when ANY of its times falls inside it; null when it has
+ * no readable time. No single field is reliable: `timestamp` is the event time at the source, which for
+ * some products (e.g. CylancePROTECT) is weeks before Stellar Cyber saw the Alert, and `receive_time`
+ * can be years off on replayed data (alerts of 2026-10-02 with receive_time 2023-07-13 on a demo tenant).
  */
-export const alertTime = (src: Record<string, unknown>): number | null => {
-  for (const t of [src.receive_time, src.write_time, src.timestamp]) if (typeof t === 'number' && Number.isFinite(t)) return t
-  return null
+export function alertInPeriod(src: Record<string, unknown>, from: number, to: number): boolean | null {
+  const times = [src.receive_time, src.write_time, src.timestamp].filter((t): t is number => typeof t === 'number' && Number.isFinite(t))
+  return times.length ? times.some((t) => t >= from && t <= to) : null
 }
 
 /** Pages one Case can need for its exact count: up to 100,000 Alerts. */
@@ -81,10 +83,7 @@ export async function countAlertsInPeriod(
     try {
       const res = await ctx.client.get(ENDPOINTS.caseAlerts(caseId), { limit: PAGING.caseAlertsPage, skip }, CaseAlertsResponse, 20_000)
       // An Alert without a readable time is kept: only Alerts known to be outside are left out.
-      const n = res.data.docs.filter((d) => {
-        const t = d._source ? alertTime(d._source) : null
-        return t == null || (t >= from && t <= to)
-      }).length
+      const n = res.data.docs.filter((d) => (d._source ? alertInPeriod(d._source, from, to) : null) !== false).length
       inside.set(caseId, (inside.get(caseId) ?? 0) + n)
     } catch (err) {
       if (err instanceof StellarApiError && err.code === 'auth_failed') throw err
@@ -114,7 +113,7 @@ export async function collectTactics(
   cases: CaseSummary[],
   onPage?: () => void,
 ): Promise<ReportData['tactics']> {
-  const acc = new TacticsAccumulator()
+  const acc = new TacticsAccumulator(new Map(cases.map((c) => [c.id, c.severity])))
   const from = dayStart(ctx.period.start)
   const to = dayEnd(ctx.period.end)
   const pages = cases.flatMap((c) => {
@@ -126,13 +125,10 @@ export async function collectTactics(
     try {
       const res = await ctx.client.get(ENDPOINTS.caseAlerts(caseId), { limit: PAGING.caseAlertsPage, skip }, CaseAlertsResponse, 20_000)
       acc.missing += res.data.docs.filter((d) => d.found === false || !d._source).length
+      acc.read(res.data.docs.length)
       acc.add(
         caseId,
-        res.data.docs.flatMap((d) => {
-          if (!d._source) return []
-          const t = alertTime(d._source)
-          return t == null || (t >= from && t <= to) ? [d._source as AlertSource] : []
-        }),
+        res.data.docs.flatMap((d) => (d._source && alertInPeriod(d._source, from, to) !== false ? [d._source as AlertSource] : [])),
       )
       acc.fetched++
     } catch (err) {
@@ -179,15 +175,20 @@ export async function collectIngestion(ctx: CollectContext): Promise<ReportData[
 
 const AiVerdictsResponse = z.record(z.string(), z.unknown())
 const AI_BATCH = 500
+const AI_CONCURRENCY = 4
 
 /**
- * AI Triage verdicts of the Key Cases. Only Instances with AI Triage (7.x) expose the endpoint:
- * 404/403 means "not available here", which the Report states, never a failed collector.
+ * AI Triage verdicts of every Case of the period, 500 per call (a Case without a verdict answers null).
+ * Only Instances with AI Triage (7.x) expose the endpoint: 404/403 means "not available here", which the
+ * Report states, never a failed collector. Any other failure rejects (the caller records a gap).
  */
 export async function collectAiTriage(ctx: CollectContext, cases: CaseSummary[]): Promise<NonNullable<ReportData['aiTriage']>> {
+  if (cases.length === 0) return { available: false, status: 'no_cases', verdicts: {} }
   const verdicts: Record<string, AiVerdict> = {}
-  for (let i = 0; i < cases.length; i += AI_BATCH) {
-    const ids = cases.slice(i, i + AI_BATCH).map((c) => c.id)
+  const batches = Array.from({ length: Math.ceil(cases.length / AI_BATCH) }, (_, k) => cases.slice(k * AI_BATCH, (k + 1) * AI_BATCH).map((c) => c.id))
+  let notExposed = false
+  await runPool(batches, AI_CONCURRENCY, async (ids) => {
+    if (notExposed) return
     try {
       const res = await ctx.client.post(ENDPOINTS.aiCaseVerdicts, { case_ids: ids }, AiVerdictsResponse)
       for (const [id, v] of Object.entries(res)) {
@@ -195,9 +196,15 @@ export async function collectAiTriage(ctx: CollectContext, cases: CaseSummary[])
         if (typeof verdict === 'string' && (AI_VERDICTS as readonly string[]).includes(verdict)) verdicts[id] = verdict as AiVerdict
       }
     } catch (err) {
-      if (err instanceof StellarApiError && (err.code === 'not_found' || err.code === 'forbidden')) return { available: false, verdicts: {} }
-      throw err
+      if (err instanceof StellarApiError && (err.code === 'not_found' || err.code === 'forbidden')) notExposed = true
+      else throw err
     }
+  })
+  if (notExposed) return { available: false, status: 'not_exposed', verdicts: {} }
+  const bySeverity = { critical: {}, high: {}, medium: {}, low: {} } as NonNullable<NonNullable<ReportData['aiTriage']>['bySeverity']>
+  for (const c of cases) {
+    const v = verdicts[c.id]
+    if (v) bySeverity[c.severity][v] = (bySeverity[c.severity][v] ?? 0) + 1
   }
-  return { available: true, verdicts }
+  return { available: true, status: 'ok', verdicts, requested: cases.length, bySeverity }
 }

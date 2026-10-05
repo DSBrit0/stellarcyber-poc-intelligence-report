@@ -83,10 +83,19 @@ export function simulateLicense(days: DailyValue[], license: number, opts: Optio
 /**
  * License recommendation after the discovery period: the highest value present on each of 3 consecutive
  * days. With it no 3-day run can exceed 110%, so no level is reached in the observed period.
+ * Everything is measured from the first day with data: the days before the sources were onboarded are
+ * zeros that would drag the average down and turn it into a false Violation scenario. When every day is
+ * 0 there is nothing to recommend (null, not 0).
  */
 export function licenseCompliance(days: DailyValue[], opts: Options): LicenseCompliance {
-  const stats = dailyStats(days, opts)
-  const sustained = sustainedLevel(days, COMPLIANCE_LEVELS[0].days)
+  const list = sorted(days)
+  const first = list.findIndex((d) => d.value > 0)
+  if (first < 0) {
+    return { stats: dailyStats(list, opts), recommended: null, recommendedWindow: null, scenarios: [], firstDataDate: null }
+  }
+  const active = list.slice(first)
+  const stats = dailyStats(active, opts)
+  const sustained = sustainedLevel(active, COMPLIANCE_LEVELS[0].days)
   const recommended = sustained?.level ?? null
   const scenarios =
     stats && recommended != null
@@ -96,12 +105,13 @@ export function licenseCompliance(days: DailyValue[], opts: Options): LicenseCom
             ['recommended', recommended],
             ['peak', stats.max],
           ] as const
-        ).map(([key, license]) => ({ key, ...simulateLicense(days, license, opts) }))
+        ).map(([key, license]) => ({ key, ...simulateLicense(active, license, opts) }))
       : []
   return {
     stats,
     recommended,
     recommendedWindow: sustained ? { from: sustained.from, to: sustained.to } : null,
     scenarios,
+    firstDataDate: active[0]!.date,
   }
 }

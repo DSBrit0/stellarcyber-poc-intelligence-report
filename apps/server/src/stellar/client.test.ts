@@ -1,7 +1,7 @@
 import { MockAgent } from 'undici'
 import { describe, expect, it } from 'vitest'
 import { z } from 'zod'
-import { StellarClient } from './client.js'
+import { StellarApiError, StellarClient } from './client.js'
 
 const BASE = 'https://stellar.example.com'
 // A JWT whose payload carries only an expiry an hour ahead.
@@ -39,4 +39,26 @@ describe('StellarClient cancellation', () => {
     await expect(pending).rejects.toBeInstanceOf(Cancelled)
     expect(Date.now() - t0).toBeLessThan(2_000)
   })
+})
+
+describe('StellarClient retries', () => {
+  function flaky(failures: number) {
+    const agent = new MockAgent()
+    agent.disableNetConnect()
+    const pool = agent.get(BASE)
+    pool.intercept({ path: /access_token/, method: 'POST' }).reply(200, { access_token: jwt }).persist()
+    if (failures) pool.intercept({ path: /cases/, method: 'GET' }).replyWithError(new Error('socket hang up')).times(failures)
+    pool.intercept({ path: /cases/, method: 'GET' }).reply(200, { ok: true }).persist()
+    return new StellarClient(BASE, { method: 'apiKey', apiKey: 'k' }, agent)
+  }
+
+  it('retries a network error and returns the next answer', async () => {
+    await expect(flaky(1).get('/connect/api/v1/cases', {}, z.object({ ok: z.boolean() }))).resolves.toEqual({ ok: true })
+  }, 15_000)
+
+  it('gives up with a network error after the retries', async () => {
+    const err = await flaky(4).get('/connect/api/v1/cases', {}, z.unknown()).catch((e: unknown) => e)
+    expect(err).toBeInstanceOf(StellarApiError)
+    expect((err as StellarApiError).code).toBe('network')
+  }, 15_000)
 })

@@ -382,5 +382,6 @@
   "help.effortInv": "Investigation per case ({ch} min Critical/High, {m} min Medium, {l} min Low): time to investigate each case. It is the same with or without correlation, so it is not part of the savings.",
   "help.effortMonth": "Hours per analyst-month ({v} h): turns the hours saved into analysts (FTE).",
   "help.effortCalc": "Calculation: without correlation, triage = alerts × {a} min; with Stellar Cyber, triage = cases × {a} min. The difference is the triage avoided, shown in hours, as a % of manual triage and in analyst-months.",
-  "help.effortDefaults": "The current values are the defaults. Change them if the customer's SOC has its own times: the Report then states that the premises were set by the SE."
+  "help.effortDefaults": "The current values are the defaults. Change them if the customer's SOC has its own times: the Report then states that the premises were set by the SE.",
+  "sync.licenseWindow": "Assets and licensing volume are only available for the last {days} days. This period starts earlier, so the Report will lack those figures for the days outside that window."
 }
