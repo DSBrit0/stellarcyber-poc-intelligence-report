@@ -6,6 +6,8 @@ import { api } from '../../lib/api'
 import { errorKey } from '../../lib/errors'
 import { useI18n } from '../../lib/i18n'
 import { SaveIndicator, SaveProvider, useLiveAutosave, useSaveTracker } from '../notebook/saving'
+import { Select } from '../../lib/Select'
+import { useDialogs } from '../../lib/dialogs'
 
 interface TemplateRow {
   id: string
@@ -173,6 +175,7 @@ function ScheduleTemplate({ data }: { data: Template }) {
 /** One template row: its text in the three languages, saved as typed, and its actions. */
 function RowEditor({ row }: { row: TemplateRow }) {
   const { t } = useI18n()
+  const { confirm, prompt } = useDialogs()
   const { track } = useSaveTracker()
   const [error, setError] = useState<string | null>(null)
   const [langs, setLangs] = useState(false)
@@ -187,18 +190,18 @@ function RowEditor({ row }: { row: TemplateRow }) {
   }
   const patch = (body: Record<string, unknown>) => act(api(`/admin/template/${row.id}`, { method: 'PATCH', body }))
   const add = async () => {
-    const value = window.prompt(t(row.section === 'schedule' ? 'sch.newMilestone' : 'nb.newItemPrompt'))?.trim()
+    const value = (await prompt(t(row.section === 'schedule' ? 'sch.newMilestone' : 'nb.newItemPrompt')))?.trim()
     if (!value) return
     const kind = row.section === 'schedule' ? 'milestone' : row.kind === 'phase' ? 'item' : row.kind
     await act(api('/admin/template', { method: 'POST', body: { section: row.section, afterId: row.id, kind, text: { 'pt-BR': value }, indent: row.kind === 'phase' ? 0 : row.indent } }))
   }
   const addPhase = async () => {
-    const value = window.prompt(t('tpl.newPhase'))?.trim()
+    const value = (await prompt(t('tpl.newPhase')))?.trim()
     if (!value) return
     await act(api('/admin/template', { method: 'POST', body: { section: 'process', afterId: row.id, kind: 'phase', text: { 'pt-BR': value }, withMilestone: true } }))
   }
   const remove = async () => {
-    if (!window.confirm(t(row.kind === 'phase' ? 'tpl.deletePhaseConfirm' : 'nb.deleteConfirm'))) return
+    if (!(await confirm(t(row.kind === 'phase' ? 'tpl.deletePhaseConfirm' : 'nb.deleteConfirm'), { danger: true }))) return
     await act(api(`/admin/template/${row.id}`, { method: 'DELETE' }))
   }
   const move = (direction: 'up' | 'down') => act(api(`/admin/template/${row.id}/move`, { method: 'POST', body: { direction } }))
@@ -253,13 +256,13 @@ function RowEditor({ row }: { row: TemplateRow }) {
             <>
               <label className="block">
                 <span className="label">{t('tpl.tone')}</span>
-                <select className="input py-1 text-sm" value={row.tone ?? 'poc'} onChange={(e) => void patch({ tone: e.target.value })}>
+                <Select className="input py-1 text-sm" value={row.tone ?? 'poc'} onChange={(e) => void patch({ tone: e.target.value })}>
                   {MILESTONE_TONES.map((tone) => (
                     <option key={tone} value={tone}>
                       {t(`sch.tone.${tone}`)}
                     </option>
                   ))}
-                </select>
+                </Select>
               </label>
               <label className="block">
                 <span className="label">{t('tpl.cadence')}</span>

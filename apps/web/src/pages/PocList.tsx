@@ -4,6 +4,8 @@ import { api } from '../lib/api'
 import { errorKey } from '../lib/errors'
 import { useMe } from '../lib/auth'
 import { useI18n } from '../lib/i18n'
+import { Select } from '../lib/Select'
+import { useDialogs } from '../lib/dialogs'
 
 interface PocRow {
   id: string
@@ -42,7 +44,7 @@ export function PocListPage() {
       <div className="flex flex-wrap items-center justify-between gap-3">
         <h1 className="text-xl font-semibold">{heading}</h1>
         {isAdmin ? (
-          <select
+          <Select
             className="input mr-auto w-auto"
             aria-label={t('poc.owner')}
             value={owner}
@@ -57,7 +59,7 @@ export function PocListPage() {
                   {name} ({(all.data ?? []).filter((p) => p.ownerId === id).length})
                 </option>
               ))}
-          </select>
+          </Select>
         ) : null}
         {me?.role !== 'customer' ? (
           <Link to="/pocs/new" className="btn">
@@ -66,7 +68,7 @@ export function PocListPage() {
         ) : null}
       </div>
       {!isLoading && data.length === 0 ? <p className="text-slate-500">{t('poc.empty')}</p> : null}
-      <ul className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+      <ul className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3 2xl:grid-cols-4">
         {data.map((p) => (
           <li key={p.id} className="relative">
             {me && (me.role === 'admin' || me.id === p.ownerId) ? <DeletePoc id={p.id} name={p.customerName} syncing={p.syncing} /> : null}
@@ -115,12 +117,13 @@ export function PocListPage() {
 /** Trash icon in the corner of a PoC card: permanent deletion of the PoC and everything it holds. */
 function DeletePoc({ id, name, syncing }: { id: string; name: string; syncing: boolean }) {
   const { t } = useI18n()
+  const { confirm, alert } = useDialogs()
   const qc = useQueryClient()
   const del = useMutation({
     mutationFn: () => api(`/pocs/${id}`, { method: 'DELETE' }),
     onSuccess: () => void qc.invalidateQueries({ queryKey: ['pocs'] }),
     onError: (err) => {
-      window.alert(t(errorKey(err, { sync_in_progress: 'poc.deleteBlocked' })))
+      void alert(t(errorKey(err, { sync_in_progress: 'poc.deleteBlocked' })))
       void qc.invalidateQueries({ queryKey: ['pocs'] })
     },
   })
@@ -130,7 +133,7 @@ function DeletePoc({ id, name, syncing }: { id: string; name: string; syncing: b
       title={syncing ? t('poc.deleteBlocked') : `${t('poc.delete')}: ${name}`}
       aria-label={`${t('poc.delete')}: ${name}`}
       disabled={del.isPending || syncing}
-      onClick={() => window.confirm(t('poc.deleteConfirm')) && del.mutate()}
+      onClick={async () => (await confirm(t('poc.deleteConfirm'), { danger: true })) && del.mutate()}
     >
       <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
         <path d="M3 6h18M8 6V4h8v2M19 6l-1 14H6L5 6M10 11v6M14 11v6" />

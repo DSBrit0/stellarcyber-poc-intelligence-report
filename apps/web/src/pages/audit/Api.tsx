@@ -3,6 +3,7 @@ import { Fragment, useState } from 'react'
 import { api } from '../../lib/api'
 import { useI18n } from '../../lib/i18n'
 import { Empty, ExportButtons, JsonBlock, Pager, PresetSelect, StatusBadge, Th, qs, useFormat, type Page, type Preset } from './common'
+import { Select } from '../../lib/Select'
 
 interface CallRow {
   id: number
@@ -177,20 +178,20 @@ export function ApiTab({ params }: { params: URLSearchParams }) {
       <section className="card space-y-3">
         <div className="flex flex-wrap items-center gap-2">
           <h2 className="mr-2 text-sm font-semibold">{t('audit.callLog')}</h2>
-          <select className="input w-auto" aria-label={t('audit.outcome')} value={outcome} onChange={(e) => set(setOutcome)(e.target.value)}>
+          <Select className="input w-auto" aria-label={t('audit.outcome')} value={outcome} onChange={(e) => set(setOutcome)(e.target.value)}>
             <option value="">{t('audit.allOutcomes')}</option>
             <option value="ok">{t('audit.outcome.ok')}</option>
             <option value="http_error">{t('audit.outcome.http_error')}</option>
             <option value="network">{t('audit.outcome.network')}</option>
-          </select>
-          <select className="input w-auto" aria-label={t('audit.slow')} value={slowMs} onChange={(e) => set(setSlowMs)(e.target.value)}>
+          </Select>
+          <Select className="input w-auto" aria-label={t('audit.slow')} value={slowMs} onChange={(e) => set(setSlowMs)(e.target.value)}>
             <option value="">{t('audit.anyLatency')}</option>
             {[1000, 5000, 10_000, 30_000].map((ms) => (
               <option key={ms} value={ms}>
                 ≥ {f.ms(ms)}
               </option>
             ))}
-          </select>
+          </Select>
           {[
             [syncId, setSyncId, `Sync ${syncId.slice(0, 8)}`],
             [endpoint, setEndpoint, endpoint],

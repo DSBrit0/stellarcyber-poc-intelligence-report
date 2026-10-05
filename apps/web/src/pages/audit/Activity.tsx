@@ -4,6 +4,7 @@ import { Fragment, useState } from 'react'
 import { api } from '../../lib/api'
 import { useI18n } from '../../lib/i18n'
 import { Empty, ExportButtons, JsonBlock, Pager, PresetSelect, Th, qs, useFormat, type Page, type Preset } from './common'
+import { Select } from '../../lib/Select'
 
 interface EventRow {
   id: number
@@ -93,15 +94,15 @@ export function ActivityTab({ params }: { params: URLSearchParams }) {
   return (
     <section className="card space-y-3">
       <div className="flex flex-wrap items-center gap-2">
-        <select className="input w-auto max-w-full" aria-label={t('audit.user')} value={userId} onChange={(e) => reset(setUserId)(e.target.value)}>
+        <Select className="input w-auto max-w-full" aria-label={t('audit.user')} value={userId} onChange={(e) => reset(setUserId)(e.target.value)}>
           <option value="">{t('audit.allUsers')}</option>
           {users.data?.map((u) => (
             <option key={u.id} value={u.id}>
               {u.name} · {u.email}
             </option>
           ))}
-        </select>
-        <select className="input w-auto max-w-full" aria-label={t('audit.action')} value={action} onChange={(e) => reset(setAction)(e.target.value)}>
+        </Select>
+        <Select className="input w-auto max-w-full" aria-label={t('audit.action')} value={action} onChange={(e) => reset(setAction)(e.target.value)}>
           <option value="">{t('audit.allActions')}</option>
           {groups.map((g) => (
             <optgroup key={g} label={g}>
@@ -115,7 +116,7 @@ export function ActivityTab({ params }: { params: URLSearchParams }) {
                 ))}
             </optgroup>
           ))}
-        </select>
+        </Select>
         <PresetSelect value={preset} onChange={reset(setPreset)} />
         <input className="input min-w-40 flex-1" placeholder={t('audit.searchEvents')} value={q} onChange={(e) => reset(setQ)(e.target.value)} />
         <ExportButtons kind="events" query={filter} />

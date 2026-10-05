@@ -4,6 +4,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { ApiError, api } from './api'
 import { errorKey } from './errors'
 import { useI18n } from './i18n'
+import { useDialogs } from './dialogs'
 
 export interface SyncRow {
   id: string
@@ -29,6 +30,7 @@ export function useSync(syncId: string | null) {
 /** Stops a queued or running Sync, after a confirmation. Only the PoC's Owner or an Admin may (the API checks). */
 function CancelSyncButton({ syncId }: { syncId: string }) {
   const { t } = useI18n()
+  const { confirm, alert } = useDialogs()
   const qc = useQueryClient()
   const cancel = useMutation({
     mutationFn: () => api<SyncRow>(`/syncs/${syncId}/cancel`, { method: 'POST' }),
@@ -37,14 +39,14 @@ function CancelSyncButton({ syncId }: { syncId: string }) {
       void qc.invalidateQueries({ queryKey: ['poc'] })
       void qc.invalidateQueries({ queryKey: ['pocs'] })
     },
-    onError: (err) => window.alert(t(errorKey(err))),
+    onError: (err) => void alert(t(errorKey(err))),
   })
   return (
     <button
       type="button"
       className="shrink-0 whitespace-nowrap rounded-md border border-red-300 bg-white px-2 py-0.5 text-xs font-medium text-red-700 hover:bg-red-50 disabled:opacity-50 dark:border-red-800 dark:bg-transparent dark:text-red-300 dark:hover:bg-red-950"
       disabled={cancel.isPending}
-      onClick={() => window.confirm(t('sync.cancelConfirm')) && cancel.mutate()}
+      onClick={async () => (await confirm(t('sync.cancelConfirm'), { danger: true })) && cancel.mutate()}
     >
       {cancel.isPending ? t('sync.cancelling') : t('sync.cancel')}
     </button>

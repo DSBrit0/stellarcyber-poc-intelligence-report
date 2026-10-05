@@ -4,6 +4,7 @@ import { createPortal } from 'react-dom'
 import { api } from './api'
 import { errorKey } from './errors'
 import { useI18n } from './i18n'
+import { Select } from './Select'
 
 function TrashIcon() {
   return (
@@ -133,7 +134,7 @@ function DeleteUserDialog({ userId, onClose }: { userId: string; onClose: () => 
           {owns ? (
             <label className="block">
               <span className="label">{t('del.transferTo', { pocs: info.data.owns.pocs, companies: info.data.owns.companies })}</span>
-              <select className="input" value={transferTo} onChange={(e) => setTransferTo(e.target.value)}>
+              <Select className="input" value={transferTo} onChange={(e) => setTransferTo(e.target.value)}>
                 <option value="" disabled>
                   {t('del.chooseUser')}
                 </option>
@@ -142,7 +143,7 @@ function DeleteUserDialog({ userId, onClose }: { userId: string; onClose: () => 
                     {c.name} ({c.email})
                   </option>
                 ))}
-              </select>
+              </Select>
             </label>
           ) : (
             <p className="text-slate-500">{t('del.ownsNothing')}</p>

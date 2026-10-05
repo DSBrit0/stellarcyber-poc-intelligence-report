@@ -23,6 +23,8 @@ import { useI18n } from '../../lib/i18n'
 import { ContactFields, TypedInput, contactOk, linesOf } from '../../lib/TypedFields'
 import { ScheduleSection, type Milestone } from './ScheduleSection'
 import { SaveIndicator, SaveProvider, useLiveAutosave, useSaveTracker } from './saving'
+import { Select } from '../../lib/Select'
+import { useDialogs } from '../../lib/dialogs'
 
 interface Criterion {
   id: string
@@ -425,11 +427,12 @@ function SourcesSection({ pocId, nb, kind }: { pocId: string; nb: NotebookView; 
 
 function SourceRow({ pocId, r, canFill }: { pocId: string; r: DataSource; canFill: boolean }) {
   const { t } = useI18n()
+  const { confirm } = useDialogs()
   const qc = useQueryClient()
   const { track } = useSaveTracker()
   const [row, setRow] = useLiveAutosave({ status: r.status, notes: r.notes, port: r.port }, (v) => api(`/pocs/${pocId}/notebook/sources/${r.id}`, { method: 'PATCH', body: v }), () => canFill)
   const remove = async () => {
-    if (!window.confirm(t('nb.deleteConfirm'))) return
+    if (!(await confirm(t('nb.deleteConfirm'), { danger: true }))) return
     await track(api(`/pocs/${pocId}/notebook/sources/${r.id}`, { method: 'DELETE' }))
     void qc.invalidateQueries({ queryKey: ['notebook', pocId] })
   }
@@ -457,7 +460,7 @@ function SourceRow({ pocId, r, canFill }: { pocId: string; r: DataSource; canFil
         )}
       </td>
       <td className="px-2 py-1">
-        <select
+        <Select
           className={`rounded border-0 px-2 py-1 text-xs ${row.status ? SOURCE_STYLE[row.status] : 'bg-slate-100 text-slate-500 dark:bg-slate-800'}`}
           aria-label={t('nb.status')}
           disabled={!canFill}
@@ -470,7 +473,7 @@ function SourceRow({ pocId, r, canFill }: { pocId: string; r: DataSource; canFil
               {t(`nb.ds.${s}`)}
             </option>
           ))}
-        </select>
+        </Select>
       </td>
       <td className="w-full px-2 py-1">
         <input className="input py-1" maxLength={4000} disabled={!canFill} value={row.notes} onChange={(e) => setRow((x) => ({ ...x, notes: e.target.value }))} />
@@ -566,6 +569,7 @@ function CriteriaSection({ pocId, nb }: { pocId: string; nb: NotebookView }) {
 
 function CriterionItem({ pocId, c, canFill }: { pocId: string; c: Criterion; canFill: boolean }) {
   const { t } = useI18n()
+  const { confirm } = useDialogs()
   const qc = useQueryClient()
   const { track } = useSaveTracker()
   const [row, setRow] = useLiveAutosave(
@@ -574,7 +578,7 @@ function CriterionItem({ pocId, c, canFill }: { pocId: string; c: Criterion; can
     (v) => canFill && v.text.trim() !== '',
   )
   const remove = async () => {
-    if (!window.confirm(t('nb.deleteConfirm'))) return
+    if (!(await confirm(t('nb.deleteConfirm'), { danger: true }))) return
     await track(api(`/pocs/${pocId}/notebook/criteria/${c.id}`, { method: 'DELETE' }))
     void qc.invalidateQueries({ queryKey: ['notebook', pocId] })
   }
@@ -590,7 +594,7 @@ function CriterionItem({ pocId, c, canFill }: { pocId: string; c: Criterion; can
       </div>
       <div className="grid items-end gap-2 sm:grid-cols-[14rem_6rem_1fr_auto]">
         <Field label={t('nb.status')}>
-          <select
+          <Select
             className={`input ${row.status ? CRITERION_STYLE[row.status] : ''}`}
             disabled={!canFill}
             value={row.status ?? ''}
@@ -602,17 +606,17 @@ function CriterionItem({ pocId, c, canFill }: { pocId: string; c: Criterion; can
                 {t(`nb.cs.${s}`)}
               </option>
             ))}
-          </select>
+          </Select>
         </Field>
         <Field label={t('nb.weight')}>
-          <select className="input" title={t('nb.weightHelp')} disabled={!canFill} value={row.weight ?? ''} onChange={(e) => setRow((r) => ({ ...r, weight: e.target.value ? Number(e.target.value) : null }))}>
+          <Select className="input" title={t('nb.weightHelp')} disabled={!canFill} value={row.weight ?? ''} onChange={(e) => setRow((r) => ({ ...r, weight: e.target.value ? Number(e.target.value) : null }))}>
             <option value="">—</option>
             {[1, 2, 3, 4, 5].map((w) => (
               <option key={w} value={w}>
                 {w}
               </option>
             ))}
-          </select>
+          </Select>
         </Field>
         <Field label={t('nb.evalNotes')}>
           <input className="input" maxLength={4000} disabled={!canFill} value={row.notes} onChange={(e) => setRow((r) => ({ ...r, notes: e.target.value }))} />
@@ -660,6 +664,7 @@ function MeetingsSection({ pocId, nb }: { pocId: string; nb: NotebookView }) {
 
 function MeetingItem({ pocId, m, canFill }: { pocId: string; m: Meeting; canFill: boolean }) {
   const { t } = useI18n()
+  const { confirm } = useDialogs()
   const qc = useQueryClient()
   const { track } = useSaveTracker()
   const [row, setRow] = useLiveAutosave(
@@ -669,7 +674,7 @@ function MeetingItem({ pocId, m, canFill }: { pocId: string; m: Meeting; canFill
   )
   const set = <K extends keyof typeof row>(k: K, v: (typeof row)[K]) => setRow((r) => ({ ...r, [k]: v }))
   const remove = async () => {
-    if (!window.confirm(t('nb.deleteConfirm'))) return
+    if (!(await confirm(t('nb.deleteConfirm'), { danger: true }))) return
     await track(api(`/pocs/${pocId}/notebook/meetings/${m.id}`, { method: 'DELETE' }))
     void qc.invalidateQueries({ queryKey: ['notebook', pocId] })
   }
@@ -847,6 +852,7 @@ function ProcessItem({
   phase?: { expanded: boolean; done: number; total: number; onToggle: () => void }
 }) {
   const { t, locale } = useI18n()
+  const { confirm, prompt } = useDialogs()
   const qc = useQueryClient()
   const { track } = useSaveTracker()
   const [error, setError] = useState<string | null>(null)
@@ -861,14 +867,14 @@ function ProcessItem({
     }
   }
   const addBelow = async () => {
-    const text = window.prompt(t('nb.newItemPrompt'))?.trim()
+    const text = (await prompt(t('nb.newItemPrompt')))?.trim()
     if (!text) return
     // Written in the reader's language; pt-BR, the required one, gets the same text.
     await track(api(`/pocs/${pocId}/notebook/process`, { method: 'POST', body: { afterId: p.id, kind: 'item', text: { 'pt-BR': text, [locale]: text }, indent: 0 } }))
     await refresh()
   }
   const remove = async () => {
-    if (!window.confirm(t(p.kind === 'phase' ? 'nb.deletePhaseConfirm' : 'nb.deleteConfirm'))) return
+    if (!(await confirm(t(p.kind === 'phase' ? 'nb.deletePhaseConfirm' : 'nb.deleteConfirm'), { danger: true }))) return
     await track(api(`/pocs/${pocId}/notebook/process/${p.id}`, { method: 'DELETE' }))
     await refresh()
   }
@@ -925,7 +931,7 @@ function ProcessItem({
   }
   return (
     <li className={`group flex items-start gap-3 border-b border-slate-100 py-1.5 last:border-0 dark:border-slate-800/60 ${p.indent ? 'pl-6' : ''} ${p.hidden ? 'opacity-50' : ''}`}>
-      <select
+      <Select
         className={`w-36 shrink-0 rounded border-0 px-2 py-1 text-xs ${p.status ? PROCESS_STYLE[p.status] : 'bg-slate-100 text-slate-500 dark:bg-slate-800'}`}
         aria-label={t('nb.status')}
         disabled={!canFill}
@@ -938,7 +944,7 @@ function ProcessItem({
             {t(`nb.ps.${s}`)}
           </option>
         ))}
-      </select>
+      </Select>
       <p className={`flex-1 pt-0.5 text-sm whitespace-pre-line ${p.status === 'completed' || p.status === 'na' ? 'text-slate-400 line-through decoration-slate-300' : ''}`}>
         {text}
         {hidden}

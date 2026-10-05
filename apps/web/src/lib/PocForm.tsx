@@ -5,6 +5,7 @@ import { AutoTriageCheckbox } from './AutoTriage'
 import { HelpTip } from './HelpTip'
 import { ContactFields, TypedInput, linesOf } from './TypedFields'
 import { useI18n } from './i18n'
+import { Select } from './Select'
 
 export const emptyDetails = (customerName = ''): PocDetails => ({
   customerName,
@@ -184,14 +185,14 @@ export function PocForm({
           {text('platformVersion', 'form.platformVersion', 40)}
           {text('region', 'form.region', 80)}
           <Field label={t('form.verdict')} tip={<HelpTip title={t('help.verdictTitle')}><VerdictGuide /></HelpTip>}>
-            <select className="input" disabled={readOnly} value={value.verdict ?? ''} onChange={(e) => set('verdict', (e.target.value || null) as PocDetails['verdict'])}>
+            <Select className="input" disabled={readOnly} value={value.verdict ?? ''} onChange={(e) => set('verdict', (e.target.value || null) as PocDetails['verdict'])}>
               <option value="">{t('form.verdictNone')}</option>
               {VERDICTS.map((v) => (
                 <option key={v} value={v}>
                   {t(`form.verdict.${v}`)}
                 </option>
               ))}
-            </select>
+            </Select>
           </Field>
         </Row>
         <Field label={`${t('form.comments')} (${value.comments.length}/1500)`} tip={<HelpTip title={t('help.commentsTitle')}><p>{t('help.comments')}</p></HelpTip>}>

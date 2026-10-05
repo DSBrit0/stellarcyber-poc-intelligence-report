@@ -1,6 +1,7 @@
 import type { MessageKey } from '@poc-intel/shared/i18n'
 import { useState, type ReactNode } from 'react'
 import { useI18n } from '../../lib/i18n'
+import { Select } from '../../lib/Select'
 
 export interface Page<T> {
   total: number
@@ -54,13 +55,13 @@ export function useFormat() {
 export function PresetSelect({ value, onChange, className = 'input w-auto', optionClassName }: { value: Preset; onChange: (p: Preset) => void; className?: string; optionClassName?: string }) {
   const { t } = useI18n()
   return (
-    <select className={className} aria-label={t('audit.period')} value={value} onChange={(e) => onChange(e.target.value as Preset)}>
+    <Select className={className} aria-label={t('audit.period')} value={value} onChange={(e) => onChange(e.target.value as Preset)}>
       {PRESETS.map((p) => (
         <option key={p} value={p} className={optionClassName}>
           {t(`audit.preset.${p}` as MessageKey)}
         </option>
       ))}
-    </select>
+    </Select>
   )
 }
 

@@ -8,6 +8,8 @@ import { errorKey } from '../lib/errors'
 import { DeleteCompanyButton, DeleteUserButton } from '../lib/DeleteAccount'
 import { useMe } from '../lib/auth'
 import { useI18n } from '../lib/i18n'
+import { Select } from '../lib/Select'
+import { useDialogs } from '../lib/dialogs'
 
 const USER_STATUS_STYLE: Record<string, string> = {
   pending: 'bg-amber-100 text-amber-800 dark:bg-amber-950 dark:text-amber-300',
@@ -33,6 +35,7 @@ const PROFILE_STYLE: Record<CompanyProfile, string> = {
 
 export function CustomersPage() {
   const { t, locale } = useI18n()
+  const { confirm } = useDialogs()
   const { data: me } = useMe()
   // Deleting accounts and Companies: Admins, and Sales Engineers for the Companies they registered.
   const canDelete = me?.role === 'admin' || me?.role === 'sales_engineer'
@@ -66,7 +69,7 @@ export function CustomersPage() {
     setShownKey({ customer, key: r.accessKey })
   }
   const changeProfile = async (c: CustomerRow, next: CompanyProfile) => {
-    if (!window.confirm(t('customers.profileConfirm', { name: c.name, profile: t(`customers.profile.${next}`) }))) return
+    if (!(await confirm(t('customers.profileConfirm', { name: c.name, profile: t(`customers.profile.${next}`) })))) return
     setError(null)
     try {
       await api(`/customers/${c.id}`, { method: 'PATCH', body: { profile: next } })
@@ -95,13 +98,13 @@ export function CustomersPage() {
         </label>
         <label className="block w-40">
           <span className="label">{t('customers.profile')}</span>
-          <select className="input" value={profile} onChange={(e) => setProfile(e.target.value as CompanyProfile)}>
+          <Select className="input" value={profile} onChange={(e) => setProfile(e.target.value as CompanyProfile)}>
             {COMPANY_PROFILES.map((p) => (
               <option key={p} value={p}>
                 {t(`customers.profile.${p}`)}
               </option>
             ))}
-          </select>
+          </Select>
         </label>
         <button className="btn whitespace-nowrap">{t('customers.new')}</button>
         {error ? <p className="w-full text-sm text-red-600">{error}</p> : null}
@@ -118,14 +121,14 @@ export function CustomersPage() {
 
       <section className="card overflow-x-auto">
         <div className="mb-2 flex justify-end">
-          <select className="input w-auto py-1 text-sm" aria-label={t('customers.profile')} value={filter} onChange={(e) => setFilter(e.target.value as CompanyProfile | '')}>
+          <Select className="input w-auto py-1 text-sm" aria-label={t('customers.profile')} value={filter} onChange={(e) => setFilter(e.target.value as CompanyProfile | '')}>
             <option value="">{t('customers.filterAll')}</option>
             {COMPANY_PROFILES.map((p) => (
               <option key={p} value={p}>
                 {t(`customers.profile.${p}`)}
               </option>
             ))}
-          </select>
+          </Select>
         </div>
         <table className="w-full text-sm [&_td]:px-2 [&_td:first-child]:pl-0 [&_th]:px-2 [&_th:first-child]:pl-0">
           <thead className="text-left text-xs text-slate-500">
@@ -154,7 +157,7 @@ export function CustomersPage() {
                 </td>
                 <td>
                   {c.manageable ? (
-                    <select
+                    <Select
                       className={`rounded border-0 px-2 py-0.5 text-xs ${PROFILE_STYLE[c.profile]}`}
                       aria-label={t('customers.profile')}
                       value={c.profile}
@@ -165,7 +168,7 @@ export function CustomersPage() {
                           {t(`customers.profile.${p}`)}
                         </option>
                       ))}
-                    </select>
+                    </Select>
                   ) : (
                     <span className={`rounded px-2 text-xs ${PROFILE_STYLE[c.profile]}`}>{t(`customers.profile.${c.profile}`)}</span>
                   )}

@@ -22,6 +22,11 @@
   "common.save": "Guardar",
   "common.cancel": "Cancelar",
   "common.error": "Algo salió mal. Inténtelo de nuevo.",
+  "common.confirm": "Confirmar",
+  "common.ok": "Aceptar",
+  "common.confirmTitle": "Confirme la acción",
+  "common.noticeTitle": "Aviso",
+  "nav.language": "Idioma",
   "poc.list": "Mis PoCs",
   "poc.new": "Nueva PoC",
   "poc.customer": "Cliente",
@@ -610,5 +615,15 @@
   "audit.action.customer.deleted": "Empresa eliminada",
   "root.changePassword": "Cambiar contraseña",
   "root.help": "Administrador root del sistema: su rol no cambia y la cuenta no puede desactivarse ni eliminarse.",
-  "err.root_protected": "La cuenta Administrator (root) no puede cambiar su rol o estado, ni ser eliminada."
+  "err.root_protected": "La cuenta Administrator (root) no puede cambiar su rol o estado, ni ser eliminada.",
+  "nav.help": "Ayuda",
+  "guide.title": "Guía del Usuario",
+  "guide.subtitle": "Cómo usar PoC Intelligence Report, paso a paso: del registro de la empresa a la presentación del Reporte Final.",
+  "guide.search": "Buscar en la guía…",
+  "guide.myTopics": "Mis temas",
+  "guide.allTopics": "Todos los temas",
+  "guide.contents": "Contenido",
+  "guide.noResults": "Ningún tema coincide con la búsqueda.",
+  "guide.for": "Para: {roles}",
+  "guide.everyone": "todos"
 }

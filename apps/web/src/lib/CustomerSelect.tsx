@@ -2,6 +2,7 @@ import type { CompanyProfile } from '@poc-intel/shared'
 import { useQuery } from '@tanstack/react-query'
 import { api } from './api'
 import { useI18n } from './i18n'
+import { Select } from './Select'
 
 export interface CustomerRow {
   id: string
@@ -26,14 +27,14 @@ export function CustomerSelect({ value, onChange, disabled }: { value: string | 
   return (
     <label className="block">
       <span className="label">{t('form.linkCustomer')}</span>
-      <select className="input" disabled={disabled} value={value ?? ''} onChange={(e) => onChange(e.target.value || null)}>
+      <Select className="input" disabled={disabled} value={value ?? ''} onChange={(e) => onChange(e.target.value || null)}>
         <option value="">{t('form.noCustomer')}</option>
         {data.filter((c) => c.profile === 'customer' && c.manageable).map((c) => (
           <option key={c.id} value={c.id}>
             {c.name}
           </option>
         ))}
-      </select>
+      </Select>
     </label>
   )
 }

@@ -3,6 +3,7 @@ import { useCallback, useRef, useState, type ReactNode } from 'react'
 import { api } from '../../lib/api'
 import { useI18n } from '../../lib/i18n'
 import { useLiveAutosave, useSaveTracker } from './saving'
+import { useDialogs } from '../../lib/dialogs'
 
 export interface Milestone {
   id: string
@@ -70,6 +71,7 @@ export function ScheduleSection({
   canShape: boolean
 }) {
   const { t, locale } = useI18n()
+  const { prompt } = useDialogs()
   const { track } = useSaveTracker()
   const [editing, setEditing] = useState(false)
   // A milestone whose PoC Process phase is hidden leaves the schedule with it.
@@ -106,7 +108,7 @@ export function ScheduleSection({
   }, [])
 
   const addBelow = async (afterId: string | null) => {
-    const text = window.prompt(t('sch.newMilestone'))?.trim()
+    const text = (await prompt(t('sch.newMilestone')))?.trim()
     if (!text) return
     await track(api(`/pocs/${pocId}/notebook/milestones`, { method: 'POST', body: { afterId, text: { 'pt-BR': text, [locale]: text }, days: 2 } }))
   }
@@ -257,6 +259,7 @@ function Row({
 
 function MilestoneEditor({ pocId, m, computed, onAddBelow }: { pocId: string; m: Milestone; computed: string; onAddBelow: () => void }) {
   const { t, locale } = useI18n()
+  const { confirm } = useDialogs()
   const { track } = useSaveTracker()
   // The name is edited in the reader's language; pt-BR, the required one, is filled when still empty.
   const [row, setRow] = useLiveAutosave(
@@ -265,7 +268,7 @@ function MilestoneEditor({ pocId, m, computed, onAddBelow }: { pocId: string; m:
     (v) => v.name.trim() !== '',
   )
   const remove = async () => {
-    if (!window.confirm(t('nb.deleteConfirm'))) return
+    if (!(await confirm(t('nb.deleteConfirm'), { danger: true }))) return
     await track(api(`/pocs/${pocId}/notebook/milestones/${m.id}`, { method: 'DELETE' }))
   }
   return (

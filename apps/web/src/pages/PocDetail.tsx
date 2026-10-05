@@ -15,6 +15,9 @@ import { PocForm } from '../lib/PocForm'
 import { typedDetailsValid } from '../lib/TypedFields'
 import { SyncBar, type SyncRow } from '../lib/SyncProgress'
 import { NotebookTab } from './notebook/NotebookTab'
+import { LanguageSelect } from '../lib/LanguageSelect'
+import { Select } from '../lib/Select'
+import { useDialogs } from '../lib/dialogs'
 
 interface PocView {
   id: string
@@ -207,20 +210,14 @@ function ReportItem({ poc, r }: { poc: PocView; r: ReportRow }) {
         <Widget label={t('widget.alerts')} value={num(r.alerts)} />
       </div>
       <div className="flex flex-wrap items-center gap-2">
-        <select className="input w-auto py-1.5" value={template} onChange={(e) => setTemplate(e.target.value as Template)} aria-label="Template">
+        <Select className="input w-auto py-1.5" value={template} onChange={(e) => setTemplate(e.target.value as Template)} aria-label="Template">
           {TEMPLATES.map((tpl) => (
             <option key={tpl} value={tpl}>
               {t(`template.${tpl}`)}
             </option>
           ))}
-        </select>
-        <select className="input w-auto py-1.5" value={lang} onChange={(e) => setLang(e.target.value as Locale)} aria-label="Language">
-          {LOCALES.map((l) => (
-            <option key={l} value={l}>
-              {l}
-            </option>
-          ))}
-        </select>
+        </Select>
+        <LanguageSelect value={lang} onChange={setLang} label={t('nav.language')} />
         <a className="btn" href={url('html')} target="_blank" rel="noopener">
           {t('report.open')}
         </a>
@@ -482,6 +479,7 @@ function TrashIcon() {
 /** Permanent deletion of one Report (Report Data, PDFs, comments, its Sync). */
 function DeleteReportButton({ pocId, reportId }: { pocId: string; reportId: string }) {
   const { t } = useI18n()
+  const { confirm } = useDialogs()
   const qc = useQueryClient()
   const del = useMutation({
     mutationFn: () => api(`/report-data/${reportId}`, { method: 'DELETE' }),
@@ -493,7 +491,7 @@ function DeleteReportButton({ pocId, reportId }: { pocId: string; reportId: stri
       title={t('report.delete')}
       aria-label={t('report.delete')}
       disabled={del.isPending}
-      onClick={() => window.confirm(t('report.deleteConfirm')) && del.mutate()}
+      onClick={async () => (await confirm(t('report.deleteConfirm'), { danger: true })) && del.mutate()}
     >
       <TrashIcon />
     </button>
@@ -503,6 +501,7 @@ function DeleteReportButton({ pocId, reportId }: { pocId: string; reportId: stri
 /** Permanent deletion of the whole PoC and everything it holds. */
 function DeletePocButton({ id, syncing }: { id: string; syncing: boolean }) {
   const { t } = useI18n()
+  const { confirm, alert } = useDialogs()
   const qc = useQueryClient()
   const navigate = useNavigate()
   const del = useMutation({
@@ -512,7 +511,7 @@ function DeletePocButton({ id, syncing }: { id: string; syncing: boolean }) {
       navigate('/')
     },
     onError: (err) => {
-      window.alert(t(errorKey(err, { sync_in_progress: 'poc.deleteBlocked' })))
+      void alert(t(errorKey(err, { sync_in_progress: 'poc.deleteBlocked' })))
       void qc.invalidateQueries({ queryKey: ['poc', id] })
     },
   })
@@ -522,7 +521,7 @@ function DeletePocButton({ id, syncing }: { id: string; syncing: boolean }) {
       title={syncing ? t('poc.deleteBlocked') : t('poc.delete')}
       aria-label={t('poc.delete')}
       disabled={del.isPending || syncing}
-      onClick={() => window.confirm(t('poc.deleteConfirm')) && del.mutate()}
+      onClick={async () => (await confirm(t('poc.deleteConfirm'), { danger: true })) && del.mutate()}
     >
       <TrashIcon />
       <span className="hidden sm:inline">{t('poc.delete')}</span>

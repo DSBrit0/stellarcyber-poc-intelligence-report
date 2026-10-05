@@ -3,6 +3,7 @@ import { useState } from 'react'
 import { api } from '../../lib/api'
 import { useI18n } from '../../lib/i18n'
 import { CopyButton, ExportButtons, LEVEL_STYLE, Pager, PresetSelect, qs, useFormat, type Page, type Preset } from './common'
+import { Select } from '../../lib/Select'
 
 interface LogRow {
   id: number
@@ -59,14 +60,14 @@ export function LogsTab({ params }: { params: URLSearchParams }) {
   return (
     <section className="overflow-hidden rounded-xl border border-slate-800 bg-slate-900 text-slate-200 shadow-sm">
       <div className="flex flex-wrap items-center gap-2 border-b border-white/5 bg-black/20 px-4 py-3">
-        <select className="rounded-lg border border-white/10 bg-white/5 px-2 py-1.5 text-xs" aria-label={t('audit.level')} value={level} onChange={(e) => set(setLevel)(e.target.value as LogRow['level'])}>
+        <Select className="rounded-lg border border-white/10 bg-white/5 px-2 py-1.5 text-xs" aria-label={t('audit.level')} value={level} onChange={(e) => set(setLevel)(e.target.value as LogRow['level'])}>
           {LEVELS.map((l) => (
             <option key={l} value={l} className="bg-slate-900">
               {l.toUpperCase()}+
             </option>
           ))}
-        </select>
-        <select className="rounded-lg border border-white/10 bg-white/5 px-2 py-1.5 text-xs" aria-label={t('audit.source')} value={source} onChange={(e) => set(setSource)(e.target.value)}>
+        </Select>
+        <Select className="rounded-lg border border-white/10 bg-white/5 px-2 py-1.5 text-xs" aria-label={t('audit.source')} value={source} onChange={(e) => set(setSource)(e.target.value)}>
           <option value="" className="bg-slate-900">
             {t('audit.allSources')}
           </option>
@@ -76,8 +77,8 @@ export function LogsTab({ params }: { params: URLSearchParams }) {
           <option value="worker" className="bg-slate-900">
             worker
           </option>
-        </select>
-        <select className="rounded-lg border border-white/10 bg-white/5 px-2 py-1.5 text-xs" aria-label={t('audit.category')} value={category} onChange={(e) => set(setCategory)(e.target.value)}>
+        </Select>
+        <Select className="rounded-lg border border-white/10 bg-white/5 px-2 py-1.5 text-xs" aria-label={t('audit.category')} value={category} onChange={(e) => set(setCategory)(e.target.value)}>
           <option value="" className="bg-slate-900">
             {t('audit.allCategories')}
           </option>
@@ -86,7 +87,7 @@ export function LogsTab({ params }: { params: URLSearchParams }) {
               {c}
             </option>
           ))}
-        </select>
+        </Select>
         <PresetSelect value={preset} onChange={set(setPreset)} className="rounded-lg border border-white/10 bg-white/5 px-2 py-1.5 text-xs text-slate-200" optionClassName="bg-slate-900" />
         <input
           className="min-w-32 flex-1 rounded-lg border border-white/10 bg-white/5 px-3 py-1.5 text-xs outline-none placeholder:text-slate-500"

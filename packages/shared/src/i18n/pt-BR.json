@@ -22,6 +22,11 @@
   "common.save": "Salvar",
   "common.cancel": "Cancelar",
   "common.error": "Algo deu errado. Tente novamente.",
+  "common.confirm": "Confirmar",
+  "common.ok": "OK",
+  "common.confirmTitle": "Confirme a ação",
+  "common.noticeTitle": "Aviso",
+  "nav.language": "Idioma",
   "poc.list": "Minhas PoCs",
   "poc.new": "Nova PoC",
   "poc.customer": "Cliente",
@@ -610,5 +615,15 @@
   "audit.action.customer.deleted": "Empresa apagada",
   "root.changePassword": "Alterar senha",
   "root.help": "Administrador root do sistema: o papel não muda e a conta não pode ser desativada nem apagada.",
-  "err.root_protected": "A conta Administrator (root) não pode ter o papel ou o status alterados, nem ser apagada."
+  "err.root_protected": "A conta Administrator (root) não pode ter o papel ou o status alterados, nem ser apagada.",
+  "nav.help": "Ajuda",
+  "guide.title": "Guia do Usuário",
+  "guide.subtitle": "Como usar o PoC Intelligence Report, passo a passo: do cadastro da empresa à apresentação do Relatório Final.",
+  "guide.search": "Buscar no guia…",
+  "guide.myTopics": "Meus tópicos",
+  "guide.allTopics": "Todos os tópicos",
+  "guide.contents": "Conteúdo",
+  "guide.noResults": "Nenhum tópico corresponde à busca.",
+  "guide.for": "Para: {roles}",
+  "guide.everyone": "todos"
 }

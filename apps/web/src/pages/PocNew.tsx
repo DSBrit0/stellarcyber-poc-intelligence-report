@@ -15,6 +15,7 @@ import { PocForm, emptyDetails } from '../lib/PocForm'
 import { typedDetailsValid } from '../lib/TypedFields'
 import { suggestedPeriod, type Milestone } from './notebook/ScheduleSection'
 import { SyncBar, isRunning, useSync } from '../lib/SyncProgress'
+import { Select } from '../lib/Select'
 
 interface Tenant {
   id: string
@@ -139,7 +140,7 @@ function NotebookStart({ onBack }: { onBack: () => void }) {
         <label className="block">
           <span className="label">{t('nav.customers')}</span>
           <div className="flex gap-2">
-            <select className="input" required value={customerId} onChange={(e) => setCustomerId(e.target.value)}>
+            <Select className="input" required value={customerId} onChange={(e) => setCustomerId(e.target.value)}>
               <option value="" disabled>
                 {t('newpoc.chooseCustomer')}
               </option>
@@ -148,7 +149,7 @@ function NotebookStart({ onBack }: { onBack: () => void }) {
                   {c.name}
                 </option>
               ))}
-            </select>
+            </Select>
             <button type="button" className="btn shrink-0" onClick={() => setDialog(true)} aria-label={t('wiz.newCustomer')} title={t('wiz.newCustomer')}>
               +
             </button>
@@ -364,7 +365,7 @@ function ReportFlow({ fromId, onBack }: { fromId?: string; onBack?: () => void }
         }
         done={Boolean(customerId)} locked={locked || Boolean(from)}>
         <div className="flex gap-2">
-          <select className="input" value={customerId ?? ''} onChange={(e) => pickCustomer(e.target.value || null)}>
+          <Select className="input" value={customerId ?? ''} onChange={(e) => pickCustomer(e.target.value || null)}>
             <option value="">{t('form.noCustomer')}</option>
             {from?.customerId && from.customerName ? <option value={from.customerId}>{from.customerName}</option> : null}
             {(customers.data ?? []).filter((c) => c.profile === 'customer' && c.manageable && c.id !== from?.customerId).map((c) => (
@@ -372,7 +373,7 @@ function ReportFlow({ fromId, onBack }: { fromId?: string; onBack?: () => void }
                 {c.name}
               </option>
             ))}
-          </select>
+          </Select>
           <button type="button" className="btn shrink-0" onClick={() => setDialog(true)} aria-label={t('wiz.newCustomer')} title={t('wiz.newCustomer')}>
             +
           </button>

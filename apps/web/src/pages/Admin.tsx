@@ -8,6 +8,7 @@ import { CatalogCard } from './admin/CatalogCard'
 import { DeleteUserButton } from '../lib/DeleteAccount'
 import { useMe } from '../lib/auth'
 import { useI18n } from '../lib/i18n'
+import { Select } from '../lib/Select'
 
 interface UserRow {
   id: string
@@ -71,13 +72,13 @@ export function AdminPage() {
               {u.company ? ` · ${u.company}` : ''}
             </span>
             <span className="ml-auto flex items-center gap-2">
-              <select className="input w-auto min-w-0" aria-label={t('admin.role')} value={roles[u.id] ?? 'partner'} onChange={(e) => setRoles((r) => ({ ...r, [u.id]: e.target.value as Role }))}>
+              <Select className="input w-auto min-w-0" aria-label={t('admin.role')} value={roles[u.id] ?? 'partner'} onChange={(e) => setRoles((r) => ({ ...r, [u.id]: e.target.value as Role }))}>
                 {ROLES.map((r) => (
                   <option key={r} value={r}>
                     {t(`role.${r}`)}
                   </option>
                 ))}
-              </select>
+              </Select>
               <button className="btn" onClick={() => act.mutate({ path: `/admin/users/${u.id}/approve`, body: { role: roles[u.id] ?? 'partner' } })}>
                 {t('admin.approve')}
               </button>
@@ -117,7 +118,7 @@ export function AdminPage() {
                   </td>
                   <td className="text-slate-500">{u.email}</td>
                   <td>
-                    <select
+                    <Select
                       className="input w-auto min-w-[9rem] py-1"
                       aria-label={t('admin.role')}
                       disabled={u.isRoot}
@@ -130,7 +131,7 @@ export function AdminPage() {
                           {t(`role.${r}`)}
                         </option>
                       ))}
-                    </select>
+                    </Select>
                   </td>
                   <td>
                     <span className={`rounded px-2 py-0.5 text-xs ${USER_STATUS_STYLE[u.status] ?? USER_STATUS_STYLE.disabled}`}>{t(`user.status.${u.status}` as MessageKey)}</span>
@@ -146,8 +147,8 @@ export function AdminPage() {
                     )}
                   </td>
                   <td className="[&_.btn-ghost]:px-2 [&_.btn-ghost]:py-1 [&_.btn-ghost]:text-xs">
-                    {/* The actions wrap inside the cell, so the table fits its card instead of scrolling. */}
-                    <div className="flex min-w-[12rem] flex-wrap items-center justify-end gap-2 whitespace-normal [&>*]:whitespace-nowrap">
+                    {/* One row on wide screens; on narrow ones the actions wrap inside the cell instead of scrolling the table. */}
+                    <div className="flex min-w-[12rem] flex-wrap items-center justify-end gap-2 whitespace-normal xl:flex-nowrap [&>*]:whitespace-nowrap">
                       <label className="inline-flex items-center gap-1 text-xs">
                         <input
                           type="checkbox"
@@ -213,7 +214,7 @@ function SettingsForm({ initial, onSave, saving }: { initial: Settings; onSave: 
         <span className="label">{t('admin.retentionDays')}</span>
         <input className="input" type="number" min={1} max={3650} required value={days} onChange={(e) => setDays(e.target.value)} />
       </label>
-      <label className="block">
+      <label className="block max-w-2xl">
         <span className="label">{t('admin.allowedDomains')}</span>
         <input className="input" placeholder="stellarcyber.ai, partner.com" value={domains} onChange={(e) => setDomains(e.target.value)} />
       </label>

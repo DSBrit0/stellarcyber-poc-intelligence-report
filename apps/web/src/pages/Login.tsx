@@ -72,9 +72,9 @@ export function LoginPage() {
   }
 
   return (
-    <div className="flex min-h-dvh items-center justify-center px-4">
-      <div className="w-full max-w-sm">
-        <div className="mb-6 flex items-end justify-between gap-4">
+    <div className="flex min-h-dvh items-center justify-center bg-[radial-gradient(ellipse_at_top,rgb(59_91_219/0.08),transparent_60%)] px-4 py-10">
+      <div className="w-full max-w-md">
+        <div className="mb-6 flex items-center justify-between gap-4">
           <div className="space-y-2">
             {/* Official logo from the Stellar Cyber console: dark text for light mode, light text for dark mode. */}
             <img src={logo} alt="Stellar Cyber" width={159} height={22} className="h-6 w-auto dark:hidden" />

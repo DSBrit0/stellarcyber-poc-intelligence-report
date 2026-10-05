@@ -8,6 +8,7 @@ import { useI18n } from '../../lib/i18n'
 import type { Go } from '../Audit'
 import { EndpointTable, type EndpointStat } from './Api'
 import { Empty, JsonBlock, LEVEL_STYLE, Pager, PresetSelect, Th, qs, useFormat, type Page, type Preset } from './common'
+import { Select } from '../../lib/Select'
 
 interface SyncRow {
   id: string
@@ -203,14 +204,14 @@ export function SyncsTab({ params, go }: { params: URLSearchParams; go: Go }) {
       {selected ? <SyncDetailPanel id={selected} go={go} onClose={() => setSelected(null)} /> : null}
       <section className="card space-y-3">
         <div className="flex flex-wrap items-center gap-2">
-          <select className="input w-auto" aria-label={t('audit.status')} value={status} onChange={(e) => (setStatus(e.target.value), setOffset(0))}>
+          <Select className="input w-auto" aria-label={t('audit.status')} value={status} onChange={(e) => (setStatus(e.target.value), setOffset(0))}>
             <option value="">{t('audit.allStatuses')}</option>
             {SYNC_STATUSES.map((s) => (
               <option key={s} value={s}>
                 {t(`sync.status.${s}` as MessageKey)}
               </option>
             ))}
-          </select>
+          </Select>
           <PresetSelect value={preset} onChange={(p) => (setPreset(p), setOffset(0))} />
           <input className="input min-w-40 flex-1" placeholder={t('audit.searchSyncs')} value={q} onChange={(e) => (setQ(e.target.value), setOffset(0))} />
         </div>

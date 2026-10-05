@@ -22,6 +22,11 @@
   "common.save": "Save",
   "common.cancel": "Cancel",
   "common.error": "Something went wrong. Try again.",
+  "common.confirm": "Confirm",
+  "common.ok": "OK",
+  "common.confirmTitle": "Please confirm",
+  "common.noticeTitle": "Notice",
+  "nav.language": "Language",
   "poc.list": "My PoCs",
   "poc.new": "New PoC",
   "poc.customer": "Customer",
@@ -610,5 +615,15 @@
   "audit.action.customer.deleted": "Company deleted",
   "root.changePassword": "Change password",
   "root.help": "The system's root administrator: its role never changes and it cannot be disabled or deleted.",
-  "err.root_protected": "The Administrator (root) account cannot have its role or status changed, nor be deleted."
+  "err.root_protected": "The Administrator (root) account cannot have its role or status changed, nor be deleted.",
+  "nav.help": "Help",
+  "guide.title": "User Guide",
+  "guide.subtitle": "How to use PoC Intelligence Report, step by step: from registering a company to presenting the Final Report.",
+  "guide.search": "Search the guide…",
+  "guide.myTopics": "My topics",
+  "guide.allTopics": "All topics",
+  "guide.contents": "Contents",
+  "guide.noResults": "No topic matches the search.",
+  "guide.for": "For: {roles}",
+  "guide.everyone": "everyone"
 }
