@@ -5,7 +5,7 @@ import { ScoreBars, summaryText } from '../sections/overview.js'
 import { Banner, Card, Grid, Kpis, VolumeNote } from '../ui.js'
 
 /** The Insight is a two-page brief: the SE's comments are cut at this length ("…"); the full text is in the other Templates. */
-const COMMENTS_MAX = 1800
+const COMMENTS_MAX = 650
 
 // Insight — the new Template, built on the same model as Technical/Executive. Decision-first: the
 // verdict and the numbers that matter above the fold; evidence as cards that reflow down to one column.
@@ -42,8 +42,8 @@ export function InsightTemplate({ rc }: { rc: ReportContext }) {
       </header>
       {d.noCases ? <Banner>{rc.x('noCasesBanner', { start: fmt.date(data.period.start), end: fmt.date(data.period.end) })}</Banner> : null}
       <Grid cols={3}>
-        <Card title={t('chartMitre')}>{d.mitreCovPct > 0 ? <Gauge pct={d.mitreCovPct} label={`${d.detectedTactics.size} / 14 ${t('sc_tactics')}`} /> : null}</Card>
-        <Card title={t('t2ChartSevPie')}>
+        <Card rc={rc} title={t('chartMitre')}>{d.mitreCovPct > 0 ? <Gauge pct={d.mitreCovPct} label={`${d.detectedTactics.size} / 14 ${t('sc_tactics')}`} /> : null}</Card>
+        <Card rc={rc} title={t('t2ChartSevPie')}>
           {d.noCases ? null : <Donut
             cutout={0.6}
             center={fmt.num(d.totalCases)}
@@ -57,12 +57,12 @@ export function InsightTemplate({ rc }: { rc: ReportContext }) {
             format={fmt.num}
           />}
         </Card>
-        <Card title={t('t2ChartScore')}>
+        <Card rc={rc} title={t('t2ChartScore')}>
           <ScoreBars rc={rc} />
         </Card>
       </Grid>
       {trend ? (
-        <Card wide title={t('t2ChartTrend')}>
+        <Card rc={rc} wide title={t('t2ChartTrend')}>
           <Lines
             labels={d.daily.days.map((x) => fmt.dayMonth(x))}
             series={[
@@ -75,12 +75,12 @@ export function InsightTemplate({ rc }: { rc: ReportContext }) {
       ) : null}
       <Grid>
         {data.tactics.mitre.techniques.length ? (
-          <Card title={t('chartTechniques')}>
+          <Card rc={rc} title={t('chartTechniques')}>
             <HBars format={fmt.num} items={data.tactics.mitre.techniques.slice(0, 8).map((x) => ({ label: fmt.trunc(`${x.id} ${x.name}`, 60), value: x.caseCount }))} />
           </Card>
         ) : null}
         {!d.assetsZero && data.assets.compliance.recommended != null ? (
-          <Card title={t('t2ChartAssets')}>
+          <Card rc={rc} title={t('t2ChartAssets')}>
             <Lines
               labels={data.assets.daily.map((x) => fmt.dayMonth(x.date))}
               series={[{ name: t('t2SeriesAssets'), values: data.assets.daily.map((x) => x.value), color: C.brand }]}
@@ -93,15 +93,15 @@ export function InsightTemplate({ rc }: { rc: ReportContext }) {
       </Grid>
       {/* No numbered sections here: the add-on license note becomes a card. */}
       {d.ai ? (
-        <Card wide title={rc.x('licAutoTriageTitle')}>
+        <Card rc={rc} wide title={rc.x('licAutoTriageTitle')}>
           <p className="body">{d.ai.status === 'no_cases' ? rc.x('licAutoTriageNoCases') : rc.x('licAutoTriage')}</p>
         </Card>
       ) : null}
-      <Card wide title={t('sec10')}>
+      <Card rc={rc} wide title={t('sec10')}>
         <p className="body">{conclusionText(rc)}</p>
       </Card>
       {details.comments ? (
-        <Card wide className="breakable" title={t('seCommentsTitle')}>
+        <Card rc={rc} wide className="breakable" title={t('seCommentsTitle')}>
           <p className="body prose">{fmt.trunc(details.comments, COMMENTS_MAX)}</p>
         </Card>
       ) : null}

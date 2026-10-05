@@ -1,7 +1,7 @@
 import { C, Donut, HBars, PALETTE, Radar, StageFlow } from '../charts.js'
 import type { ReportContext } from '../context.js'
 import { ALL_TACTICS } from '../model/constants.js'
-import { Card, Grid, Kpis, Note, P, Section, Sub, Table } from '../ui.js'
+import { Card, Figure, Grid, Kpis, Note, P, Section, Sub, Table } from '../ui.js'
 
 // Section 5 — MITRE ATT&CK coverage (spec T1.5, E.5).
 
@@ -26,7 +26,7 @@ function KillChain({ rc }: { rc: ReportContext }) {
   const stages = data.tactics.killChain ?? []
   if (!stages.some((s) => s.alerts > 0)) return null
   return (
-    <Card wide className="killchain" title={x('chartKillChain')}>
+    <Card rc={rc} wide className="killchain" title={x('chartKillChain')}>
       <StageFlow
         format={fmt.num}
         stages={stages.map((s, i) => ({ label: rc.killChainStage(s.stage), value: s.alerts, sub: `${fmt.num(s.cases)} ${t('xtaCases').toLowerCase()}`, color: STAGE_COLORS[i % STAGE_COLORS.length]! }))}
@@ -63,69 +63,73 @@ export function Section5({ rc }: { rc: ReportContext }) {
       />
       {exec ? (
         <>
-          <p className="muted italic">{t('t2MatrixNote')}</p>
-          <div className="tactic-grid">
-            {ALL_TACTICS.map((tac) => {
-              const e = byId.get(tac.id)
-              const r = e ? Math.log(1 + e.alertCount) / Math.log(1 + maxAlerts) : -1
-              const level = r < 0 ? 'none' : r > 0.75 ? 'high' : r > 0.4 ? 'mid' : 'low'
-              return (
-                <div key={tac.id} className={`tactic heat-${level}`} data-tip={`${tac.id} ${tac.name}: ${e ? rc.x('tipTacticDetected', { c: fmt.num(e.caseCount), a: fmt.num(e.alertCount) }) : rc.x('tipTacticNone')}`}>
-                  <b>{tac.id}</b>
-                  <span>{tac.name}</span>
-                  <small>{e ? fmt.num(e.alertCount) : '—'}</small>
-                </div>
-              )
-            })}
-          </div>
-          <div className="legend">
-            <span>
-              <i className="heat-none" />
-              {t('t2LegendNone')}
-            </span>
-            <span>
-              <i className="heat-low" />
-              {t('t2LegendLow')}
-            </span>
-            <span>
-              <i className="heat-mid" />
-              {t('t2LegendMid')}
-            </span>
-            <span>
-              <i className="heat-high" />
-              {t('t2LegendHigh')}
-            </span>
-          </div>
+          <Figure rc={rc} title={x('figMitreMatrix')} note={t('t2MatrixNote')}>
+            <div className="tactic-grid">
+              {ALL_TACTICS.map((tac) => {
+                const e = byId.get(tac.id)
+                const r = e ? Math.log(1 + e.alertCount) / Math.log(1 + maxAlerts) : -1
+                const level = r < 0 ? 'none' : r > 0.75 ? 'high' : r > 0.4 ? 'mid' : 'low'
+                return (
+                  <div key={tac.id} className={`tactic heat-${level}`} data-tip={`${tac.id} ${tac.name}: ${e ? rc.x('tipTacticDetected', { c: fmt.num(e.caseCount), a: fmt.num(e.alertCount) }) : rc.x('tipTacticNone')}`}>
+                    <b>{tac.id}</b>
+                    <span>{tac.name}</span>
+                    <small>{e ? fmt.num(e.alertCount) : '—'}</small>
+                  </div>
+                )
+              })}
+            </div>
+            <div className="legend">
+              <span>
+                <i className="heat-none" />
+                {t('t2LegendNone')}
+              </span>
+              <span>
+                <i className="heat-low" />
+                {t('t2LegendLow')}
+              </span>
+              <span>
+                <i className="heat-mid" />
+                {t('t2LegendMid')}
+              </span>
+              <span>
+                <i className="heat-high" />
+                {t('t2LegendHigh')}
+              </span>
+            </div>
+          </Figure>
           <Grid>
-            <Card title={t('t2ChartRadar')} note={t('t2RadarNote')}>
+            <Card rc={rc} title={t('t2ChartRadar')} note={t('t2RadarNote')}>
               {data.tactics.mitre.tactics.some((x2) => x2.caseCount > 0) ? (
                 <Radar format={fmt.num} axes={ALL_TACTICS.map((tac) => ({ label: SHORT[tac.name] ?? tac.name, value: byId.get(tac.id)?.caseCount ?? 0 }))} />
               ) : null}
             </Card>
-            <Card title={t('t2ChartXdr')} note={t('t2XdrNote')}>
+            <Card rc={rc} title={t('t2ChartXdr')} note={t('t2XdrNote')}>
               {xdr.tactics.some((x2) => x2.alertCount > 0) ? <Donut cutout={0.55} format={fmt.num} slices={xdr.tactics.map((x2, i) => ({ label: x2.name || x2.id, value: x2.alertCount, color: PALETTE[i % PALETTE.length] }))} /> : null}
             </Card>
           </Grid>
           <KillChain rc={rc} />
         </>
       ) : (
-        <div className="tactic-grid">
-          {ALL_TACTICS.map((tac) => (
-            <div
-              key={tac.id}
-              className={`tactic ${d.detectedTactics.has(tac.id) ? 'on' : 'off'}`}
-              data-tip={`${tac.id} ${tac.name}: ${byId.get(tac.id) ? rc.x('tipTacticDetected', { c: fmt.num(byId.get(tac.id)!.caseCount), a: fmt.num(byId.get(tac.id)!.alertCount) }) : rc.x('tipTacticNone')}`}
-            >
-              <b>{tac.id}</b>
-              <span>{tac.name}</span>
-            </div>
-          ))}
-        </div>
+        <Figure rc={rc} title={x('figMitreMatrix')}>
+          <div className="tactic-grid">
+            {ALL_TACTICS.map((tac) => (
+              <div
+                key={tac.id}
+                className={`tactic ${d.detectedTactics.has(tac.id) ? 'on' : 'off'}`}
+                data-tip={`${tac.id} ${tac.name}: ${byId.get(tac.id) ? rc.x('tipTacticDetected', { c: fmt.num(byId.get(tac.id)!.caseCount), a: fmt.num(byId.get(tac.id)!.alertCount) }) : rc.x('tipTacticNone')}`}
+              >
+                <b>{tac.id}</b>
+                <span>{tac.name}</span>
+              </div>
+            ))}
+          </div>
+        </Figure>
       )}
       {exec ? null : <KillChain rc={rc} />}
 
       <Sub rc={rc}>{t('sub5_1')}</Sub>
       <Table
+        rc={rc}
         head={[t('tacticId'), t('tacticName'), t('tacticStatus')]}
         rows={ALL_TACTICS.map((tac) => [
           tac.id,
@@ -135,7 +139,7 @@ export function Section5({ rc }: { rc: ReportContext }) {
       />
 
       {techniques.length ? (
-        <Card wide title={t('chartTechniques')}>
+        <Card rc={rc} wide title={t('chartTechniques')}>
           <HBars format={fmt.num} items={techniques.slice(0, 10).map((x2) => ({ label: fmt.trunc(`${x2.id} — ${x2.name}`, 64), value: x2.caseCount, color: C.brand }))} />
         </Card>
       ) : null}
@@ -145,14 +149,16 @@ export function Section5({ rc }: { rc: ReportContext }) {
           <Sub rc={rc}>{t('sub5_3')}</Sub>
           {xdrOnly ? <P>{t('body5_3', { n: fmt.num(xdrOnly) })}</P> : null}
           <Table
+            rc={rc}
             head={[t('xtaTacticId'), t('xtaTacticName'), t('xtaCases'), t('xtaAlerts')]}
             rows={xdr.tactics.map((x) => [<b className="brand">{x.id}</b>, x.name, fmt.num(x.caseCount), fmt.num(x.alertCount)])}
           />
           {xdr.techniques.length ? (
             <>
-              <p className="body strong">{t('sub5_3_tech')}</p>
               <Table
+                rc={rc}
                 compact
+                caption={t('sub5_3_tech')}
                 head={[t('xtaTechId'), t('xtaTechName'), t('xtaTactic'), t('xtaCases')]}
                 rows={xdr.techniques.slice(0, 20).map((x) => [x.id, x.name, x.tacticName ?? '', fmt.num(x.caseCount)])}
               />

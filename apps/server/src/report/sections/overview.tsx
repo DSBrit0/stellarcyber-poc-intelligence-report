@@ -1,7 +1,7 @@
 import { C, Bars, Donut, Gauge, HBars, PALETTE } from '../charts.js'
 import type { ReportContext } from '../context.js'
 import { rate } from '../model/derived.js'
-import { Banner, Card, Grid, Kpis, Muted, Note, P, Section, Sub, Table, VolumeNote } from '../ui.js'
+import { Banner, Card, Figure, Grid, Kpis, Muted, Note, P, Section, Sub, Table, VolumeNote } from '../ui.js'
 
 // Cover, sections 1–3 and the architecture page (spec T1.0–T1.3, E.0–E.3).
 
@@ -94,9 +94,9 @@ export function activeSourceCount(rc: ReportContext): number {
   return d.sources.withData || data.tactics.sources?.length || d.sources.all.length
 }
 
-/** The executive summary lead: a finding with the period's numbers (or why there is none). */
+/** The Insight's one-line lead: a finding with the period's numbers (or why there is none). */
 export function summaryText(rc: ReportContext): string {
-  const { t, x, fmt, data, d } = rc
+  const { x, fmt, data, d } = rc
   const vars = {
     startDate: fmt.date(data.period.start),
     endDate: fmt.date(data.period.end),
@@ -105,12 +105,31 @@ export function summaryText(rc: ReportContext): string {
     mitrePct: d.mitreCovPct,
   }
   if (d.noCases) return d.volumeZero && d.sources.withData === 0 ? x('summaryNoData', vars) : x('summaryNoCases', vars)
-  return d.critHigh.length || d.sev.critical + d.sev.high > 0 ? t('body1_2', vars) : x('summaryNoCritHigh', vars)
+  return d.critHigh.length || d.sev.critical + d.sev.high > 0 ? x('summaryShort', vars) : x('summaryNoCritHigh', vars)
 }
 
-/** Context paragraph, success criteria and the summary paragraph (1.2, drawn before 1.1). */
+/**
+ * The presentation that opens every official Report (1.1): the PoC's purpose, the success criteria, then the
+ * period's figures. The alert-noise claim is made only with a measured reduction, and states it; without Cases
+ * the second paragraph says there is no detection result.
+ */
+function presentation(rc: ReportContext): string {
+  const { t, x, fmt, data, d } = rc
+  const vars = { startDate: fmt.date(data.period.start), endDate: fmt.date(data.period.end) }
+  if (d.noCases) return d.sources.all.length ? x('body1_2NoCases', { ...vars, connCount: fmt.num(d.sources.all.length) }) : x('body1_2NoSources', vars)
+  const noisePct = d.noise?.pct ?? 0
+  return t('body1_2', {
+    ...vars,
+    connCount: fmt.num(activeSourceCount(rc)),
+    caseCount: fmt.num(d.totalCases),
+    mitrePct: d.mitreCovPct,
+    noiseClause: noisePct > 0 ? x('noiseClause', { noisePct }) : '.',
+  })
+}
+
+/** Context and objectives: the presentation paragraphs with the success criteria between them. */
 function Context({ rc }: { rc: ReportContext }) {
-  const { t, details } = rc
+  const { t, x, details } = rc
   const criteria = details.successCriteria
     .split(/[;\n]/)
     .map((s) => s.trim())
@@ -118,8 +137,7 @@ function Context({ rc }: { rc: ReportContext }) {
   return (
     <>
       <Sub rc={rc}>{t('sub1_2')}</Sub>
-      <p className="body strong">{summaryText(rc)}</p>
-      <P>{`${t('body1_1', { clientName: clientName(rc), client: clientName(rc) })}${criteria.length ? ':' : '.'}`}</P>
+      <P>{`${t('body1_1', { clientName: clientName(rc), client: clientName(rc) })}${criteria.length ? x('criteriaLead') : '.'}`}</P>
       {criteria.length ? (
         <ul className="bullets">
           {criteria.map((c) => (
@@ -127,6 +145,7 @@ function Context({ rc }: { rc: ReportContext }) {
           ))}
         </ul>
       ) : null}
+      <P>{presentation(rc)}</P>
     </>
   )
 }
@@ -156,6 +175,8 @@ export function KpiTable({ rc }: { rc: ReportContext }) {
       ]
   return (
     <Table
+      rc={rc}
+      caption={rc.x('tabKpis')}
       head={[t('kpiMetric'), t('kpiValue'), t('kpiNotes')]}
       rows={[
         ...caseRows,
@@ -238,8 +259,8 @@ function TechnicalKpis({ rc }: { rc: ReportContext }) {
         ]}
       />
       <Grid>
-        <Card title={t('chartSeverity')}>{sevSum ? <Donut slices={severitySlices(rc)} center={fmt.num(sevSum)} sub={t('totalLabel')} format={fmt.num} /> : null}</Card>
-        <Card title={t('chartStatus')}>
+        <Card rc={rc} title={t('chartSeverity')}>{sevSum ? <Donut slices={severitySlices(rc)} center={fmt.num(sevSum)} sub={t('totalLabel')} format={fmt.num} /> : null}</Card>
+        <Card rc={rc} title={t('chartStatus')}>
           {d.openCount && d.resolvedCount ? (
             <Donut
               slices={[
@@ -252,8 +273,8 @@ function TechnicalKpis({ rc }: { rc: ReportContext }) {
             />
           ) : null}
         </Card>
-        <Card title={t('chartMitre')}>{d.mitreCovPct > 0 ? <Gauge pct={d.mitreCovPct} label={t('chartMitreLabel')} /> : null}</Card>
-        <Card title={t('chartSources')}>
+        <Card rc={rc} title={t('chartMitre')}>{d.mitreCovPct > 0 ? <Gauge pct={d.mitreCovPct} label={t('chartMitreLabel')} /> : null}</Card>
+        <Card rc={rc} title={t('chartSources')}>
           {d.connByCategory.length ? <Donut slices={categorySlices(rc)} center={fmt.num(d.sources.connectors.length)} sub={t('sourcesLabel')} format={fmt.num} /> : null}
         </Card>
       </Grid>
@@ -350,7 +371,7 @@ function ExecutiveDashboard({ rc }: { rc: ReportContext }) {
         <NoCasesBanner rc={rc} />
         <SourceKpis rc={rc} />
         {findings.length ? (
-          <Card title={t('t2Findings')}>
+          <Card rc={rc} figure={false} title={t('t2Findings')}>
             <Findings items={findings} />
           </Card>
         ) : null}
@@ -374,7 +395,7 @@ function ExecutiveDashboard({ rc }: { rc: ReportContext }) {
       />
       <VolumeNote rc={rc} />
       <div className="grid cols-57">
-        <Card title={t('t2ChartPerDay')}>
+        <Card rc={rc} title={t('t2ChartPerDay')}>
           {perDay ? (
             <Bars
               labels={d.daily.days.map((x) => fmt.dayMonth(x))}
@@ -388,15 +409,16 @@ function ExecutiveDashboard({ rc }: { rc: ReportContext }) {
             />
           ) : null}
         </Card>
-        <Card title={t('t2ChartSevPie')}>{sev.some((s) => s.value > 0) ? <Donut slices={sev} cutout={0} format={fmt.num} /> : null}</Card>
+        <Card rc={rc} title={t('t2ChartSevPie')}>{sev.some((s) => s.value > 0) ? <Donut slices={sev} cutout={0} format={fmt.num} /> : null}</Card>
       </div>
-      <Grid cols={3}>
-        <Card title={t('chartMitre')}>{d.mitreCovPct > 0 ? <Gauge pct={d.mitreCovPct} label={`${d.detectedTactics.size} / 14 ${t('sc_tactics')}`} /> : null}</Card>
-        <Card title={t('t2ChartScore')}>
+      {/* Two columns, findings below at full width: within the ABNT margins three cards were too narrow for the scorecard labels. */}
+      <Grid cols={2}>
+        <Card rc={rc} title={t('chartMitre')}>{d.mitreCovPct > 0 ? <Gauge pct={d.mitreCovPct} label={`${d.detectedTactics.size} / 14 ${t('sc_tactics')}`} /> : null}</Card>
+        <Card rc={rc} title={t('t2ChartScore')}>
           <ScoreBars rc={rc} />
         </Card>
-        <Card title={t('t2Findings')}>{findings.length ? <Findings items={findings} /> : null}</Card>
       </Grid>
+      <Card rc={rc} figure={false} title={t('t2Findings')}>{findings.length ? <Findings items={findings} /> : null}</Card>
     </>
   )
 }
@@ -459,6 +481,7 @@ export function Section2({ rc }: { rc: ReportContext }) {
     <Section rc={rc} title={t('sec2')}>
       <Sub rc={rc}>{t('sub2_1')}</Sub>
       <Table
+        rc={rc}
         head={[t('envParam'), t('envValue')]}
         rows={[
           [t('envClient'), p.customerName || '—'],
@@ -480,6 +503,7 @@ export function Section2({ rc }: { rc: ReportContext }) {
             </p>
           ) : null}
           <Table
+            rc={rc}
             head={[t('scCriteria'), t('scTarget'), t('scResult'), t('successStatus')]}
             rows={[
               ...rows.map((r) => [
@@ -495,21 +519,23 @@ export function Section2({ rc }: { rc: ReportContext }) {
       ) : null}
       <Sub rc={rc}>{t('sub2_2')}</Sub>
       {rc.template === 'executive' ? (
-        <ol className="flow">
-          {phases.map((ph) => (
-            <li key={ph.n}>
-              <div className="chevron">
-                <b>
-                  {t('t2PhaseLabel').toUpperCase()} {ph.n}
-                </b>
-                <span>{ph.name.replace(/^\s*\d+\s*[—–-]\s*/, '')}</span>
-              </div>
-              <p>{ph.desc}</p>
-            </li>
-          ))}
-        </ol>
+        <Figure rc={rc} title={t('sub2_2')}>
+          <ol className="flow">
+            {phases.map((ph) => (
+              <li key={ph.n}>
+                <div className="chevron">
+                  <b>
+                    {t('t2PhaseLabel').toUpperCase()} {ph.n}
+                  </b>
+                  <span>{ph.name.replace(/^\s*\d+\s*[—–-]\s*/, '')}</span>
+                </div>
+                <p>{ph.desc}</p>
+              </li>
+            ))}
+          </ol>
+        </Figure>
       ) : (
-        <Table head={[t('phaseNum'), t('phaseName'), t('phaseDesc')]} rows={phases.map((ph) => [ph.n, ph.name, ph.desc])} />
+        <Table rc={rc} source="static" head={[t('phaseNum'), t('phaseName'), t('phaseDesc')]} rows={phases.map((ph) => [ph.n, ph.name, ph.desc])} />
       )}
     </Section>
   )
@@ -554,7 +580,7 @@ function DetectionsBySource({ rc }: { rc: ReportContext }) {
   return (
     <>
       <Sub rc={rc}>{x('subDetBySource')}</Sub>
-      <Table compact cols={['40%', '17%', '13%', '12%', '18%']} head={[x('colSource'), x('colReceived'), x('colAlerts'), rc.t('xtaCases'), x('colCritHigh')]} rows={rows} />
+      <Table rc={rc} compact cols={['40%', '17%', '13%', '12%', '18%']} head={[x('colSource'), x('colReceived'), x('colAlerts'), rc.t('xtaCases'), x('colCritHigh')]} rows={rows} />
     </>
   )
 }
@@ -589,6 +615,7 @@ function SensorHealth({ rc }: { rc: ReportContext }) {
   if (rows.length === 0) return null
   return (
     <Table
+      rc={rc}
       compact
       className="sensors"
       cols={['17%', '13%', '24%', '13%', '13%', '9%', '11%']}
@@ -635,7 +662,7 @@ export function Section3({ rc }: { rc: ReportContext }) {
       {exec && !noSources ? (
         <>
           <Grid>
-            <Card title={t('t2ChartOrigin')} note={t('t2OriginNote')}>
+            <Card rc={rc} title={t('t2ChartOrigin')} note={t('t2OriginNote')}>
               {sensorBytes + connectorBytes > 0 ? (
                 <Donut
                   cutout={0.58}
@@ -647,10 +674,10 @@ export function Section3({ rc }: { rc: ReportContext }) {
                 />
               ) : null}
             </Card>
-            <Card title={t('t2ChartConnCat')}>{d.connByCategory.length > 1 ? <Donut cutout={0} slices={categorySlices(rc)} format={fmt.num} /> : null}</Card>
+            <Card rc={rc} title={t('t2ChartConnCat')}>{d.connByCategory.length > 1 ? <Donut cutout={0} slices={categorySlices(rc)} format={fmt.num} /> : null}</Card>
           </Grid>
           {sensorsWithData.length ? (
-            <Card wide title={t('t2ChartSensorGB')}>
+            <Card rc={rc} wide title={t('t2ChartSensorGB')}>
               <HBars
                 format={fmt.gb}
                 items={[...sensorsWithData]
@@ -670,6 +697,7 @@ export function Section3({ rc }: { rc: ReportContext }) {
         <Note>{x('noConnectorsSensors')}</Note>
       ) : (
         <Table
+          rc={rc}
           compact
           cols={exec ? ['32%', '18%', '32%', '18%'] : ['26%', '15%', '29%', '14%', '16%']}
           head={exec ? [t('connName'), t('connType'), t('connStatus'), t('connIngested')] : [t('connName'), t('connType'), t('connStatus'), t('connLastSeen'), t('connIngested')]}
@@ -699,7 +727,9 @@ export function Section3({ rc }: { rc: ReportContext }) {
               <SensorHealth rc={rc} />
               {data.ingestion.byConnector.length ? (
                 <Table
+                  rc={rc}
                   compact
+                  caption={x('tabConnIngest')}
                   head={[t('connIngName'), t('connIngBytes')]}
                   rows={data.ingestion.byConnector.map((c) => [fmt.trunc(c.known ? c.name : `${c.name} (${x('removed')})`, 50), fmt.bytes(c.bytes)])}
                 />

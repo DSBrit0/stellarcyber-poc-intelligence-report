@@ -41,9 +41,7 @@ h1{font-size:clamp(28px,5vw,44px);line-height:1.08;margin:.2em 0}
 /* Sections */
 .sec{padding-top:26px}
 .sec-title{display:flex;align-items:center;gap:12px;margin:0 0 16px;font-size:18px;font-weight:600;color:#fff;background:linear-gradient(90deg,var(--navy),#23468f);padding:10px 16px;border-radius:8px}
-.executive .sec-title{background:none;color:var(--navy);padding:0 0 8px;border-bottom:2px solid var(--brand);border-radius:0;font-size:21px}
 .sec-num{background:var(--brand);color:#fff;border-radius:6px;min-width:30px;text-align:center;padding:1px 8px;font-size:16px}
-.technical .sec-num{background:rgba(255,255,255,.18)}
 .sub{font-size:15px;font-weight:600;color:var(--navy);margin:22px 0 10px;padding-bottom:5px;border-bottom:1px solid var(--line)}
 
 /* Tables */
@@ -142,7 +140,7 @@ tr.sub-row td{padding-top:0;color:var(--muted);font-size:11.5px;background:#fff!
 .tactic.heat-mid,i.heat-mid{background:var(--brand);color:#fff}.tactic.heat-high,i.heat-high{background:var(--navy);color:#fff}
 
 /* Scorecard bars */
-.score-row{margin:6px 0}.score-head{display:flex;justify-content:space-between;font-size:12px}
+.score-row{margin:6px 0}.score-head{display:flex;justify-content:space-between;gap:10px;font-size:12px}.score-head>span:last-child{white-space:nowrap}
 .score-track{height:9px;background:#eef1f5;border-radius:5px;overflow:hidden;margin-top:3px}.score-track span{display:block;height:100%}
 .rating-high .score-track span{background:var(--ok)}.rating-medium .score-track span{background:var(--high)}.rating-low .score-track span{background:var(--crit)}
 
@@ -191,8 +189,31 @@ tr.sub-row td{padding-top:0;color:var(--muted);font-size:11.5px;background:#fff!
 .insight .hero{padding:34px 28px 10px}.insight>.grid,.insight>.card{margin-left:28px;margin-right:28px;padding:12px 14px}
 .insight>.grid{padding:0}
 
+/* ABNT (Executive and Technical): NBR 6024 headings, NBR 14724/IBGE captions, sources and tables. */
+.report>.abnt-lists{padding-left:28px;padding-right:28px}
+.abnt .sec-title{display:block;background:none;color:var(--navy);padding:0 0 6px;border-radius:0;border-bottom:2px solid var(--brand);font-size:19px;font-weight:700;text-transform:uppercase;letter-spacing:.01em;text-align:left}
+.abnt .sec-num{background:none;color:inherit;border-radius:0;min-width:0;padding:0;font-size:inherit}
+.abnt .sub{font-size:15px;font-weight:700;border-bottom:0;padding-bottom:0;text-align:left}
+.abnt h4{font-weight:700;font-style:italic}
+.caption{font-size:12.5px;line-height:1.3;color:var(--ink);margin:0 0 6px;text-align:left}
+.caption b{font-weight:700}
+.source{font-size:11.5px;line-height:1.3;color:#475263;margin:6px 0 0}
+.fig{margin:12px 0}
+.abnt table{border:0;border-radius:0;border-top:1.5px solid var(--ink);border-bottom:1.5px solid var(--ink)}
+.abnt th{background:none;color:var(--ink);border-bottom:1px solid var(--ink);letter-spacing:0}
+.abnt td{border-bottom:0}
+.abnt tbody tr:nth-child(even) td,.abnt tr.sub-row td{background:none!important}
+.abnt-list{padding-top:26px}
+.list-title{text-align:center;text-transform:uppercase;font-size:17px;font-weight:700;color:var(--navy);margin:0 0 18px}
+.list-head{display:flex;justify-content:flex-end;font-size:11.5px;font-weight:700;color:var(--muted);border-bottom:1px solid var(--line);padding-bottom:3px;margin-bottom:6px}
+.list-items{list-style:none;padding:0;margin:0}
+.list-items li{display:flex;align-items:baseline;gap:6px;line-height:1.5;margin:2px 0}
+.list-entry{flex:0 1 auto;min-width:0}
+.list-dots{flex:1 1 24px;border-bottom:1px dotted #9aa3b2;transform:translateY(-4px)}
+.list-where{flex:none;font-variant-numeric:tabular-nums;max-width:40%;text-align:right}
+
 @media (max-width:720px){
-  .report>section,.report>.grid,.report>.card{padding-left:16px;padding-right:16px}
+  .report>section,.report>.grid,.report>.card,.report>.abnt-lists{padding-left:16px;padding-right:16px}
   .grid.cols-57,.grid.cols-62,.grid.cols-3,.threat-grid,.resp-grid,.tiles3,.tiles4,.signatures{grid-template-columns:1fr}
   .tactic-grid{grid-template-columns:repeat(2,1fr)}
   .stage-flow{grid-template-columns:1fr}
@@ -201,7 +222,7 @@ tr.sub-row td{padding-top:0;color:var(--muted);font-size:11.5px;background:#fff!
   .flow{grid-template-columns:1fr}
   .cover{padding:24px 18px;min-height:0}
 }
-/* The bottom margin holds the PDF footer (client · Confidential · page X/Y) drawn by pdf.ts. */
+/* Page margins, numbers and footers: see pageCss. */
 @page{size:A4;margin:14mm 13mm 17mm}
 @media print{
   body{background:#fff;font-size:10pt;line-height:1.55}
@@ -219,5 +240,52 @@ tr.sub-row td{padding-top:0;color:var(--muted);font-size:11.5px;background:#fff!
   .keep,.flow,.kpis,.score-bars,.legend,.resp-grid,.tiles3,.tiles4,.funnel,.killchain,.signatures,.verdict-banner{break-inside:avoid}
   .card-note,.muted,.legend{font-size:9pt}
   *{-webkit-print-color-adjust:exact;print-color-adjust:exact}
+
+  /* ABNT pages (NBR 14724): named pages for the margins and the page number; the cover bleeds to the edge. */
+  .report.insight{page:insight}
+  .report.abnt{page:abnt;font-size:12pt;line-height:1.5}
+  .report.abnt .cover{page:cover;height:297mm;padding:24mm 22mm 20mm}
+  .abnt-lists{page:abnt-pre}
+  .abnt-list+.abnt-list{break-before:page}
+  .abnt-list{padding-top:0}
+  .list-title{font-size:12pt;margin-bottom:18pt}
+  .list-items li{font-size:12pt}
+  /* Running text: 12 pt, 1.5 spacing, justified, 1.25 cm first-line indent (prose only). */
+  .abnt p.body{font-size:12pt;line-height:1.5;text-align:justify;text-indent:1.25cm;margin:0 0 6pt}
+  .abnt .card p.body,.abnt .story-q p.body,.abnt p.body.prose{text-indent:0}
+  .abnt .bullets{font-size:12pt;line-height:1.5}
+  .abnt .sec-title{font-size:12pt;padding-bottom:4pt;margin-bottom:12pt}
+  .abnt .sub{font-size:12pt;margin:16pt 0 8pt}
+  .abnt h4{font-size:12pt}
+  /* Captions, sources, notes and tables: 10 pt, single spacing. */
+  .abnt .caption,.abnt .source,.abnt .card-note,.abnt .muted,.abnt .note,.abnt .legend,.abnt .findings,.abnt table,.abnt table.compact td,.abnt table.compact th,.abnt th,.abnt .list-head{font-size:10pt;line-height:1.15}
+  .abnt .note.banner{font-size:12pt;line-height:1.5}
+  .abnt tr.sub-row td,.abnt .cell-note{font-size:9pt}
+  .abnt .table-wrap{margin:10pt 0 12pt}
+  /* The text block is 16 cm wide: two charts with caption and source still share a row. */
+  .abnt .donut svg,.abnt .gauge svg{max-width:190px}
+  .caption{break-after:avoid}
+  .fig{break-inside:avoid}
 }
 `
+
+/** A CSS string: quotes and backslashes escaped, and no "<" that could close the <style> element. */
+const cssString = (s: string) => `"${s.replace(/[\\"]/g, '\\$&').replace(/[\r\n]+/g, ' ').replace(/</g, '\\3c ')}"`
+
+/**
+ * The print pages, with the Report's footer text ("{client} · Confidential", in its language):
+ * - abnt: A4 with NBR 14724 margins (top and left 3 cm, bottom and right 2 cm); the page number top right, 2 cm
+ *   from the top edge; the footer without a number;
+ * - abnt-pre: the Technical lists of figures and tables, counted but not numbered;
+ * - cover: full bleed, not counted (the first page after it is page 1);
+ * - insight: the brief keeps its previous margins and its "client · Confidential · p. X/Y" footer.
+ */
+export function pageCss(footer: string): string {
+  const label = cssString(footer)
+  const foot = `@bottom-left{content:${label};vertical-align:bottom;padding-bottom:10mm;font:8pt Helvetica,Arial,sans-serif;color:#5f6b7a}`
+  return `@page abnt{size:A4;margin:30mm 20mm 20mm 30mm;@top-right{content:counter(page);vertical-align:top;padding-top:20mm;font:10pt Helvetica,Arial,sans-serif;color:#1f2733}${foot}}
+@page abnt-pre{size:A4;margin:30mm 20mm 20mm 30mm;${foot}}
+@page cover{size:A4;margin:0;counter-increment:page 0}
+@page insight{size:A4;margin:14mm 13mm 17mm;@bottom-right{content:${label} " " counter(page) "/" counter(pages);vertical-align:bottom;padding-bottom:2mm;font:7.5pt Helvetica,Arial,sans-serif;color:#5f6b7a}}
+`
+}

@@ -35,10 +35,37 @@ export interface ReportContext {
   client: string
   /**
    * Section numbering by render order: Section takes the next number and Sub the next subnumber, so a
-   * section left out (no Cases, no architecture image) never leaves a gap. Mutated while rendering.
+   * section left out (no Cases, no architecture image) never leaves a gap. Figures and tables are numbered
+   * the same way, through the whole document. Mutated while rendering.
    */
-  numbering: { section: number; sub: number; numbered: boolean }
+  numbering: Numbering
+  /** The Executive and Technical Templates follow ABNT (NBR 14724/6024): numbered captions, sources, page layout. */
+  abnt: boolean
+  /** Technical: the figures and tables of a first render, listed after the cover; null elsewhere. */
+  lists: { figures: Caption[]; tables: Caption[] } | null
 }
+
+/** A numbered figure or table: its number, title and where it appears (the section number, or an appendix's title). */
+export interface Caption {
+  kind: 'figure' | 'table'
+  n: number
+  title: string
+  where: string
+}
+
+export interface Numbering {
+  section: number
+  sub: number
+  numbered: boolean
+  /** The current section's and subsection's titles: a table without its own caption takes the closest one. */
+  sectionTitle: string
+  subTitle: string | null
+  figure: number
+  table: number
+  captions: Caption[]
+}
+
+export const newNumbering = (): Numbering => ({ section: 0, sub: 0, numbered: false, sectionTitle: '', subTitle: null, figure: 0, table: 0, captions: [] })
 
 const SHORT_NAME = 40
 
@@ -57,11 +84,12 @@ export function shortClientName(customerName: string, tenantName: string): strin
 // the unit the platform licenses by.
 const INTL_LOCALE: Record<Locale, string> = { 'pt-BR': 'pt-BR', en: 'en-US', es: 'es-MX' }
 
-export function formatters(locale: Locale) {
+export function formatters(locale: Locale, fullYear = false) {
   const loc = INTL_LOCALE[locale]
   const en = locale === 'en'
   // en spells the month ("Sep 5, 2026"): "09/05/26" reads as May 9 to most readers outside the US.
-  const short = new Intl.DateTimeFormat(loc, en ? { day: 'numeric', month: 'short', year: 'numeric', timeZone: 'UTC' } : { day: '2-digit', month: '2-digit', year: '2-digit', timeZone: 'UTC' })
+  // ABNT dates are dd/mm/aaaa (fullYear); the Insight keeps the short year.
+  const short = new Intl.DateTimeFormat(loc, en ? { day: 'numeric', month: 'short', year: 'numeric', timeZone: 'UTC' } : { day: '2-digit', month: '2-digit', year: fullYear ? 'numeric' : '2-digit', timeZone: 'UTC' })
   const dayMonth = new Intl.DateTimeFormat(loc, en ? { day: 'numeric', month: 'short', timeZone: 'UTC' } : { day: '2-digit', month: '2-digit', timeZone: 'UTC' })
   const dayTime = new Intl.DateTimeFormat(loc, { day: en ? 'numeric' : '2-digit', month: en ? 'short' : '2-digit', hour: '2-digit', minute: '2-digit', hour12: false, timeZone: 'UTC' })
   const toDate = (d: string | number | Date) => (typeof d === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(d) ? new Date(`${d}T00:00:00Z`) : new Date(d))
@@ -111,6 +139,7 @@ export function buildReportContext(
   const extra = reportExtra(locale)
   const strings = reportStrings(locale)
   const d = deriveReport(data, details)
+  const abnt = template !== 'insight'
   const byId = new Map(mitigations.map((m) => [m.technique.id, m.mitigation]))
   return {
     data,
@@ -126,12 +155,14 @@ export function buildReportContext(
     aiVerdict: (v) => AI_VERDICT_LABELS[locale][v] ?? v,
     killChainStage: (s) => KILL_CHAIN_LABELS[locale][s] ?? s,
     interactive,
-    fmt: formatters(locale),
+    fmt: formatters(locale, abnt),
     mitigation: (id) => byId.get(id)?.[locale] ?? null,
     generatedAt,
     versioning,
     version: versioning?.version ?? '1.0',
     client: shortClientName(details.customerName, data.tenant.name) || strings.pdf.clientNamePlaceholder,
-    numbering: { section: 0, sub: 0, numbered: false },
+    numbering: newNumbering(),
+    abnt,
+    lists: null,
   }
 }

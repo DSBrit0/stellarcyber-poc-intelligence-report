@@ -2,7 +2,7 @@ import { C, Bars, Donut, HBars, HeatGrid, Lines, PALETTE } from '../charts.js'
 import type { ReportContext } from '../context.js'
 import { byScore, caseTypes, detectionTypes, heatmap, isPending, scoreHistogram } from '../model/derived.js'
 import type { Lamp, Quadrant, Threat } from '../model/story.js'
-import { Card, Grid, Note, P, Section, Sev, Status, Sub, Table, statusLabel } from '../ui.js'
+import { Card, Figure, Grid, Note, P, Section, Sev, Status, Sub, Table, statusLabel } from '../ui.js'
 
 // Section 4 — Detection and Response (spec T1.4, E.4, §3).
 
@@ -15,6 +15,7 @@ function DetectionMetrics({ rc }: { rc: ReportContext }) {
     <>
       <Sub rc={rc}>{t('sub4_2')}</Sub>
       <Table
+        rc={rc}
         head={[t('metMetric'), t('metValue'), t('metPct')]}
         rows={[
           [t('metCritical'), fmt.num(d.sev.critical), fmt.pct(d.sev.critical, d.totalCases)],
@@ -26,7 +27,7 @@ function DetectionMetrics({ rc }: { rc: ReportContext }) {
         ]}
       />
       {types.length ? (
-        <Card wide title={t('chartDetectionTypes')}>
+        <Card rc={rc} wide title={t('chartDetectionTypes')}>
           <HBars items={types.map((g) => ({ label: fmt.trunc(g.name, 60), value: g.total, color: TONE[g.tone] }))} format={fmt.num} />
         </Card>
       ) : null}
@@ -78,9 +79,10 @@ function CaseTable({ rc }: { rc: ReportContext }) {
       <Sub rc={rc}>{t('sub4_1')}</Sub>
       {types.length ? (
         <>
-          <p className="body strong">{x('subCaseTypes')}</p>
           <Table
+            rc={rc}
             compact
+            caption={x('subCaseTypes')}
             className="case-types"
             cols={['42%', '9%', '12%', '12%', '10%', '15%']}
             head={[x('colDetType'), x('colCases'), x('colCritHighShort'), x('colPending'), x('colMaxScore'), x('colFirstLast')]}
@@ -98,9 +100,10 @@ function CaseTable({ rc }: { rc: ReportContext }) {
       {lists.map(({ sev, shown, notListed }) =>
         shown.length ? (
           <div key={sev} className="case-list">
-            <p className="body strong">{x(title[sev])}</p>
             <Table
+              rc={rc}
               compact
+              caption={x(title[sev])}
               className="cases"
               cols={CASE_COLS}
               head={head}
@@ -136,7 +139,7 @@ function Entities({ rc }: { rc: ReportContext }) {
   return (
     <>
       <Sub rc={rc}>{x('subEntities')}</Sub>
-      <Table compact cols={['12%', '28%', '8%', '13%', '19%', '10%', '10%']} head={[rc.t('sensorType'), x('entColValue'), x('entColCountry'), x('entColReputation'), x('entColAsn'), x('colAlerts'), rc.t('xtaCases')]} rows={rows} />
+      <Table rc={rc} compact cols={['12%', '28%', '8%', '13%', '19%', '10%', '10%']} head={[rc.t('sensorType'), x('entColValue'), x('entColCountry'), x('entColReputation'), x('entColAsn'), x('colAlerts'), rc.t('xtaCases')]} rows={rows} />
     </>
   )
 }
@@ -182,23 +185,24 @@ function AiTriage({ rc }: { rc: ReportContext }) {
       <P>{x('aiIntro')}</P>
       {d.critHigh.length ? <P>{x('aiCoverage', { ch: fmt.num(critHighTriaged.length), cht: fmt.num(d.critHigh.length) })}</P> : null}
       {slices.length > 1 ? (
-        <Card title={x('aiChart')}>
+        <Card rc={rc} title={x('aiChart')}>
           <Donut cutout={0.58} slices={slices} format={fmt.num} />
         </Card>
       ) : null}
       {shown.length ? (
         <>
-          <p className="body strong">{x('aiTableTitle')}</p>
           <Table
+            rc={rc}
             compact
+            caption={x('aiTableTitle')}
             className="ai-verdicts"
-            cols={['47%', '11%', '9%', '13%', '20%']}
+            cols={['39%', '14%', '8%', '16%', '23%']}
             head={[rc.t('caseName'), rc.t('caseSev'), rc.t('caseScore'), rc.t('caseDate'), x('aiColVerdict')]}
             rows={shown.map((c) => [
               <span className="clamp2" title={c.name}>{c.name}</span>,
               <Sev rc={rc} sev={c.severity} />,
               c.score == null ? '—' : fmt.num(c.score),
-              fmt.date(c.createdAt),
+              <span className="num">{fmt.date(c.createdAt)}</span>,
               <b style={{ color: VERDICT_COLOR[ai.verdictOf(c.id)!] }}>{rc.aiVerdict(ai.verdictOf(c.id)!)}</b>,
             ])}
           />
@@ -241,7 +245,7 @@ export function Section4({ rc }: { rc: ReportContext }) {
       ) : (
         <>
           {[...d.daily.critical, ...d.daily.high].some((v) => v > 0) ? (
-            <Card wide title={t('chartTimeline')}>
+            <Card rc={rc} wide title={t('chartTimeline')}>
               <Lines
                 labels={d.daily.days.map((x) => fmt.dayMonth(x))}
                 series={[{ name: `${t('sevCritical')} + ${t('sevHigh')}`, values: d.daily.days.map((_, i) => (d.daily.critical[i] ?? 0) + (d.daily.high[i] ?? 0)), color: C.critical }]}
@@ -265,13 +269,13 @@ function ExecutiveCharts({ rc }: { rc: ReportContext }) {
   const statusCounts = (data.caseStats ? Object.entries(data.caseStats.byStatus) : [...countMap(d.loaded.map((c) => c.status || 'New'))]).filter(([, v]) => v > 0)
   return (
     <>
-      <Card wide title={t('t2ChartHeat')} note={t('t2HeatNote')}>
+      <Card rc={rc} wide title={t('t2ChartHeat')} note={t('t2HeatNote')}>
         {heat.grid.flat().some((v) => v > 0) ? (
           <HeatGrid grid={heat.grid} max={heat.max} rows={rc.strings.pdf.t2Weekdays as string[]} scaleLabel={t('t2HeatScale')} tip={(day, h, n) => rc.x('tipHeat', { d: day, h: String(h).padStart(2, '0'), n })} />
         ) : null}
       </Card>
       <Grid>
-        <Card title={t('t2ChartScoreHist')}>
+        <Card rc={rc} title={t('t2ChartScoreHist')}>
           {bins.some((v) => v > 0) ? (
             <Bars
               labels={bins.map((_, i) => `${i * 10}–${i * 10 + 9}`)}
@@ -283,7 +287,7 @@ function ExecutiveCharts({ rc }: { rc: ReportContext }) {
             />
           ) : null}
         </Card>
-        <Card title={t('t2ChartStatus')} note={t('t2StatusNote')}>
+        <Card rc={rc} title={t('t2ChartStatus')} note={t('t2StatusNote')}>
           {/* One status only (every case still New) says nothing as a pie: the card drops out. */}
           {statusCounts.length > 1 ? (
             <Donut
@@ -312,13 +316,16 @@ function countMap(keys: string[]) {
 
 // ─── The Detection Story (Executive 4.1) ──────────────────────────────────────
 
-function Question({ rc, n, total, q, a, note, children }: { rc: ReportContext; n: number; total: number; q: string; a: string; note: string; children: React.ReactNode }) {
+/** A Detection Story step: the question, its answer, then its visual as a numbered figure. */
+function Question({ rc, n, total, q, a, note, figure, children }: { rc: ReportContext; n: number; total: number; q: string; a: string; note: string; figure: string; children: React.ReactNode }) {
   return (
     <article className="story-q">
       <span className="chip">{rc.t('t2StoryStep', { n, t: total })}</span>
       <h4>{q}</h4>
       <p className="answer">{a}</p>
-      <div className="story-visual">{children}</div>
+      <Figure rc={rc} title={figure}>
+        <div className="story-visual">{children}</div>
+      </Figure>
       {note ? <p className="card-note">{note}</p> : null}
     </article>
   )
@@ -359,7 +366,7 @@ function Q1({ rc, n, total, cap }: { rc: ReportContext; n: number; total: number
     },
   ]
   return (
-    <Question rc={rc} n={n} total={total} q={t('t2Q1')} a={f.pending || f.pendingNoise ? t('t2A1', vars) : t('t2A1Done', vars)} note={[excluded, cap.trim()].filter(Boolean).join(' ')}>
+    <Question rc={rc} n={n} total={total} figure={rc.x('figStory1')} q={t('t2Q1')} a={f.pending || f.pendingNoise ? t('t2A1', vars) : t('t2A1Done', vars)} note={[excluded, cap.trim()].filter(Boolean).join(' ')}>
       <div className="funnel">
         {stages.map((s, i) => (
           <div key={s.l} className={`stage ${'tone' in s ? s.tone : ''}`} style={{ width: `${100 - (i * 70) / Math.max(1, stages.length - 1)}%` }}>
@@ -447,6 +454,7 @@ function Q2({ rc, n, total }: { rc: ReportContext; n: number; total: number }) {
       rc={rc}
       n={n}
       total={total}
+      figure={rc.x('figStory2')}
       q={t('t2Q2')}
       a={t('t2A2', { c: fmt.num(d.sev.critical), h: fmt.num(d.sev.high), name: fmt.trunc(first.name, 70), a: fmt.num(first.alerts), st: statusLabel(rc, first.status) })}
       note={t('t2N2', { rest: fmt.num(Math.max(0, d.critHigh.length - story.shownOnCards)), m: fmt.num(d.sev.medium), l: fmt.num(d.sev.low) })}
@@ -496,6 +504,7 @@ function Q3({ rc, n, total }: { rc: ReportContext; n: number; total: number }) {
       rc={rc}
       n={n}
       total={total}
+      figure={rc.x('figStory3')}
       q={t('t2Q3')}
       a={t('t2A3', { n: fmt.num(m.counts.act), s: m.scoreCut, a: fmt.num(m.alertCut), ch: fmt.num(m.actCritHigh) })}
       note={[m.actNoise ? `${t('t2QuadAct')}: ${fmt.num(m.counts.act)} ${rc.x('atExcluded', { m: fmt.num(m.actNoise) })}.` : '', t('t2N3')].filter(Boolean).join(' ')}
@@ -601,7 +610,7 @@ function Q4({ rc, n, total, cap }: { rc: ReportContext; n: number; total: number
     return t(k)
   }
   return (
-    <Question rc={rc} n={n} total={total} q={t('t2Q4')} a={answer} note={[excluded, cap.trim()].filter(Boolean).join(' ')}>
+    <Question rc={rc} n={n} total={total} figure={rc.x('figStory4')} q={t('t2Q4')} a={answer} note={[excluded, cap.trim()].filter(Boolean).join(' ')}>
       <div className="resp-grid">
         {s.tiles.map((tile) => (
           <div key={tile.key} className="resp-tile">
@@ -636,7 +645,7 @@ function Q5({ rc, n, total, cap }: { rc: ReportContext; n: number; total: number
   const p = e.premises
   const note = t(e.custom ? 't2N5Custom' : 't2N5', { a: fmt.dec(p.alertMin), ch: fmt.dec(p.critHighMin), m: fmt.dec(p.mediumMin), l: fmt.dec(p.lowMin), mh: fmt.dec(p.monthHours) })
   return (
-    <Question rc={rc} n={n} total={total} q={t('t2Q5')} a={t('t2A5', { h: fmt.num(Math.round(e.savedH)), p: fmt.dec(e.savedPct * 100, 0), f: fmt.dec(e.focusPct * 100, 0) })} note={note + cap}>
+    <Question rc={rc} n={n} total={total} figure={rc.x('figStory5')} q={t('t2Q5')} a={t('t2A5', { h: fmt.num(Math.round(e.savedH)), p: fmt.dec(e.savedPct * 100, 0), f: fmt.dec(e.focusPct * 100, 0) })} note={note + cap}>
       <div className="effort">
         <small>{t('t2EffScale')}</small>
         <div className="eff-row">

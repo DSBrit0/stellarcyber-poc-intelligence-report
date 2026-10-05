@@ -35,6 +35,7 @@ export function SectionRisks({ rc }: { rc: ReportContext }) {
         <Note>{t('noOpRecs')}</Note>
       ) : (
         <Table
+          rc={rc}
           compact
           cols={['30%', '12%', '58%']}
           head={[t('recTitle'), t('recPriority'), t('recDesc')]}
@@ -48,7 +49,7 @@ export function SectionRisks({ rc }: { rc: ReportContext }) {
         <>
           <Sub rc={rc}>{t('sub8_2')}</Sub>
           {mitigated.length ? (
-            <Table compact cols={['11%', '24%', '65%']} head={[t('mitreId'), t('mitreName'), t('mitreMitigation')]} rows={mitigated.map((x2) => [x2.id, x2.name, rc.mitigation(x2.id)!])} />
+            <Table rc={rc} compact cols={['11%', '24%', '65%']} head={[t('mitreId'), t('mitreName'), t('mitreMitigation')]} rows={mitigated.map((x2) => [x2.id, x2.name, rc.mitigation(x2.id)!])} />
           ) : null}
           {mitigated.length < techniques.length ? <Muted>{x('mitreSeeAttack')}</Muted> : null}
         </>
@@ -64,7 +65,7 @@ export function SectionOperations({ rc }: { rc: ReportContext }) {
   return (
     <Section rc={rc} title={t('sec6')} newPage={false}>
       <Sub rc={rc}>{t('sub6_1')}</Sub>
-      <Table head={[t('irStep'), t('irDesc')]} rows={[1, 2, 3, 4, 5, 6].map((n) => [t(`irStep${n}` as 'irStep1'), t(`irStep${n}desc` as 'irStep1desc')])} />
+      <Table rc={rc} source="static" head={[t('irStep'), t('irDesc')]} rows={[1, 2, 3, 4, 5, 6].map((n) => [t(`irStep${n}` as 'irStep1'), t(`irStep${n}desc` as 'irStep1desc')])} />
       <Sub rc={rc}>{t('sub6_2')}</Sub>
       <P>{t('body6_2')}</P>
     </Section>
@@ -110,18 +111,20 @@ function LicenseBlock({ rc, lic, daily, fmt, txt }: { rc: ReportContext; lic: Li
       <p className="body strong navy">{fillT(txt.recommended)}</p>
       <Muted>{fillT(txt.recommendedNote, { from: f.date(lic.recommendedWindow?.from), to: f.date(lic.recommendedWindow?.to) })}</Muted>
       <P>{fillT(txt.limitLine)}</P>
-      <p className="body strong">{t('licTableTitle')}</p>
       <Table
+        rc={rc}
         compact
+        caption={t('licTableTitle')}
         head={[t('licColLevel'), t('licColRule'), fillT(t('licColRun')), t('licColOutcome'), t('licColResult')]}
         rows={levels.map((lv) => {
           const reached = (result?.longestRun?.days ?? 0) >= lv.days
           return [t(lv.key), t(lv.rule), runText(result?.longestRun ?? null), <span className={reached ? 'bad strong' : 'ok strong'}>{t(reached ? 'licReached' : 'licNotReached')}</span>, t(lv.res)]
         })}
       />
-      <p className="body strong">{t('licScenarioTitle')}</p>
       <Table
+        rc={rc}
         compact
+        caption={t('licScenarioTitle')}
         head={[t('licColScenario'), txt.licenseCol, t('licColLimit'), t('licColDaysAbove'), t('licColLongest'), t('licColLevelReached')]}
         rows={lic.scenarios.map((s) => [
           s.key === 'recommended' ? <b>{t(scen[s.key])}</b> : `${t(scen[s.key])}${s.key === 'average' ? since : ''}`,
@@ -148,7 +151,7 @@ function LicenseCharts({ rc, lic, daily, fmt, kind }: { rc: ReportContext; lic: 
   ]
   return (
     <div className="grid cols-62">
-      <Card title={t(kind === 'assets' ? 't2ChartAssets' : 't2ChartVolume')}>
+      <Card rc={rc} title={t(kind === 'assets' ? 't2ChartAssets' : 't2ChartVolume')}>
         {kind === 'assets' ? (
           <Lines labels={labels} series={[{ name: t('t2SeriesAssets'), values: daily.map((x) => x.value), color: C.brand }]} refs={refs} width={420} yFormat={rc.fmt.num} />
         ) : (
@@ -163,7 +166,7 @@ function LicenseCharts({ rc, lic, daily, fmt, kind }: { rc: ReportContext; lic: 
           />
         )}
       </Card>
-      <Card title={t('t2ChartScenarios')}>
+      <Card rc={rc} title={t('t2ChartScenarios')}>
         {lic.scenarios.some((s) => s.daysAbove > 0) ? (
           <HBars
             stacked
@@ -191,8 +194,7 @@ function VolumeByIndex({ rc }: { rc: ReportContext }) {
   if (rest.length) rows.push([x('volIndexOther', { n: fmt.num(rest.length) }), fmt.gb(rest.reduce((s, i) => s + i.gb, 0)), fmt.pctOf(rest.reduce((s, i) => s + i.share, 0) * 100)])
   return (
     <>
-      <p className="body strong">{x('volIndexTitle')}</p>
-      <Table compact head={[x('colIndex'), 'GB', x('colShare')]} rows={rows} />
+      <Table rc={rc} compact caption={x('volIndexTitle')} head={[x('colIndex'), 'GB', x('colShare')]} rows={rows} />
     </>
   )
 }
@@ -232,6 +234,7 @@ export function SectionRoi({ rc }: { rc: ReportContext }) {
         <>
           <Sub rc={rc}>{t('sub7_1')}</Sub>
           <Table
+            rc={rc}
             head={[t('roiMetric'), t('roiValue'), t('roiContext')]}
             rows={[
               ...caseRows,
@@ -248,9 +251,11 @@ export function SectionRoi({ rc }: { rc: ReportContext }) {
       {exec ? null : (
         <>
           <Sub rc={rc}>{t('sub7_2')}</Sub>
-          {[1, 2, 3, 4, 5].map((n) => (
-            <P key={n}>{t(`qb${n}` as 'qb1')}</P>
-          ))}
+          <ul className="bullets">
+            {[1, 2, 3, 4, 5].map((n) => (
+              <li key={n}>{t(`qb${n}` as 'qb1').replace(/^\s*•\s*/, '')}</li>
+            ))}
+          </ul>
         </>
       )}
 
@@ -284,6 +289,7 @@ export function SectionRoi({ rc }: { rc: ReportContext }) {
       ) : (
         <>
           <Table
+            rc={rc}
             head={[t('roiMetric'), t('roiValue'), t('roiContext')]}
             rows={[
               [
@@ -330,6 +336,8 @@ export function SectionNextSteps({ rc }: { rc: ReportContext }) {
     <Section rc={rc} title={t('sec9')} newPage={false}>
       <Sub rc={rc}>{t('sub9_1')}</Sub>
       <Table
+        rc={rc}
+        source="static"
         head={[t('nsStep'), t('nsAction'), t('nsOwner'), t('nsDue')]}
         rows={[1, 2, 3, 4, 5].map((n) => [n, t(`ns${n}` as 'ns1'), t(`ns${n}owner` as 'ns1owner'), t(`ns${n}due` as 'ns1due')])}
       />
@@ -386,7 +394,7 @@ export function SectionConclusion({ rc }: { rc: ReportContext }) {
       {exec ? null : (
         <>
           <Sub rc={rc}>{t('sub10_1')}</Sub>
-          <Table head={[t('scArea'), t('scScore'), t('scNotes')]} rows={rows} />
+          <Table rc={rc} head={[t('scArea'), t('scScore'), t('scNotes')]} rows={rows} />
         </>
       )}
       {/* FIX: no verdict yet is neutral, not red. */}
@@ -438,10 +446,12 @@ export function Appendices({ rc }: { rc: ReportContext }) {
   return (
     <>
       <Section rc={rc} numbered={false} title={t('appendixA')}>
-        <Table head={[t('glossTerm'), t('glossDef')]} rows={GLOSSARY.map(([term, key]) => [<b>{term}</b>, t(key)])} />
+        <Table rc={rc} source="static" head={[t('glossTerm'), t('glossDef')]} rows={GLOSSARY.map(([term, key]) => [<b>{term}</b>, t(key)])} />
       </Section>
       <Section rc={rc} numbered={false} title={t('appendixB')} newPage={false}>
         <Table
+          rc={rc}
+          source="static"
           head={[t('verVersion'), t('verDate'), t('verAuthor'), t('verChanges')]}
           rows={(rc.versioning?.history ?? [{ version: rc.version, date: rc.generatedAt.toISOString(), author: null, changes: null, first: true, period: null }]).map((v) => [
             <b>{v.version}</b>,

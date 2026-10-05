@@ -3,8 +3,8 @@ import { describe, expect, it } from 'vitest'
 import { licenseCompliance } from '../metrics/license-compliance.js'
 import { yAxis } from './charts.js'
 import { shortClientName } from './context.js'
-import { pdfFooter } from './pdf.js'
 import { renderReportHtml } from './render-html.js'
+import { pageCss } from './styles.js'
 
 const daily = Array.from({ length: 10 }, (_, i) => ({ date: `2026-09-${String(i + 1).padStart(2, '0')}`, value: 100 + i * 5 }))
 
@@ -52,7 +52,7 @@ describe('renderReportHtml', () => {
     const html = renderReportHtml(data, details, 'technical', 'pt-BR', { versioning })
     expect(html).toContain('Versão 2.1')
     expect(html).toContain('Versão inicial')
-    expect(html).toContain('Nova coleta de dados (01/09/26–09/09/26)')
+    expect(html).toContain('Nova coleta de dados (01/09/2026–09/09/2026)')
     expect(html).toContain('Ajuste &lt;do&gt; escopo')
     expect(renderReportHtml(data, details, 'technical', 'pt-BR')).toContain('Versão 1.0')
   })
@@ -150,7 +150,7 @@ describe('renderReportHtml', () => {
     expect(html).toContain('Analyst 6')
     expect(html).not.toContain('Analyst 7')
     expect(html).toContain('+3 outros')
-    expect(html).toContain('<meta name="report-footer" content="NetUno · Confidencial · pág.">')
+    expect(html).toContain('@bottom-left{content:"NetUno · Confidencial"')
   })
 
   it('lists the Critical Cases with the highest score first and counts the rest', () => {
@@ -163,6 +163,53 @@ describe('renderReportHtml', () => {
     expect(html).toContain('class="clamp2" title="Threat 5"')
     expect(html).not.toContain('class="clamp2" title="Threat 4"')
     expect(html).toContain('+5 cases Críticos não listados.')
+  })
+})
+
+describe('ABNT layout', () => {
+  const withCases: ReportData = {
+    ...data,
+    keyCases: [
+      { id: 'k1', name: 'Lateral movement', severity: 'critical', status: 'New', resolution: '', score: 90, alerts: 40, createdAt: Date.parse('2026-09-02T10:00:00Z'), startedAt: null, acknowledgedAt: null, closedAt: null },
+    ],
+  }
+  it('numbers figures and tables through the document, captions above and sources below', () => {
+    for (const template of ['executive', 'technical'] as const) {
+      const html = renderReportHtml(withCases, details, template, 'pt-BR')
+      const tables = [...html.matchAll(/<div class="caption"><b>Tabela (\d+)<\/b> – /g)].map((m) => Number(m[1]))
+      const figures = [...html.matchAll(/<div class="caption"><b>Figura (\d+)<\/b> – /g)].map((m) => Number(m[1]))
+      expect(tables.length).toBeGreaterThan(3)
+      expect(figures.length).toBeGreaterThan(0)
+      expect(tables).toEqual(tables.map((_, i) => i + 1))
+      expect(figures).toEqual(figures.map((_, i) => i + 1))
+      expect(html).toContain('<p class="source">Fonte: Stellar Cyber, dados da PoC (01/09/2026–10/09/2026).</p>')
+    }
+    const en = renderReportHtml(withCases, details, 'executive', 'en')
+    expect(en).toMatch(/<b>Table 1<\/b> – /)
+    expect(en).toContain('Source: Stellar Cyber, PoC data')
+  })
+  it('lists the figures and tables after the Technical cover only', () => {
+    const tech = renderReportHtml(withCases, details, 'technical', 'pt-BR')
+    expect(tech).toContain('Lista de figuras')
+    expect(tech).toContain('Lista de tabelas')
+    expect(tech.indexOf('Lista de tabelas')).toBeLessThan(tech.indexOf('class="sec-num"'))
+    expect(tech).toMatch(/<b>Tabela 1<\/b> – Principais indicadores da PoC<\/span><span class="list-dots"><\/span><span class="list-where">1\.1<\/span>/)
+    expect(renderReportHtml(withCases, details, 'executive', 'pt-BR')).not.toContain('Lista de figuras')
+    expect(renderReportHtml(withCases, details, 'insight', 'pt-BR')).not.toContain('class="caption"')
+  })
+  it('opens with the formal presentation, stating the measured noise reduction', () => {
+    const html = renderReportHtml(withCases, details, 'executive', 'pt-BR')
+    expect(html).toContain('da plataforma Stellar Cyber Open XDR, executada no ambiente da ACME &lt;Corp&gt;')
+    expect(html).toContain('resultando na identificação e agrupamento de 42 cases de segurança.')
+    expect(html).not.toContain('mais de +')
+    expect(html).toContain('evidenciando a eficiência da solução na redução de 98% do ruído de alertas')
+    const quiet = renderReportHtml({ ...withCases, keyCases: withCases.keyCases.map((c) => ({ ...c, alerts: 1 })) }, details, 'executive', 'pt-BR')
+    expect(quiet).toContain('MITRE ATT&amp;CK® Enterprise.</p>')
+    expect(quiet).not.toContain('ruído de alertas')
+  })
+  it('says there is no detection result when the period has no Cases', () => {
+    const none = renderReportHtml({ ...data, cases: { total: 0, bySeverity: { critical: 0, high: 0, medium: 0, low: 0 } } }, details, 'technical', 'pt-BR')
+    expect(none).toContain('foram configuradas 2 fontes de dados no tenant; entretanto, nenhum case de segurança foi criado no período')
   })
 })
 
@@ -184,10 +231,12 @@ describe('yAxis', () => {
   })
 })
 
-describe('pdfFooter', () => {
-  it('builds the page footer from the Report meta, escaped', () => {
-    expect(pdfFooter('<html></html>').displayHeaderFooter).toBe(false)
-    const f = pdfFooter('<meta name="report-footer" content="A&B · Confidencial · pág.">')
-    expect(f.footerTemplate).toContain('A&#38;B · Confidencial · pág. <span class="pageNumber"></span>/<span class="totalPages"></span>')
+describe('pageCss', () => {
+  it('writes the footer as an escaped CSS string, the page number top right and an uncounted cover', () => {
+    const css = pageCss('A"B</style> · Confidencial')
+    expect(css).toContain('content:"A\\"B\\3c /style> · Confidencial"')
+    expect(css).not.toContain('</style>')
+    expect(css).toMatch(/@page abnt\{size:A4;margin:30mm 20mm 20mm 30mm;@top-right\{content:counter\(page\)/)
+    expect(css).toContain('@page cover{size:A4;margin:0;counter-increment:page 0}')
   })
 })
