@@ -584,7 +584,7 @@
   "tpl.cadence": "Suggested interval (days)",
   "audit.action.template.updated": "Notebook Template changed",
   "del.userTitle": "Delete account",
-  "del.userPermanent": "The account is deleted for good and the person can no longer sign in. The Audit record is kept.",
+  "del.userPermanent": "The account is deleted for good and the person can no longer sign in.",
   "del.transferTo": "This account owns {pocs} PoC(s) and {companies} company(ies). Transfer them to:",
   "del.chooseUser": "Choose who receives them",
   "del.ownsNothing": "This account owns no PoCs or companies: only the account is deleted.",

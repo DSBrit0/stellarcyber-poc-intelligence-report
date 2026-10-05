@@ -584,7 +584,7 @@
   "tpl.cadence": "Intervalo sugerido (días)",
   "audit.action.template.updated": "Plantilla de Cuaderno modificada",
   "del.userTitle": "Eliminar cuenta",
-  "del.userPermanent": "La cuenta se elimina definitivamente y la persona ya no puede iniciar sesión. El registro en el Audit se mantiene.",
+  "del.userPermanent": "La cuenta se elimina definitivamente y la persona ya no puede iniciar sesión.",
   "del.transferTo": "Esta cuenta es dueña de {pocs} PoC(s) y {companies} empresa(s). Transferir a:",
   "del.chooseUser": "Elija quién las recibe",
   "del.ownsNothing": "Esta cuenta no es dueña de PoCs ni de empresas: solo se elimina la cuenta.",

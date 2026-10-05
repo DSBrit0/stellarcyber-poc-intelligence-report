@@ -584,7 +584,7 @@
   "tpl.cadence": "Intervalo sugerido (dias)",
   "audit.action.template.updated": "Modelo de Caderno alterado",
   "del.userTitle": "Apagar conta",
-  "del.userPermanent": "A conta é apagada definitivamente e a pessoa não consegue mais entrar. O registro no Audit é mantido.",
+  "del.userPermanent": "A conta é apagada definitivamente e a pessoa não consegue mais entrar.",
   "del.transferTo": "Esta conta é dona de {pocs} PoC(s) e {companies} empresa(s). Transferir para:",
   "del.chooseUser": "Escolha quem recebe",
   "del.ownsNothing": "Esta conta não é dona de PoCs nem de empresas: só a conta será apagada.",
