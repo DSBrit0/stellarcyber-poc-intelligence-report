@@ -1,8 +1,8 @@
 import { REPORT_DATA_VERSION, type StellarCredential, type SyncProgress } from '@poc-intel/shared'
-import { and, eq, sql as dsql } from 'drizzle-orm'
+import { and, asc, eq, sql as dsql } from 'drizzle-orm'
 import type { Dispatcher } from 'undici'
 import { db } from '../db/client.js'
-import { pocs, reportData, syncs } from '../db/schema.js'
+import { pocCriteria, pocs, reportData, syncs } from '../db/schema.js'
 import { StellarApiError, StellarClient } from '../stellar/client.js'
 import type { SyncMetrics } from '../stellar/request-stats.js'
 import { appLog, apiCallRecorder } from '../lib/log-sink.js'
@@ -90,6 +90,15 @@ export async function runSync(syncId: string, credential: StellarCredential, dis
     await setProgress(syncId, { step: 'save', phase: 5, done: 97, total: 100 })
     // Report Data and the Sync's success commit together, and only if the Sync is still running: a
     // cancel that lands at the very end leaves no Report behind.
+    // With a PoC Notebook, the Report keeps the Success Criteria and their status as they are now.
+    if (poc.notebook != null) {
+      const criteria = await db
+        .select({ text: pocCriteria.text, status: pocCriteria.status, notes: pocCriteria.notes })
+        .from(pocCriteria)
+        .where(eq(pocCriteria.pocId, poc.id))
+        .orderBy(asc(pocCriteria.position))
+      data.notebookCriteria = criteria
+    }
     const stored = await db.transaction(async (tx) => {
       const [report] = await tx
         .insert(reportData)

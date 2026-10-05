@@ -249,6 +249,13 @@ export const ReportData = z.object({
     .nullable(),
   /** Collectors that failed; the Report shows their sections as unavailable. */
   gaps: z.array(z.object({ collector: z.string(), reason: z.string() })),
+  /**
+   * The PoC Notebook's Success Criteria with their status, frozen when the Sync ran (ADR 0010); absent
+   * for a PoC without a Notebook and for Report Data collected before it existed.
+   */
+  notebookCriteria: z
+    .array(z.object({ text: z.string(), status: z.enum(['completed_success', 'completed_partial', 'completed_failed', 'ticket_open']).nullable(), notes: z.string() }))
+    .optional(),
 })
 export type ReportData = z.infer<typeof ReportData>
 

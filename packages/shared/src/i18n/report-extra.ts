@@ -114,6 +114,14 @@ const en = {
   summaryShort:
     'From {startDate} to {endDate}, {{connCount|# source|# sources}} produced {{caseCount|# case|# cases}} and {mitrePct}% coverage of MITRE ATT&CK tactics; the Critical/High cases need action before production.',
   criteriaLead: ', as follows:',
+  criteriaColCriterion: 'Success criterion',
+  criteriaColStatus: 'Status',
+  criteriaColNotes: 'Evaluation notes',
+  criteriaStatus_completed_success: 'Completed – success',
+  criteriaStatus_completed_partial: 'Completed – partial',
+  criteriaStatus_completed_failed: 'Completed – unsuccessful',
+  criteriaStatus_ticket_open: 'Ticket open',
+  criteriaStatus_none: 'Not evaluated',
   noiseClause: ', demonstrating the solution\'s efficiency in reducing alert noise by {noisePct}% and in the early detection of potential attack vectors.',
   body1_2NoCases:
     'The validation and monitoring activities spanned from {startDate} to {endDate}. Throughout this evaluation cycle, {{connCount|# data source was|# data sources were}} configured in the tenant; however, no security case was created in the period, so detection results are not available.',
@@ -264,6 +272,14 @@ const ptBR: Extra = {
   summaryShort:
     'De {startDate} a {endDate}, {{connCount|# fonte gerou|# fontes geraram}} {{caseCount|# case|# cases}} e cobertura de {mitrePct}% das táticas MITRE ATT&CK; os Críticos/Altos exigem ação antes da produção.',
   criteriaLead: ', sendo esses:',
+  criteriaColCriterion: 'Critério de sucesso',
+  criteriaColStatus: 'Status',
+  criteriaColNotes: 'Notas da avaliação',
+  criteriaStatus_completed_success: 'Concluído – sucesso',
+  criteriaStatus_completed_partial: 'Concluído – parcial',
+  criteriaStatus_completed_failed: 'Concluído – sem sucesso',
+  criteriaStatus_ticket_open: 'Ticket aberto',
+  criteriaStatus_none: 'Não avaliado',
   noiseClause: ', evidenciando a eficiência da solução na redução de {noisePct}% do ruído de alertas e na detecção precoce de potenciais vetores de ataque.',
   body1_2NoCases:
     'As atividades de validação e monitoramento estenderam-se do período de {startDate} a {endDate}. Ao longo deste ciclo avaliativo, {{connCount|foi configurada # fonte de dados|foram configuradas # fontes de dados}} no tenant; entretanto, nenhum case de segurança foi criado no período, de modo que não há resultados de detecção a apresentar.',
@@ -413,6 +429,14 @@ const es: Extra = {
   summaryShort:
     'Del {startDate} al {endDate}, {{connCount|# fuente generó|# fuentes generaron}} {{caseCount|# caso|# casos}} y una cobertura del {mitrePct}% de las tácticas MITRE ATT&CK; los Críticos/Altos requieren acción antes de producción.',
   criteriaLead: ', siendo estos:',
+  criteriaColCriterion: 'Criterio de éxito',
+  criteriaColStatus: 'Estado',
+  criteriaColNotes: 'Notas de la evaluación',
+  criteriaStatus_completed_success: 'Completado – éxito',
+  criteriaStatus_completed_partial: 'Completado – parcial',
+  criteriaStatus_completed_failed: 'Completado – sin éxito',
+  criteriaStatus_ticket_open: 'Ticket abierto',
+  criteriaStatus_none: 'No evaluado',
   noiseClause: ', evidenciando la eficiencia de la solución en la reducción del {noisePct}% del ruido de alertas y en la detección temprana de potenciales vectores de ataque.',
   body1_2NoCases:
     'Las actividades de validación y monitoreo se extendieron del período de {startDate} a {endDate}. A lo largo de este ciclo evaluativo, se {{connCount|configuró # fuente de datos|configuraron # fuentes de datos}} en el tenant; sin embargo, no se creó ningún caso de seguridad en el período, por lo que no hay resultados de detección disponibles.',

@@ -37,6 +37,24 @@ describe('renderReportHtml', () => {
       expect(html).not.toMatch(/<script|<link|src="http/i)
     })
   }
+  it('shows the frozen Notebook criteria with their status in the Technical and Executive Templates only', () => {
+    const withNotebook: ReportData = {
+      ...data,
+      notebookCriteria: [
+        { text: 'Detecção de ataques em nuvem', status: 'completed_success', notes: 'Stratus Red Team' },
+        { text: 'Integração com AWS', status: null, notes: '' },
+      ],
+    }
+    for (const template of ['technical', 'executive'] as const) {
+      const html = renderReportHtml(withNotebook, details, template, 'pt-BR')
+      expect(html).toContain('Concluído – sucesso')
+      expect(html).toContain('Não avaliado')
+      expect(html).toContain('Stratus Red Team')
+    }
+    expect(renderReportHtml(withNotebook, details, 'insight', 'pt-BR')).not.toContain('Concluído – sucesso')
+    // Without a Notebook nothing changes.
+    expect(renderReportHtml(data, details, 'technical', 'pt-BR')).not.toContain('Concluído – sucesso')
+  })
   it('translates headings', () => {
     expect(renderReportHtml(data, details, 'technical', 'es')).toContain('Resumen')
   })

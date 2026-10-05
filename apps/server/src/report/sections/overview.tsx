@@ -127,13 +127,42 @@ function presentation(rc: ReportContext): string {
   })
 }
 
-/** Context and objectives: the presentation paragraphs with the success criteria between them. */
+const CRITERIA_PILL = { completed_success: 'good', completed_partial: 'warn', completed_failed: 'bad', ticket_open: '' } as const
+
+/**
+ * Context and objectives: the presentation paragraphs with the success criteria between them. With a
+ * PoC Notebook, the Technical and Executive Templates show each criterion with its status, as frozen
+ * when the Sync ran.
+ */
 function Context({ rc }: { rc: ReportContext }) {
   const { t, x, details } = rc
+  const frozen = rc.template !== 'insight' ? (rc.data.notebookCriteria ?? []) : []
   const criteria = details.successCriteria
     .split(/[;\n]/)
     .map((s) => s.trim())
     .filter(Boolean)
+  if (frozen.length > 0) {
+    return (
+      <>
+        <Sub rc={rc}>{t('sub1_2')}</Sub>
+        <P>{`${t('body1_1', { clientName: clientName(rc), client: clientName(rc) })}${x('criteriaLead')}`}</P>
+        <Table
+          rc={rc}
+          compact
+          cols={['46%', '22%', '32%']}
+          head={[x('criteriaColCriterion'), x('criteriaColStatus'), x('criteriaColNotes')]}
+          rows={frozen.map((c) => [
+            c.text,
+            <span key="s" className={`pill-status ${c.status ? CRITERIA_PILL[c.status] : ''}`}>
+              {x(c.status ? `criteriaStatus_${c.status}` : 'criteriaStatus_none')}
+            </span>,
+            c.notes || '—',
+          ])}
+        />
+        <P>{presentation(rc)}</P>
+      </>
+    )
+  }
   return (
     <>
       <Sub rc={rc}>{t('sub1_2')}</Sub>
