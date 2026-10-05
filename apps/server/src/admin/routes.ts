@@ -55,6 +55,7 @@ export async function adminRoutes(app: FastifyInstance): Promise<void> {
     const admin = req.auth!.user
     const { id } = parse(IdParam, req.params)
     const { role } = parse(z.object({ role: Role }), req.body)
+    await assertPendingRegistration(id)
     // A Registration linked to a Company takes the Company's Profile as its Role (ADR 0011).
     const [current] = await db
       .select({ profile: customers.profile })
@@ -76,6 +77,7 @@ export async function adminRoutes(app: FastifyInstance): Promise<void> {
   app.post('/users/:id/reject', async (req) => {
     const admin = req.auth!.user
     const { id } = parse(IdParam, req.params)
+    await assertPendingRegistration(id)
     const [user] = await db
       .update(users)
       .set({ status: 'rejected', decidedBy: admin.id, decidedAt: dsql`now()`, updatedAt: dsql`now()` })
@@ -154,4 +156,15 @@ export async function adminRoutes(app: FastifyInstance): Promise<void> {
     await audit({ action: 'admin.settings_updated', userId: admin.id, ip: req.ip, meta: patch })
     return updated
   })
+}
+
+/**
+ * Approve and Reject decide Registrations only: a User who already has a decision changes through
+ * PATCH, where the Root Administrator is protected (ADR 0013).
+ */
+async function assertPendingRegistration(id: string): Promise<void> {
+  const [target] = await db.select({ isRoot: users.isRoot, status: users.status }).from(users).where(eq(users.id, id)).limit(1)
+  if (!target) throw notFound()
+  assertNotRoot(target)
+  if (target.status !== 'pending') throw new HttpError(409, 'not_pending')
 }

@@ -625,5 +625,6 @@
   "guide.contents": "Contents",
   "guide.noResults": "No topic matches the search.",
   "guide.for": "For: {roles}",
-  "guide.everyone": "everyone"
+  "guide.everyone": "everyone",
+  "err.not_pending": "This account already has a decision. Change it in the Users list."
 }

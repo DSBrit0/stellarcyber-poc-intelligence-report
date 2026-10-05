@@ -18,7 +18,8 @@ const Env = z.object({
     .transform((v) => v.split(',').map((s) => s.trim()).filter(Boolean)),
   SMTP_HOST: z.string().default(''),
   /** First password of the Root Administrator on a fresh installation (ADR 0013). */
-  ROOT_PASSWORD: z.string().min(12).max(128).optional(),
+  // Blank (as in .env.example) means unset.
+  ROOT_PASSWORD: z.preprocess((v) => (v === '' ? undefined : v), z.string().min(12).max(128).optional()),
 })
 
 export type Config = z.infer<typeof Env>

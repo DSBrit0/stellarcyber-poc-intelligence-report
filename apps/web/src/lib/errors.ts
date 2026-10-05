@@ -27,6 +27,7 @@ const KNOWN: Record<string, MessageKey> = {
   report_target_set: 'err.report_target_set',
   cannot_delete_self: 'err.cannot_delete_self',
   root_protected: 'err.root_protected',
+  not_pending: 'err.not_pending',
   last_admin: 'err.last_admin',
   transfer_required: 'err.transfer_required',
   transfer_invalid: 'err.transfer_invalid',

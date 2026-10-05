@@ -22,6 +22,13 @@ export function assertNotRoot(user: { isRoot: boolean }): void {
 export async function ensureRootAdministrator(rootPassword: string | undefined): Promise<void> {
   const [root] = await db.select({ id: users.id }).from(users).where(eq(users.isRoot, true)).limit(1)
   if (root) return
+  // An installation where another account already uses the e-mail: no Root until an Admin resolves it,
+  // rather than a unique-constraint crash at every start.
+  const [taken] = await db.select({ id: users.id }).from(users).where(eq(users.email, ROOT_EMAIL)).limit(1)
+  if (taken) {
+    console.warn(`Root Administrator not created: ${ROOT_EMAIL} already belongs to another account.`)
+    return
+  }
   const password = rootPassword || randomToken(18)
   await db.insert(users).values({
     email: ROOT_EMAIL,

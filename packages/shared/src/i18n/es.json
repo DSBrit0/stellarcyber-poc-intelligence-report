@@ -625,5 +625,6 @@
   "guide.contents": "Contenido",
   "guide.noResults": "Ningún tema coincide con la búsqueda.",
   "guide.for": "Para: {roles}",
-  "guide.everyone": "todos"
+  "guide.everyone": "todos",
+  "err.not_pending": "Esta cuenta ya tiene una decisión. Cámbiela en la lista de Usuarios."
 }

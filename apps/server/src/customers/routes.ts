@@ -3,6 +3,7 @@ import { and, desc, eq, inArray, or, sql as dsql } from 'drizzle-orm'
 import type { FastifyInstance, FastifyRequest } from 'fastify'
 import { z } from 'zod'
 import { requireRole } from '../auth/guards.js'
+import { assertNotRoot } from '../auth/root.js'
 import { revokeUserSessions } from '../auth/session.js'
 import { db } from '../db/client.js'
 import { customers, pocs, users, type Customer } from '../db/schema.js'
@@ -130,12 +131,13 @@ export async function customerRoutes(app: FastifyInstance): Promise<void> {
       const { user } = staff(req)
       const { id } = parse(IdParam, req.params)
       const [target] = await db
-        .select({ id: users.id, ownerId: customers.ownerId, profile: customers.profile })
+        .select({ id: users.id, isRoot: users.isRoot, ownerId: customers.ownerId, profile: customers.profile })
         .from(users)
         .innerJoin(customers, eq(customers.id, users.customerId))
         .where(eq(users.id, id))
         .limit(1)
       if (!target || (user.role !== 'admin' && target.ownerId !== user.id)) throw notFound()
+      assertNotRoot(target)
       const status = decision === 'approve' ? 'active' : decision === 'reject' ? 'rejected' : 'disabled'
       await db
         .update(users)
