@@ -1,5 +1,5 @@
 import { useQueryClient } from '@tanstack/react-query'
-import { useState, type ReactNode } from 'react'
+import { lazy, Suspense, useState, type ReactNode } from 'react'
 import { BrowserRouter, Link, Navigate, NavLink, Route, Routes, useLocation } from 'react-router'
 import { ChangePasswordDialog } from './lib/ChangePasswordDialog'
 import { api } from './lib/api'
@@ -20,6 +20,11 @@ import { TemplatePage } from './pages/admin/TemplatePage'
 import { HelpPage } from './pages/help/HelpPage'
 import { ResetPasswordPage } from './pages/ResetPassword'
 
+// The Stellar Experience carries its own heavy scene: loaded only when someone opens one.
+const ExperiencePage = lazy(() => import('./pages/experience/ExperiencePage').then((m) => ({ default: m.ExperiencePage })))
+// The visual lab exists only in dev builds: production drops the route and its code.
+const ExperienceLab = import.meta.env.DEV ? lazy(() => import('./pages/experience/lab/ExperienceLab').then((m) => ({ default: m.ExperienceLab }))) : null
+
 export function App() {
   return (
     <BrowserRouter>
@@ -29,6 +34,8 @@ export function App() {
         <Route path="/" element={<Shell><PocListPage /></Shell>} />
         <Route path="/pocs/new" element={<Shell><PocNewPage /></Shell>} />
         <Route path="/pocs/:id" element={<Shell><PocDetailPage /></Shell>} />
+        <Route path="/pocs/:id/experiences/:expId" element={<FullScreen><ExperiencePage /></FullScreen>} />
+        {ExperienceLab ? <Route path="/lab/experience" element={<Suspense fallback={null}><ExperienceLab /></Suspense>} /> : null}
         <Route path="/admin" element={<Shell adminOnly><AdminPage /></Shell>} />
         <Route path="/admin/template" element={<Shell adminOnly><TemplatePage /></Shell>} />
         <Route path="/audit" element={<Shell adminOnly><AuditPage /></Shell>} />
@@ -47,6 +54,15 @@ export function LocaleSwitch() {
 
 const navClass = ({ isActive }: { isActive: boolean }) =>
   `rounded-md px-2.5 py-1.5 transition-colors ${isActive ? 'bg-brand/10 font-medium text-brand dark:bg-brand/20 dark:text-blue-300' : 'text-slate-600 hover:bg-slate-100 hover:text-slate-900 dark:text-slate-300 dark:hover:bg-slate-800 dark:hover:text-white'}`
+
+/** A signed-in page without the app's header: the Stellar Experience fills the screen. */
+function FullScreen({ children }: { children: ReactNode }) {
+  const { data: me, isLoading } = useMe()
+  if (isLoading) return null
+  if (!me) return <Navigate to="/login" replace />
+  if (me.mustChangePassword) return <Navigate to="/" replace />
+  return <Suspense fallback={<div className="min-h-dvh bg-sc-midnight" />}>{children}</Suspense>
+}
 
 function Shell({ children, adminOnly, staffOnly }: { children: ReactNode; adminOnly?: boolean; staffOnly?: boolean }) {
   const { data: me, isLoading } = useMe()

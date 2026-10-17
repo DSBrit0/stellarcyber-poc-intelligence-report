@@ -15,6 +15,7 @@ import { PocForm } from '../lib/PocForm'
 import { typedDetailsValid } from '../lib/TypedFields'
 import { SyncBar, type SyncRow } from '../lib/SyncProgress'
 import { NotebookTab } from './notebook/NotebookTab'
+import { ExperienceTab, LiveExperienceBanner } from './experience/ExperienceTab'
 import { LanguageSelect } from '../lib/LanguageSelect'
 import { Select } from '../lib/Select'
 import { useDialogs } from '../lib/dialogs'
@@ -55,13 +56,14 @@ interface ReportRow {
   periodEnd: string
 }
 
-type Tab = 'notebook' | 'reports' | 'details' | 'sync'
+type Tab = 'notebook' | 'experience' | 'reports' | 'details' | 'sync'
 
 export function PocDetailPage() {
   const { id = '' } = useParams()
   const { t, locale } = useI18n()
   const navigate = useNavigate()
   const [tab, setTab] = useState<Tab | null>(null)
+  const { data: me } = useMe()
   const { data: poc } = useQuery({
     queryKey: ['poc', id],
     queryFn: () => api<PocView>(`/pocs/${id}`),
@@ -73,6 +75,9 @@ export function PocDetailPage() {
   // A Notebook PoC opens on its Notebook until it has Reports; any other PoC on its Reports.
   const current: Tab = tab ?? (poc.notebook && poc.reports.length === 0 ? 'notebook' : 'reports')
   const back = () => setTab('reports')
+  // Partners never take part in a Stellar Experience (CONTEXT.md).
+  const withExperience = Boolean(poc.notebook) && me != null && me.role !== 'partner'
+  const tabs: Tab[] = withExperience ? ['notebook', 'experience', 'reports'] : ['notebook', 'reports']
   return (
     <div className="space-y-5">
       <div className="flex flex-wrap items-start gap-3">
@@ -112,9 +117,10 @@ export function PocDetailPage() {
           </div>
         ) : null}
       </div>
+      {withExperience ? <LiveExperienceBanner pocId={poc.id} /> : null}
       {poc.notebook ? (
         <nav className="flex gap-1 border-b border-slate-200 dark:border-slate-800" aria-label="PoC">
-          {(['notebook', 'reports'] as const).map((k) => (
+          {tabs.map((k) => (
             <button
               key={k}
               type="button"
@@ -122,7 +128,7 @@ export function PocDetailPage() {
               className={`-mb-px border-b-2 px-4 py-2 text-sm font-medium ${current === k || (k === 'reports' && (current === 'details' || current === 'sync')) ? 'border-brand text-brand' : 'border-transparent text-slate-500 hover:text-slate-800 dark:hover:text-slate-200'}`}
               onClick={() => setTab(k)}
             >
-              {t(k === 'notebook' ? 'tab.notebook' : 'tab.report')}
+              {t(k === 'notebook' ? 'tab.notebook' : k === 'experience' ? 'tab.experience' : 'tab.report')}
               {k === 'reports' && poc.reports.length > 0 ? <span className="ml-1.5 rounded-full bg-slate-100 px-1.5 text-[11px] text-slate-500 dark:bg-slate-800">{poc.reports.length}</span> : null}
             </button>
           ))}
@@ -131,6 +137,8 @@ export function PocDetailPage() {
       {running || latest?.status === 'failed' || latest?.status === 'cancelled' ? <SyncBar sync={running ?? latest} canCancel={poc.canEdit} /> : null}
       {current === 'notebook' ? (
         <NotebookTab pocId={poc.id} />
+      ) : current === 'experience' ? (
+        <ExperienceTab pocId={poc.id} />
       ) : current === 'reports' ? (
         <ReportsTab poc={poc} />
       ) : current === 'details' ? (

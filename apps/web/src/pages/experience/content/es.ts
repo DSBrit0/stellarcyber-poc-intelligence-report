@@ -1,0 +1,135 @@
+import { briefingsEs } from './briefings.es'
+import type { ExperienceWords } from './types'
+
+export const wordsEs: ExperienceWords = {
+  chapters: {
+    data_engine: { title: 'AI-Native Data Engine', summary: 'Cada fuente se recolecta, se normaliza en Interflow y se enriquece antes de almacenarse.' },
+    open_xdr: { title: 'Open XDR Platform', summary: 'Los motores de detección trabajan sobre los mismos datos y Graph ML convierte las alertas en Cases.' },
+    agentic_soc: { title: 'Autonomous SOC', summary: 'La IA investiga y clasifica cada Case, y las respuestas vuelven a sus propias herramientas.' },
+  },
+  stages: {
+    data_sources: {
+      title: 'Fuentes de datos',
+      lead: 'Todo empieza con lo que ya tiene: firewalls, endpoints, identidad, nube y SaaS. Cada fuente se convierte en un flujo hacia la plataforma.',
+      question: '¿Qué fuentes de datos tienen hoy?',
+      hint: 'Busque en el catálogo de Stellar Cyber, o escriba un nombre que no aparezca.',
+    },
+    collection: {
+      title: 'Recolección',
+      lead: 'Los Modular y Server Sensors recolectan logs y tráfico en sitio; los Cloud Connectors leen las APIs de nube y SaaS, incluidas las fuentes de detección y respuesta en la nube (CDR).',
+      question: '¿Dónde están esas fuentes?',
+      options: {
+        on_prem: 'Centro de datos propio',
+        aws: 'AWS',
+        azure: 'Azure',
+        gcp: 'Google Cloud',
+        m365: 'Microsoft 365',
+        google_workspace: 'Google Workspace',
+        saas: 'Otros SaaS',
+        ot: 'Red OT / industrial',
+        branch_offices: 'Sucursales',
+      },
+    },
+    normalization: {
+      title: 'Normalización',
+      lead: 'Cada log en bruto, sea cual sea su formato, se convierte en Interflow: un único modelo de datos, con los mismos nombres de campo para todas las fuentes.',
+      question: '¿Cuántas herramientas distintas abre el equipo durante una investigación?',
+    },
+    threat_intel: {
+      title: 'Threat intelligence',
+      lead: 'Los indicadores de los feeds de threat intelligence se comparan con cada registro al llegar: una IP o un dominio malicioso conocido queda marcado antes de que alguien lo busque.',
+      question: '¿Qué feeds de threat intelligence usan?',
+      options: {
+        commercial: 'Feeds comerciales',
+        open_source: 'Feeds open source',
+        misp: 'MISP',
+        isac: 'ISAC del sector',
+        government: 'CERT gubernamental',
+        none: 'Ninguno hoy',
+      },
+    },
+    enrichment: {
+      title: 'Enriquecimiento',
+      lead: 'Los registros ganan contexto antes de almacenarse: ubicación, activo, usuario y reputación. Una alerta sobre un activo crítico destaca por sí sola.',
+      question: '¿Qué activos y usuarios son los más críticos para ustedes?',
+      hint: 'Uno por línea: un servidor, una aplicación, un grupo de administradores, un directivo.',
+    },
+    ingestion_filters: {
+      title: 'Filtros de ingesta',
+      lead: 'El ruido puede descartarse o reducirse antes de llegar al Data Lake, lo que mantiene el volumen almacenado, y la licencia, centrados en lo que importa.',
+      question: '¿Qué tipos de log filtrarían? Hasta tres.',
+    },
+    data_lake: {
+      title: 'Data Lake',
+      lead: 'Los registros normalizados y enriquecidos se almacenan e indexan en un único Data Lake, consultable en todas las fuentes a la vez.',
+      question: '¿Cuánto tiempo deben conservar los datos de seguridad?',
+      options: { d30: '30 días', d90: '90 días', d180: '180 días', y1: '1 año', y2_plus: '2 años o más' },
+    },
+    ndr: {
+      title: 'Detección y respuesta de red',
+      lead: 'Los sensores inspeccionan el tráfico con DPI y convierten las sesiones en metadatos, lo que revela el movimiento lateral que los logs solos no muestran.',
+      question: '¿Tienen hoy visibilidad del tráfico este-oeste de la red?',
+      options: { full: 'Sí, en toda la red', partial: 'Solo en algunos segmentos', none: 'No' },
+    },
+    sandbox: {
+      title: 'Sandbox',
+      lead: 'Los archivos sospechosos se ejecutan en aislamiento y se juzgan por lo que hacen, no por una firma.',
+      question: '¿Por dónde les llegan los archivos sospechosos?',
+      options: { email: 'Adjuntos de correo', web: 'Descargas web', file_share: 'Carpetas compartidas', usb: 'Dispositivos USB', endpoint: 'Endpoints' },
+    },
+    fim: {
+      title: 'Monitoreo de integridad de archivos',
+      lead: 'Los Server Sensors vigilan archivos y carpetas críticos y generan una alerta cuando cambian fuera del camino esperado.',
+      question: '¿Qué servidores o archivos hay que vigilar?',
+      hint: 'Uno por línea, por ejemplo un servidor de pagos o una carpeta de configuración.',
+    },
+    itdr_ueba: {
+      title: 'ITDR y UEBA',
+      lead: 'El machine learning aprende cómo se comporta normalmente cada usuario, equipo y proceso, y marca lo que se aparta de ello.',
+      question: '¿Qué comportamiento les preocupa más?',
+      options: {
+        impossible_travel: 'Viaje imposible',
+        privilege_escalation: 'Escalada de privilegios',
+        lateral_movement: 'Movimiento lateral',
+        data_exfiltration: 'Exfiltración de datos',
+        off_hours: 'Acceso fuera de horario',
+        service_account: 'Uso indebido de cuentas de servicio',
+        brute_force: 'Fuerza bruta',
+        insider: 'Amenaza interna',
+      },
+    },
+    detection: {
+      title: 'Detección',
+      lead: 'Reglas y machine learning supervisado y no supervisado se ejecutan sobre los mismos datos, mapeados en MITRE ATT&CK. Recolección, clasificación y correlación dejan de ser trabajo manual.',
+      question: '¿Cuánto tarda hoy la detección, y adónde se va ese tiempo?',
+      hint: 'Sus propias cifras: la ganancia mostrada es el tiempo de las fases que la plataforma automatiza.',
+    },
+    correlation: {
+      title: 'Correlación',
+      lead: 'Graph ML vincula alertas relacionadas de fuentes distintas en un único Case, puntuado para que el más urgente aparezca primero.',
+      question: '¿Cuántas alertas recibe el equipo por día?',
+    },
+    agentic_soc: {
+      title: 'Agentic SOC',
+      lead: 'La IA investiga cada Case y lo clasifica, para que el analista empiece desde una conclusión y no desde una cola.',
+      question: '¿Cuántos minutos tarda hoy un analista en clasificar un Case?',
+    },
+    response: {
+      title: 'Respuesta',
+      lead: 'Los playbooks actúan sobre sus propias herramientas: el firewall bloquea, el EDR aísla, el proveedor de identidad deshabilita.',
+      question: '¿Qué respuestas automatizarían?',
+      options: {
+        block_ip: 'Bloquear una IP en el firewall',
+        isolate_host: 'Aislar un host en el EDR',
+        disable_user: 'Deshabilitar una cuenta de usuario',
+        quarantine_email: 'Poner un correo en cuarentena',
+        reset_password: 'Forzar cambio de contraseña',
+        open_ticket: 'Abrir un ticket',
+        notify_team: 'Avisar al equipo',
+      },
+    },
+  },
+  mttdPhases: { collection: 'Recolectando logs', triage: 'Clasificando alertas', correlation: 'Correlacionando eventos', investigation: 'Investigando' },
+  filterActions: { drop: 'Descartar', reduce: 'Reducir' },
+  briefings: briefingsEs,
+}

@@ -34,3 +34,16 @@ export const canShapeNotebook = (auth: AuthContext, poc: Poc, followerId: string
   (auth.user.role === 'admin' ||
     (auth.user.role !== 'customer' && poc.ownerId === auth.user.id) ||
     (auth.user.role === 'sales_engineer' && followerId === auth.user.id))
+
+/**
+ * Running a Stellar Experience (enable, lead, finish): the PoC Notebook's Sales Engineer (its Owner,
+ * or the SE who follows its Partner Owner) or an Admin. Never a Partner.
+ */
+export const canRunExperience = (auth: AuthContext, poc: Poc, followerId: string | null = null) =>
+  poc.notebook != null &&
+  (auth.user.role === 'admin' || (auth.user.role === 'sales_engineer' && (poc.ownerId === auth.user.id || followerId === auth.user.id)))
+
+/** Taking part in a Stellar Experience: whoever runs it, and the Customer Users of the linked Customer. */
+export const canJoinExperience = (auth: AuthContext, poc: Poc, followerId: string | null = null) =>
+  canRunExperience(auth, poc, followerId) ||
+  (poc.notebook != null && auth.user.role === 'customer' && auth.user.customerId != null && poc.customerId === auth.user.customerId)

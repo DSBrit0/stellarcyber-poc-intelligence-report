@@ -36,6 +36,9 @@ export type AuditAction =
   | 'report.commented'
   | 'report.deleted'
   | 'poc.arch_image'
+  | 'experience.activated'
+  | 'experience.finished'
+  | 'experience.reopened'
 
 export async function audit(entry: {
   action: AuditAction

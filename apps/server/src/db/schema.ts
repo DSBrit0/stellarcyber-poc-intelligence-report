@@ -1,5 +1,5 @@
 // Mirrors migrations/*.sql — the SQL files are the source of truth; keep both in step.
-import type { CatalogKind, MilestoneTone, CompanyProfile, CriterionStatus, DataSourceStatus, I18nText, NotebookOverview, PocDetails, ProcessKind, ProcessStatus, ReportData, Role, SyncProgress, SyncStatus, UserStatus, Locale } from '@poc-intel/shared'
+import type { AnswerValue, AudienceProfile, BriefingSection, SceneState, ExperienceStatus, StageId, StagePhase, CatalogKind, MilestoneTone, CompanyProfile, CriterionStatus, DataSourceStatus, I18nText, NotebookOverview, PocDetails, ProcessKind, ProcessStatus, ReportData, Role, SyncProgress, SyncStatus, UserStatus, Locale } from '@poc-intel/shared'
 import type { SyncMetrics } from '../stellar/request-stats.js'
 import { bigint, boolean, date, doublePrecision, integer, jsonb, pgTable, primaryKey, smallint, text, timestamp, uuid } from 'drizzle-orm/pg-core'
 
@@ -285,4 +285,64 @@ export const pocMilestones = pgTable('poc_milestones', {
   phaseId: uuid('phase_id'),
   updatedBy: uuid('updated_by'),
   updatedAt: ts('updated_at').notNull().defaultNow(),
+})
+
+// Stellar Experiences (migration 0019, ADR 0014).
+export const experiences = pgTable('experiences', {
+  id: uuid('id').primaryKey().defaultRandom(),
+  pocId: uuid('poc_id').notNull(),
+  name: text('name').notNull(),
+  profile: text('profile').$type<AudienceProfile>().notNull(),
+  status: text('status').$type<ExperienceStatus>().notNull().default('disabled'),
+  /** The Stage ids chosen, in pipeline order. */
+  stages: jsonb('stages').$type<StageId[]>().notNull(),
+  /** The Presenter's Stage. */
+  currentStage: text('current_stage').$type<StageId>().notNull(),
+  /** Whether that Stage shows its Briefing or its question. */
+  currentPhase: text('current_phase').$type<StagePhase>().notNull().default('briefing'),
+  /** The Briefing topics the Presenter has opened on the current Stage. */
+  briefingOpen: jsonb('briefing_open').$type<BriefingSection[]>().notNull().default([]),
+  /** The 3D interaction model and the object the Presenter entered. */
+  scene: jsonb('scene').$type<SceneState>().notNull().default({ model: 'chamber', target: null }),
+  createdBy: uuid('created_by'),
+  createdAt: ts('created_at').notNull().defaultNow(),
+  updatedAt: ts('updated_at').notNull().defaultNow(),
+  finishedAt: ts('finished_at'),
+})
+export type Experience = typeof experiences.$inferSelect
+
+export const experienceAnswers = pgTable('experience_answers', {
+  id: uuid('id').primaryKey().defaultRandom(),
+  experienceId: uuid('experience_id').notNull(),
+  stageId: text('stage_id').$type<StageId>().notNull(),
+  userId: uuid('user_id').notNull(),
+  value: jsonb('value').$type<AnswerValue>().notNull(),
+  updatedAt: ts('updated_at').notNull().defaultNow(),
+})
+
+export const experienceStageResults = pgTable(
+  'experience_stage_results',
+  {
+    experienceId: uuid('experience_id').notNull(),
+    stageId: text('stage_id').$type<StageId>().notNull(),
+    outcome: text('outcome').$type<'approved' | 'skipped'>().notNull(),
+    value: jsonb('value').$type<AnswerValue>(),
+    answerIds: jsonb('answer_ids').$type<string[]>().notNull().default([]),
+    decidedBy: uuid('decided_by'),
+    decidedAt: ts('decided_at').notNull().defaultNow(),
+  },
+  (t) => [primaryKey({ columns: [t.experienceId, t.stageId] })],
+)
+
+export const experienceQuestions = pgTable('experience_questions', {
+  id: uuid('id').primaryKey().defaultRandom(),
+  experienceId: uuid('experience_id').notNull(),
+  stageId: text('stage_id').$type<StageId>().notNull(),
+  userId: uuid('user_id'),
+  text: text('text').notNull(),
+  reply: text('reply'),
+  answeredLive: boolean('answered_live').notNull().default(false),
+  repliedBy: uuid('replied_by'),
+  repliedAt: ts('replied_at'),
+  createdAt: ts('created_at').notNull().defaultNow(),
 })

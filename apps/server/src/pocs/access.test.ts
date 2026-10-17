@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import type { AuthContext } from '../auth/session.js'
 import type { Poc } from '../db/schema.js'
-import { canEdit, canFillNotebook, canShapeNotebook, canView } from './access-rules.js'
+import { canEdit, canFillNotebook, canJoinExperience, canRunExperience, canShapeNotebook, canView } from './access-rules.js'
 
 const user = (role: string, id = 'u1', customerId: string | null = null) => ({ user: { id, role, customerId } }) as unknown as AuthContext
 const poc = (ownerId: string, customerId: string | null = null) => ({ ownerId, customerId, notebook: null }) as Poc
@@ -56,5 +56,21 @@ describe('PoC access', () => {
   })
   it('a PoC without a Notebook has nothing to fill in', () => {
     expect(canFillNotebook(user('admin'), poc('p1'))).toBe(false)
+  })
+
+  it('a Stellar Experience is run by the PoC Notebook\'s SE or an Admin, never by a Partner', () => {
+    expect(canRunExperience(user('sales_engineer', 'se1'), notebook('se1', 'cust-1'))).toBe(true)
+    expect(canRunExperience(user('sales_engineer', 'se1'), notebook('p1', 'cust-1'), 'se1')).toBe(true)
+    expect(canRunExperience(user('admin'), notebook('p1', 'cust-1'))).toBe(true)
+    expect(canRunExperience(user('partner', 'p1'), notebook('p1', 'cust-1'))).toBe(false)
+    expect(canRunExperience(user('sales_engineer', 'se2'), notebook('se1', 'cust-1'))).toBe(false)
+    expect(canRunExperience(user('customer', 'c1', 'cust-1'), notebook('se1', 'cust-1'))).toBe(false)
+    expect(canRunExperience(user('admin'), poc('se1'))).toBe(false)
+  })
+  it('the linked Customer Users join a Stellar Experience; a Partner does not', () => {
+    expect(canJoinExperience(user('customer', 'c1', 'cust-1'), notebook('se1', 'cust-1'))).toBe(true)
+    expect(canJoinExperience(user('customer', 'c2', 'cust-2'), notebook('se1', 'cust-1'))).toBe(false)
+    expect(canJoinExperience(user('partner', 'p1'), notebook('p1', 'cust-1'))).toBe(false)
+    expect(canJoinExperience(user('sales_engineer', 'se1'), notebook('se1', 'cust-1'))).toBe(true)
   })
 })

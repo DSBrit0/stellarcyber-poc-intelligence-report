@@ -108,6 +108,11 @@ export async function pocRoutes(app: FastifyInstance, { dispatcher }: StellarDep
         updatedAt: pocs.updatedAt,
         reports: dsql<number>`(SELECT count(*)::int FROM report_data r WHERE r.poc_id = ${pocs.id})`,
         syncing: dsql<boolean>`EXISTS (SELECT 1 FROM syncs s WHERE s.poc_id = ${pocs.id} AND s.status IN ('queued', 'running'))`,
+        // The Active Stellar Experience a Customer User can join from the PoC card; never for a Partner.
+        liveExperienceId:
+          auth.user.role === 'partner'
+            ? dsql<string | null>`NULL::uuid`
+            : dsql<string | null>`(SELECT e.id FROM experiences e WHERE e.poc_id = ${pocs.id} AND e.status = 'active')`,
       })
       .from(pocs)
       .leftJoin(users, eq(users.id, pocs.ownerId))

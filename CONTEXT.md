@@ -179,3 +179,47 @@ The assumed analyst minutes per Alert and per Case, used to estimate the effort 
 
 **Detection Story**:
 The five-part executive narrative in the Executive Template: signal funnel, top threats, priority matrix, response scorecard and effort avoided.
+
+### Stellar Experience
+
+**Stellar Experience**:
+A live, guided 3D walk through the Stellar Cyber data pipeline that a Sales Engineer runs with a Customer during a PoC Notebook. The Sales Engineer enables it, leads it and finishes it; the Customer Users of the PoC follow along on their own screens and answer its questions. A PoC Notebook can have several (for example one with the technical team and one with the executives), each with its own answers. It is Disabled, Active or Finished: only an Active one takes answers, a Finished one replays read-only, and the Sales Engineer can reopen it. It keeps the list of Stages chosen when it was enabled, so a later change to the Stages never alters it. Partners cannot run one.
+_Avoid_: Architecture Tour, demo, presentation
+
+**Presenter**:
+The Sales Engineer leading a Stellar Experience. Every other participant's view follows the Presenter's current stage.
+_Avoid_: Host, driver
+
+**Stage**:
+One step of a Stellar Experience, such as Data Sources, Normalization, Detection or Response. Each Stage opens on its Briefing; the Presenter then opens its question, and moves on only once an Answer is approved or the Stage is Skipped.
+_Avoid_: Step, phase, scene
+
+**Answer**:
+One participant's reply to a Stage's question. Every participant sends their own; the Sales Engineer or a Customer User approves one (or, for a list question, several, merged) as the **Approved Answer**. Approved Data Sources are written to the PoC Notebook's Data Sources.
+_Avoid_: Response (a Response is a remediation action)
+
+**Briefing**:
+The technical explanation that opens a Stage: how the technology works, what it brings to the SOC, the SOC objectives it serves, the frameworks that back it and the ATT&CK techniques it helps detect or contain. Its topics start summarized on one line each; the Presenter opens each one while explaining it, and every participant's view follows. It ends with the Stage's official documentation.
+_Avoid_: Intro, slide
+
+**Engine Chamber**:
+A way into the Stack: the Presenter enters a Data Source or a Stage and everyone is taken inside its engine, where raw records cross it and come out as Interflow, field by field.
+
+**Record Trace**:
+The other way into the Stack: one record leaves a Data Source and climbs the Stack engine by engine, its Interflow growing at each one, until it becomes part of a Case and triggers a response.
+
+**Customer Question**:
+A question any participant writes during a Stage, kept with the Stellar Experience and seen by everyone. The Sales Engineer gives it a **Reply** in writing or marks it answered live; one left without either is pending follow-up.
+_Avoid_: Answer (an Answer replies to the Stage's own question), comment
+
+**Skipped**:
+A Stage the Presenter moved past without an Approved Answer.
+
+**Current MTTD**:
+The Customer's own figure for their mean time to detect, given in a Stellar Experience together with the time each manual phase takes them today. The detection gain shown is the time of the phases Stellar Cyber automates, from the Customer's own figures; the Experience never shows a reference figure of its own.
+
+**Chapter**:
+One of the three layers of Stellar Cyber's Multi-Layer AI™ Stack that group the Stages, named as in the Multi-Layer AI v4 brief (June 2026): AI-Native Data Engine, Open XDR Platform and Autonomous SOC.
+
+**Audience Profile**:
+Technical or Executive, chosen when a Stellar Experience is created. It only pre-selects the Stages; the questions are the same.

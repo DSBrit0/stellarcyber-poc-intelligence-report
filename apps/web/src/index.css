@@ -3,6 +3,17 @@
 @theme {
   --color-brand: #3b5bdb;
   --color-brand-dark: #2f4ac0;
+  /* Stellar Cyber brand palette (Brand Guidelines 2026 v4): used by the Stellar Experience. */
+  --color-sc-midnight: #0a1823;
+  --color-sc-sky: #3044e0;
+  --color-sc-sky-mid: #3295f8;
+  --color-sc-sky-light: #41c5f9;
+  --color-sc-purple: #9320e0;
+  --color-sc-solar: #ff9b1d;
+  --color-sc-burnt: #f05b2a;
+  --color-sc-silver: #fafaf4;
+  --color-sc-slate: #dddddc;
+  --font-roboto: Roboto, 'Helvetica Neue', Arial, system-ui, sans-serif;
   /* A softer red than Tailwind's default: errors, warnings and delete actions stay clear without shouting. */
   --color-red-50: oklch(97.6% 0.012 18);
   --color-red-100: oklch(94.8% 0.025 18);

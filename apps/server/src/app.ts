@@ -13,6 +13,7 @@ import { HttpError } from './lib/http.js'
 import { commentRoutes } from './comments/routes.js'
 import { customerRoutes } from './customers/routes.js'
 import { notebookRoutes } from './notebook/routes.js'
+import { experienceRoutes } from './experience/routes.js'
 import { catalogAdminRoutes, catalogRoutes } from './catalog/routes.js'
 import { templateRoutes } from './notebook/template-routes.js'
 import { accountRoutes } from './accounts/routes.js'
@@ -124,6 +125,7 @@ export async function buildApp(deps: AppDeps): Promise<FastifyInstance> {
   await app.register(reportRoutes, { prefix: '/api' })
   await app.register(customerRoutes, { prefix: '/api' })
   await app.register(notebookRoutes, { prefix: '/api' })
+  await app.register(experienceRoutes, { prefix: '/api' })
   await app.register(catalogRoutes, { prefix: '/api' })
   await app.register(catalogAdminRoutes, { prefix: '/api/admin' })
   await app.register(templateRoutes, { prefix: '/api/admin' })

@@ -39,6 +39,12 @@ const KNOWN: Record<string, MessageKey> = {
   catalog_no_parsers: 'err.catalog_no_parsers',
   catalog_no_connectors: 'err.catalog_no_connectors',
   validation: 'err.validation',
+  experience_already_active: 'err.experience_already_active',
+  stage_not_current: 'err.stage_not_current',
+  experience_not_active: 'err.experience_not_active',
+  stage_not_settled: 'err.stage_not_settled',
+  approval_not_allowed: 'err.approval_not_allowed',
+  question_not_open: 'err.question_not_open',
 }
 
 /**

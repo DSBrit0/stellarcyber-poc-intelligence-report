@@ -1,0 +1,135 @@
+import { briefingsEn } from './briefings.en'
+import type { ExperienceWords } from './types'
+
+export const wordsEn: ExperienceWords = {
+  chapters: {
+    data_engine: { title: 'AI-Native Data Engine', summary: 'Every source collected, normalized into Interflow and enriched before it is stored.' },
+    open_xdr: { title: 'Open XDR Platform', summary: 'Detection engines work on the same data and Graph ML turns alerts into Cases.' },
+    agentic_soc: { title: 'Autonomous SOC', summary: 'AI investigates and triages each Case, and responses run back on your own tools.' },
+  },
+  stages: {
+    data_sources: {
+      title: 'Data sources',
+      lead: 'Everything starts with what you already have: firewalls, endpoints, identity, cloud and SaaS. Each source becomes a stream into the platform.',
+      question: 'Which data sources do you have today?',
+      hint: 'Search the Stellar Cyber catalog, or type a name it does not list.',
+    },
+    collection: {
+      title: 'Collection',
+      lead: 'Modular and Server Sensors collect logs and traffic on site; Cloud Connectors read cloud and SaaS APIs, including cloud detection and response (CDR) sources.',
+      question: 'Where do these sources live?',
+      options: {
+        on_prem: 'On-premises data center',
+        aws: 'AWS',
+        azure: 'Azure',
+        gcp: 'Google Cloud',
+        m365: 'Microsoft 365',
+        google_workspace: 'Google Workspace',
+        saas: 'Other SaaS',
+        ot: 'OT / industrial network',
+        branch_offices: 'Branch offices',
+      },
+    },
+    normalization: {
+      title: 'Normalization',
+      lead: 'Each raw log, whatever its format, is parsed into Interflow: one data model with the same field names for every source.',
+      question: 'How many different tools does your team open during one investigation?',
+    },
+    threat_intel: {
+      title: 'Threat intelligence',
+      lead: 'Indicators from threat-intelligence feeds are matched against every record as it arrives, so a known-bad IP or domain is flagged before anyone searches for it.',
+      question: 'Which threat-intelligence feeds do you use?',
+      options: {
+        commercial: 'Commercial feeds',
+        open_source: 'Open-source feeds',
+        misp: 'MISP',
+        isac: 'Sector ISAC',
+        government: 'Government CERT',
+        none: 'None today',
+      },
+    },
+    enrichment: {
+      title: 'Enrichment',
+      lead: 'Records gain context before they are stored: location, asset, user and reputation. An alert on a critical asset stands out on its own.',
+      question: 'Which assets and users are the most critical to you?',
+      hint: 'One per line: a server, an application, a group of administrators, an executive.',
+    },
+    ingestion_filters: {
+      title: 'Ingestion filters',
+      lead: 'Noise can be dropped or reduced before it reaches the Data Lake, which keeps the stored volume, and the license, focused on what matters.',
+      question: 'Which log types would you filter? Up to three.',
+    },
+    data_lake: {
+      title: 'Data Lake',
+      lead: 'Normalized, enriched records are stored and indexed in one Data Lake, searchable across every source at once.',
+      question: 'How long must you keep security data?',
+      options: { d30: '30 days', d90: '90 days', d180: '180 days', y1: '1 year', y2_plus: '2 years or more' },
+    },
+    ndr: {
+      title: 'Network detection and response',
+      lead: 'Sensors inspect traffic with deep packet inspection and turn sessions into metadata, which exposes lateral movement that logs alone miss.',
+      question: 'Do you see east-west traffic inside your network today?',
+      options: { full: 'Yes, across the network', partial: 'Only in some segments', none: 'No' },
+    },
+    sandbox: {
+      title: 'Sandbox',
+      lead: 'Suspicious files are detonated in isolation and judged by what they do, not by a signature.',
+      question: 'Where do suspicious files reach you?',
+      options: { email: 'E-mail attachments', web: 'Web downloads', file_share: 'File shares', usb: 'USB devices', endpoint: 'Endpoints' },
+    },
+    fim: {
+      title: 'File integrity monitoring',
+      lead: 'Server Sensors watch critical files and folders and raise an alert when they change outside the expected path.',
+      question: 'Which servers or files must be watched?',
+      hint: 'One per line, for example a payments server or a configuration folder.',
+    },
+    itdr_ueba: {
+      title: 'ITDR and UEBA',
+      lead: 'Machine learning learns how each user, host and process normally behaves, and flags what departs from it.',
+      question: 'Which behavior worries you most?',
+      options: {
+        impossible_travel: 'Impossible travel',
+        privilege_escalation: 'Privilege escalation',
+        lateral_movement: 'Lateral movement',
+        data_exfiltration: 'Data exfiltration',
+        off_hours: 'Access outside working hours',
+        service_account: 'Service account misuse',
+        brute_force: 'Brute force',
+        insider: 'Insider threat',
+      },
+    },
+    detection: {
+      title: 'Detection',
+      lead: 'Rules and supervised and unsupervised machine learning run on the same data, mapped to MITRE ATT&CK. Collection, triage and correlation stop being manual work.',
+      question: 'How long does detection take you today, and where does the time go?',
+      hint: 'Your own figures: the gain shown is the time of the phases the platform automates.',
+    },
+    correlation: {
+      title: 'Correlation',
+      lead: 'Graph ML links related alerts from different sources into a single Case, scored so the most urgent one comes first.',
+      question: 'How many alerts does your team receive per day?',
+    },
+    agentic_soc: {
+      title: 'Agentic SOC',
+      lead: 'AI investigates each Case and triages it, so analysts start from a conclusion instead of a queue.',
+      question: 'How many minutes does an analyst take to triage one Case today?',
+    },
+    response: {
+      title: 'Response',
+      lead: 'Playbooks act back on your own tools: a firewall blocks, an EDR isolates, an identity provider disables.',
+      question: 'Which responses would you automate?',
+      options: {
+        block_ip: 'Block an IP on the firewall',
+        isolate_host: 'Isolate a host on the EDR',
+        disable_user: 'Disable a user account',
+        quarantine_email: 'Quarantine an e-mail',
+        reset_password: 'Force a password reset',
+        open_ticket: 'Open a ticket',
+        notify_team: 'Notify the team',
+      },
+    },
+  },
+  mttdPhases: { collection: 'Collecting logs', triage: 'Triaging alerts', correlation: 'Correlating events', investigation: 'Investigating' },
+  filterActions: { drop: 'Drop', reduce: 'Reduce' },
+  briefings: briefingsEn,
+}

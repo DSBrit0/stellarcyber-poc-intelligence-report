@@ -4,9 +4,9 @@ import type { AuthContext } from '../auth/session.js'
 import { db } from '../db/client.js'
 import { customers, pocs, reportData, users, type Poc } from '../db/schema.js'
 import { HttpError, notFound } from '../lib/http.js'
-import { canEdit, canFillNotebook, canShapeNotebook, canView } from './access-rules.js'
+import { canEdit, canFillNotebook, canJoinExperience, canRunExperience, canShapeNotebook, canView } from './access-rules.js'
 
-export { canEdit, canFillNotebook, canShapeNotebook, canView }
+export { canEdit, canFillNotebook, canJoinExperience, canRunExperience, canShapeNotebook, canView }
 
 /** The Sales Engineer who registered the Partner Company of this Owner, if the Owner is one of its Partners. */
 export async function followerOf(ownerId: string): Promise<string | null> {

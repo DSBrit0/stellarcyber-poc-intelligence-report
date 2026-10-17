@@ -10,3 +10,4 @@ coverage/
 
 # Local-only operator files (server access notes, access history). Never committed.
 .local/
+apps/web/.lab-shots/

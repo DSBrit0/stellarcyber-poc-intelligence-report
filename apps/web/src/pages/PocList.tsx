@@ -19,6 +19,8 @@ interface PocRow {
   /** Started as a PoC Notebook; until it has a Report target it has no Tenant or period. */
   notebook: boolean
   startDate: string | null
+  /** The Active Stellar Experience a participant can join straight from the card. */
+  liveExperienceId: string | null
   customerName: string
   tenantName: string
   periodStart: string | null
@@ -72,7 +74,7 @@ export function PocListPage() {
         {data.map((p) => (
           <li key={p.id} className="relative">
             {me && (me.role === 'admin' || me.id === p.ownerId) ? <DeletePoc id={p.id} name={p.customerName} syncing={p.syncing} /> : null}
-            <Link to={`/pocs/${p.id}`} className="card block h-full pr-12 hover:border-brand">
+            <Link to={`/pocs/${p.id}`} className={`card block h-full pr-12 hover:border-brand ${p.liveExperienceId ? 'pb-16' : ''}`}>
               <div className="flex flex-wrap items-center gap-2 font-semibold">
                 {p.customerName}
                 {p.notebook ? (
@@ -81,6 +83,12 @@ export function PocListPage() {
                   ) : (
                     <span className="rounded bg-violet-100 px-2 py-0.5 text-xs font-medium whitespace-nowrap text-violet-800 dark:bg-violet-950 dark:text-violet-300">{t('poc.phase.notebook')}</span>
                   )
+                ) : null}
+                {p.liveExperienceId ? (
+                  <span className="inline-flex items-center gap-1.5 rounded bg-sc-sky px-2 py-0.5 text-xs font-medium whitespace-nowrap text-sc-silver">
+                    <span className="h-1.5 w-1.5 animate-pulse rounded-full bg-sc-sky-light motion-reduce:animate-none" aria-hidden="true" />
+                    {t('exp.liveBadge')}
+                  </span>
                 ) : null}
                 {p.draft ? <span className="rounded bg-amber-100 px-2 py-0.5 text-xs font-medium whitespace-nowrap text-amber-800 dark:bg-amber-950 dark:text-amber-300">{t('poc.draft')}</span> : null}
                 {p.syncing ? (
@@ -107,6 +115,11 @@ export function PocListPage() {
                 </div>
               ) : null}
             </Link>
+            {p.liveExperienceId ? (
+              <Link to={`/pocs/${p.id}/experiences/${p.liveExperienceId}`} className="absolute right-5 bottom-5 rounded-lg bg-linear-to-r from-sc-sky to-sc-midnight px-4 py-1.5 text-sm font-semibold text-sc-silver hover:from-sc-sky-mid">
+                {me?.role === 'customer' ? t('exp.join') : t('exp.present')}
+              </Link>
+            ) : null}
           </li>
         ))}
       </ul>
