@@ -729,8 +729,6 @@
   "exp.briefing.docs": "Official documentation",
   "exp.scene.chamber": "Engine chamber",
   "exp.scene.trace": "Record trace",
-  "exp.scene.prototype": "Prototype",
-  "exp.scene.hint": "Click a data source or a layer to go inside.",
   "exp.scene.leave": "Leave",
   "exp.scene.illustrative": "Illustrative example",
   "exp.scene.raw": "Raw log",
@@ -745,5 +743,6 @@
   "exp.panel.expand": "Show panel",
   "exp.scene.real": "Real Interflow, anonymised ({date})",
   "exp.scene.realShort": "real",
-  "exp.scene.noRaw": "This source sends structured fields (sensor or API), so there is no raw log line. This is what it delivers, already as Interflow:"
+  "exp.scene.noRaw": "This source sends structured fields (sensor or API), so there is no raw log line. This is what it delivers, already as Interflow:",
+  "exp.scene.mode": "Way into the Stack"
 }

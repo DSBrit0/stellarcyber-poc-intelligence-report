@@ -11,6 +11,7 @@ import { errorKey } from '../../lib/errors'
 import { useI18n } from '../../lib/i18n'
 import { AnswerInput, AnswerSummary, type Draft } from './AnswerInputs'
 import { BriefingTerminal } from './BriefingTerminal'
+import { CollapseButton } from './CollapseButton'
 import { CustomerQuestions, type QuestionRow } from './CustomerQuestions'
 import { familyOf, SAMPLES } from './content/interflow-samples'
 import { InterflowInspector } from './InterflowInspector'
@@ -268,15 +269,6 @@ export function ExperiencePage() {
           {data.customerName}
         </p>
         <ChapterRail stages={exp.stages} current={stage} settled={settled} />
-        <button
-          type="button"
-          aria-expanded={panelOpen}
-          aria-controls="experience-panel"
-          onClick={togglePanel}
-          className="rounded-lg border border-white/15 px-3 py-1.5 text-sm text-sc-silver/80 hover:border-white/40 hover:text-sc-silver"
-        >
-          {panelOpen ? t('exp.panel.collapse') : t('exp.panel.expand')}
-        </button>
         <Link to={`/pocs/${id}`} className="rounded-lg border border-white/15 px-3 py-1.5 text-sm text-sc-silver/80 hover:border-white/40 hover:text-sc-silver">
           {t('exp.leave')}
         </Link>
@@ -293,7 +285,7 @@ export function ExperiencePage() {
           <h1 className={`mt-2 leading-[1.05] font-bold tracking-tight text-balance ${scene.target ? 'text-3xl sm:text-4xl' : 'text-4xl sm:text-6xl'}`}>{stageWords.title}</h1>
           {with3D ? (
             <div className="pointer-events-auto mt-3 flex flex-wrap items-center gap-2 text-xs">
-              <div className="flex rounded-lg border border-white/15 p-0.5" role="radiogroup" aria-label={t('exp.scene.prototype')}>
+              <div className="flex rounded-lg border border-white/15 p-0.5" role="radiogroup" aria-label={t('exp.scene.mode')}>
                 {(['chamber', 'trace'] as const).map((m) => (
                   <button
                     key={m}
@@ -308,7 +300,6 @@ export function ExperiencePage() {
                   </button>
                 ))}
               </div>
-              {!scene.target && (presenting || !live) ? <span className="text-sc-silver/55">{t('exp.scene.hint')}</span> : null}
             </div>
           ) : null}
           {scene.target && with3D ? (
@@ -347,9 +338,10 @@ export function ExperiencePage() {
               onToggle={(s) => void toggleTopic(s)}
               docsVersion={data.docsVersion}
               reducedMotion={reducedMotion}
+              onCollapse={togglePanel}
             />
           ) : (
-            <StagePanel key={`${exp.id}-${stage}`} pocId={id} data={data} stage={stage} result={result} approvedSources={approvedSources} onChanged={refresh} />
+            <StagePanel key={`${exp.id}-${stage}`} pocId={id} data={data} stage={stage} result={result} approvedSources={approvedSources} onChanged={refresh} onCollapse={togglePanel} />
           )}
           <CustomerQuestions
             base={`/pocs/${id}/experiences/${exp.id}`}
@@ -477,7 +469,23 @@ function SkipButton({ pocId, expId, stage, onDone }: { pocId: string; expId: str
 }
 
 /** The glass panel: the question, your Answer, everyone's Answers and the approval. */
-function StagePanel({ pocId, data, stage, result, approvedSources, onChanged }: { pocId: string; data: Live; stage: StageId; result: ResultRow | undefined; approvedSources: string[]; onChanged: () => unknown }) {
+function StagePanel({
+  pocId,
+  data,
+  stage,
+  result,
+  approvedSources,
+  onChanged,
+  onCollapse,
+}: {
+  pocId: string
+  data: Live
+  stage: StageId
+  result: ResultRow | undefined
+  approvedSources: string[]
+  onChanged: () => unknown
+  onCollapse: () => void
+}) {
   const { t } = useI18n()
   const words = useWords()
   const question = stageById(stage).question
@@ -508,7 +516,8 @@ function StagePanel({ pocId, data, stage, result, approvedSources, onChanged }: 
 
   return (
     <aside className="pointer-events-auto flex min-h-0 shrink flex-col gap-5 self-start overflow-y-auto rounded-2xl border border-white/12 bg-white/[0.06] p-5 shadow-[0_30px_80px_-30px_rgba(0,0,0,0.6)] backdrop-blur-xl sm:p-6">
-      <div>
+      <div className="relative pr-24">
+        <CollapseButton onClick={onCollapse} className="absolute top-0 right-0" />
         <h2 className="text-xl leading-snug font-semibold text-balance">{words.stages[stage].question}</h2>
         {words.stages[stage].hint ? <p className="mt-1 text-sm text-sc-silver/60">{words.stages[stage].hint}</p> : null}
       </div>

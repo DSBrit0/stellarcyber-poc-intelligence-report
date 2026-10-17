@@ -729,8 +729,6 @@
   "exp.briefing.docs": "Documentación oficial",
   "exp.scene.chamber": "Cámara del motor",
   "exp.scene.trace": "Rastro del registro",
-  "exp.scene.prototype": "Prototipo",
-  "exp.scene.hint": "Haga clic en una fuente de datos o en una capa para entrar.",
   "exp.scene.leave": "Salir del objeto",
   "exp.scene.illustrative": "Ejemplo ilustrativo",
   "exp.scene.raw": "Log en bruto",
@@ -745,5 +743,6 @@
   "exp.panel.expand": "Mostrar panel",
   "exp.scene.real": "Interflow real, anonimizado ({date})",
   "exp.scene.realShort": "real",
-  "exp.scene.noRaw": "Esta fuente envía campos estructurados (sensor o API), así que no hay línea de log en bruto. Esto es lo que entrega, ya en Interflow:"
+  "exp.scene.noRaw": "Esta fuente envía campos estructurados (sensor o API), así que no hay línea de log en bruto. Esto es lo que entrega, ya en Interflow:",
+  "exp.scene.mode": "Forma de entrar en el Stack"
 }

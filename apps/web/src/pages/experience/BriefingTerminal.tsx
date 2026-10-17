@@ -4,6 +4,7 @@ import type { MessageKey } from '@poc-intel/shared/i18n'
 import { useI18n } from '../../lib/i18n'
 import { BRIEFING_DOCS, BRIEFING_REFS } from './content/briefing-refs'
 import { useWords } from './content'
+import { CollapseButton } from './CollapseButton'
 
 /** The command each topic answers to: shell idiom, so it reads the same in every language. */
 const COMMANDS: Record<BriefingSection, string> = {
@@ -34,6 +35,7 @@ export function BriefingTerminal({
   onToggle,
   docsVersion,
   reducedMotion,
+  onCollapse,
 }: {
   stage: StageId
   open: readonly BriefingSection[]
@@ -41,6 +43,7 @@ export function BriefingTerminal({
   onToggle: (section: BriefingSection) => void
   docsVersion: string | null
   reducedMotion: boolean
+  onCollapse: () => void
 }) {
   const { t } = useI18n()
   const words = useWords()
@@ -99,6 +102,7 @@ export function BriefingTerminal({
         <p className="min-w-0 flex-1 truncate font-mono text-xs text-sc-silver/60">
           stellar@open-xdr:~/{stageById(stage).chapter.replace(/_/g, '-')}/{slug}
         </p>
+        <CollapseButton onClick={onCollapse} />
       </header>
       <div className="min-h-0 flex-1 space-y-2 overflow-y-auto px-3 py-3 font-mono text-[13px] leading-relaxed sm:px-4">
         {BRIEFING_SECTIONS.map((s) => {
