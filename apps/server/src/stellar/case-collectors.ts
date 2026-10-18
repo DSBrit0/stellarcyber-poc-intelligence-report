@@ -81,7 +81,7 @@ export async function countAlertsInPeriod(
   await runPool(pages, PAGING.concurrency, async ({ caseId, skip }) => {
     if (broken.has(caseId)) return
     try {
-      const res = await ctx.client.get(ENDPOINTS.caseAlerts(caseId), { limit: PAGING.caseAlertsPage, skip }, CaseAlertsResponse, 20_000)
+      const res = await ctx.client.get(ENDPOINTS.caseAlerts(caseId), { limit: PAGING.caseAlertsPage, skip }, CaseAlertsResponse, PAGING.caseAlertsTimeoutMs)
       // An Alert without a readable time is kept: only Alerts known to be outside are left out.
       const n = res.data.docs.filter((d) => (d._source ? alertInPeriod(d._source, from, to) : null) !== false).length
       inside.set(caseId, (inside.get(caseId) ?? 0) + n)
@@ -123,7 +123,7 @@ export async function collectTactics(
   })
   await runPool(pages, PAGING.concurrency, async ({ caseId, skip }) => {
     try {
-      const res = await ctx.client.get(ENDPOINTS.caseAlerts(caseId), { limit: PAGING.caseAlertsPage, skip }, CaseAlertsResponse, 20_000)
+      const res = await ctx.client.get(ENDPOINTS.caseAlerts(caseId), { limit: PAGING.caseAlertsPage, skip }, CaseAlertsResponse, PAGING.caseAlertsTimeoutMs)
       acc.missing += res.data.docs.filter((d) => d.found === false || !d._source).length
       acc.read(res.data.docs.length)
       acc.add(

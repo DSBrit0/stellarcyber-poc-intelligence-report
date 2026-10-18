@@ -50,6 +50,7 @@ export function createSafeAgent(allowedPrivateCidrs: string[]): Agent {
       callback(null, first.address, first.family)
     })
   }
-  // One pooled, keep-alive agent per process: the Sync makes hundreds of calls to the same host.
-  return new Agent({ connect: { lookup, timeout: 15_000 }, connections: 16, keepAliveTimeout: 30_000, allowH2: true })
+  // One pooled, keep-alive agent per process: the Sync makes hundreds of calls to the same host. The pool
+  // matches the highest paging concurrency (64): with HTTP/1.1 it caps the requests in flight per Instance.
+  return new Agent({ connect: { lookup, timeout: 15_000 }, connections: 64, keepAliveTimeout: 30_000, allowH2: true })
 }

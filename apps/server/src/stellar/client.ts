@@ -10,6 +10,21 @@ const RETRYABLE = new Set([429, 502, 503, 504])
 const MAX_RETRIES = 3
 /** Backoff before retry n (0-based): RETRY_BASE_MS × 2ⁿ. */
 const RETRY_BASE_MS = 800
+/** The longest wait an Instance's Retry-After is honoured for; past it, the call fails as unavailable. */
+const MAX_RETRY_AFTER_MS = 30_000
+
+/**
+ * The wait an Instance asks for in Retry-After (seconds, or an HTTP date), capped; null when it asks
+ * nothing usable. Honouring it beats the fixed backoff when an Instance throttles (429) or is busy (503).
+ */
+export function retryAfterMs(header: string | string[] | undefined, now = Date.now()): number | null {
+  const value = Array.isArray(header) ? header[0] : header
+  if (!value) return null
+  const seconds = Number(value)
+  const ms = Number.isFinite(seconds) ? seconds * 1000 : Date.parse(value) - now
+  if (!Number.isFinite(ms) || ms < 0) return null
+  return Math.min(ms, MAX_RETRY_AFTER_MS)
+}
 const RENEW_BEFORE_MS = 60_000
 const DEFAULT_TOKEN_TTL_MS = 10 * 60_000
 
@@ -87,7 +102,7 @@ export class StellarClient {
     for (let attempt = 0, reauthed = false; ; attempt++) {
       this.signal?.throwIfAborted()
       await this.#ensureToken()
-      let res: { status: number; body: unknown }
+      let res: { status: number; body: unknown; retryAfter: number | null }
       try {
         res = await this.#send(method, path, query, { authorization: `Bearer ${this.#token}` }, timeoutMs, body, attempt > 0)
       } catch (err) {
@@ -104,7 +119,7 @@ export class StellarClient {
         continue
       }
       if (RETRYABLE.has(res.status) && attempt < MAX_RETRIES) {
-        await sleep(RETRY_BASE_MS * 2 ** attempt, undefined, { signal: this.signal })
+        await sleep(res.retryAfter ?? RETRY_BASE_MS * 2 ** attempt, undefined, { signal: this.signal })
         continue
       }
       if (res.status === 401) throw new StellarApiError('auth_failed', `${path}: unauthorized`, 401)
@@ -150,7 +165,7 @@ export class StellarClient {
     timeoutMs: number,
     payload?: unknown,
     retry = false,
-  ): Promise<{ status: number; body: unknown }> {
+  ): Promise<{ status: number; body: unknown; retryAfter: number | null }> {
     const url = new URL(path, this.instanceUrl)
     const t0 = performance.now()
     const done = this.stats.start()
@@ -175,7 +190,7 @@ export class StellarClient {
       const ms = performance.now() - t0
       this.stats.record(url.pathname, res.statusCode, ms, text.length, retry)
       this.#audit(method, url, res.statusCode, ms, text.length, retry, res.statusCode >= 400 ? errorText(body) : null)
-      return { status: res.statusCode, body }
+      return { status: res.statusCode, body, retryAfter: retryAfterMs(res.headers['retry-after']) }
     } catch (err) {
       if (this.signal?.aborted) throw this.signal.reason
       this.stats.record(url.pathname, 'network', performance.now() - t0, 0, retry)

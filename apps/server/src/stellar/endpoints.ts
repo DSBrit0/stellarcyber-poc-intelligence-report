@@ -29,7 +29,10 @@ export const PAGING = {
   caseAlertsMaxPerCase: 500,
   /**
    * Parallel requests per Sync against one Instance (one pooled connection set, HTTP/2 when offered).
-   * Measured by the previous tool for 639 alert pages: 6 → 172 s, 12 → 104 s, 24 → 68 s, with no errors.
+   * Measured by the previous tool for 639 alert pages: 6 → 172 s, 12 → 104 s, 24 → 68 s, with no errors;
+   * docs/perf found 64 about 40% faster than 16. 48 stays below the top measured, kind to the Instance.
    */
-  concurrency: Math.max(1, Math.min(64, Number(process.env.STELLAR_CONCURRENCY ?? 16) || 16)),
+  concurrency: Math.max(1, Math.min(64, Number(process.env.STELLAR_CONCURRENCY ?? 48) || 48)),
+  /** One page of a Case's alerts: large Cases answer slowly (docs/perf recommends 45 s over 20 s). */
+  caseAlertsTimeoutMs: 45_000,
 } as const
