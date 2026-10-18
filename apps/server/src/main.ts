@@ -26,10 +26,9 @@ const app = await buildApp({
     const job: SyncJob = { syncId, credentialSealed: seal(JSON.stringify(credential), `sync:${syncId}`) }
     await boss.send(QUEUES.sync, job)
   },
-  enqueuePdf: async (job: RenderPdfJob) => {
-    // singletonKey collapses concurrent requests for the same PDF into one render.
-    await boss.send(QUEUES.renderPdf, job, { singletonKey: job.outputPath })
-  },
+  // singletonKey collapses concurrent requests for the same PDF into one render (then no id comes back).
+  enqueuePdf: (job: RenderPdfJob) => boss.send(QUEUES.renderPdf, job, { singletonKey: job.outputPath }),
+  pdfFailed: async (jobId: string) => (await boss.getJobById(QUEUES.renderPdf, jobId))?.state === 'failed',
 })
 
 await app.listen({ port: cfg.PORT, host: '0.0.0.0' })

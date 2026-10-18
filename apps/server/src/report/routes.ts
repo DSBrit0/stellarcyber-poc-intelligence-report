@@ -68,10 +68,13 @@ export async function reportRoutes(app: FastifyInstance): Promise<void> {
     const key = sha256(`${report.id}|${q.template}|${locale}|${poc.updatedAt.toISOString()}|${versioning?.version ?? ''}`).slice(0, 32)
     const outputPath = renderPath(report.id, key)
     if (!(await exists(outputPath))) {
-      await app.enqueuePdf({ reportDataId: report.id, template: q.template, locale, outputPath })
+      const jobId = await app.enqueuePdf({ reportDataId: report.id, template: q.template, locale, outputPath })
       const deadline = Date.now() + PDF_WAIT_MS
-      while (!(await exists(outputPath))) {
+      // The file appearing means done; a render that failed for good is reported at once (it used to
+      // hold the request for the whole minute and answer 504). Its state is read every 2 s.
+      for (let tick = 1; !(await exists(outputPath)); tick++) {
         if (Date.now() > deadline) throw new HttpError(504, 'render_timeout')
+        if (jobId && tick % 5 === 0 && (await app.pdfFailed(jobId))) throw new HttpError(502, 'render_failed')
         await new Promise((r) => setTimeout(r, 400))
       }
     }

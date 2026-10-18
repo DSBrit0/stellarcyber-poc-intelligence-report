@@ -30,13 +30,17 @@ export interface StellarDeps {
 
 export interface AppDeps extends StellarDeps {
   enqueueSync: (syncId: string, credential: StellarCredential) => Promise<void>
-  enqueuePdf: (job: RenderPdfJob) => Promise<void>
+  /** The render job's id, or null when the same PDF is already being rendered. */
+  enqueuePdf: (job: RenderPdfJob) => Promise<string | null>
+  /** Whether that render job failed for good (after its retry). */
+  pdfFailed: (jobId: string) => Promise<boolean>
 }
 
 declare module 'fastify' {
   interface FastifyInstance {
     enqueueSync: AppDeps['enqueueSync']
     enqueuePdf: AppDeps['enqueuePdf']
+    pdfFailed: AppDeps['pdfFailed']
   }
 }
 
@@ -65,6 +69,7 @@ export async function buildApp(deps: AppDeps): Promise<FastifyInstance> {
 
   app.decorate('enqueueSync', deps.enqueueSync)
   app.decorate('enqueuePdf', deps.enqueuePdf)
+  app.decorate('pdfFailed', deps.pdfFailed)
   app.decorateRequest('auth', null)
 
   await app.register(cookie)
