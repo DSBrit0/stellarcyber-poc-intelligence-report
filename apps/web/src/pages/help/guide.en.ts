@@ -505,6 +505,10 @@ export const guideEn = (ui: Ui): HelpGuide => ({
           kind: 'p',
           text: `The list of parsers and connectors the Notebooks use. It is read every Monday from the official documentation pages. ${ui('catalog.updateNow')} opens the two URLs: ${ui('catalog.validate')} shows what changes, and nothing is saved before ${ui('catalog.confirm')}.`,
         },
+        {
+          kind: 'p',
+          text: `The ${ui('catalog.history')} lists every update written, manual or weekly, naming each parser and connector that came in (+, green) or left (−, red). A large update shows its first names and opens the full list; the search finds the updates where an item came in or left.`,
+        },
         { kind: 'h3', text: ui('tpl.title') },
         {
           kind: 'p',

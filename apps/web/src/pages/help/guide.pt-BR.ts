@@ -520,6 +520,10 @@ export const guidePtBR = (ui: Ui): HelpGuide => ({
           kind: 'p',
           text: `A lista de parsers e conectores que os Notebooks usam. É lida toda segunda-feira das páginas oficiais da documentação. ${ui('catalog.updateNow')} abre as duas URLs: ${ui('catalog.validate')} mostra o que muda, e nada é salvo antes de ${ui('catalog.confirm')}.`,
         },
+        {
+          kind: 'p',
+          text: `O ${ui('catalog.history')} lista cada atualização gravada, manual ou semanal, com o nome de cada parser e conector que entrou (+, em verde) ou saiu (−, em vermelho). Uma atualização grande mostra os primeiros nomes e abre a lista completa; a busca acha em quais atualizações um item entrou ou saiu.`,
+        },
         { kind: 'h3', text: ui('tpl.title') },
         {
           kind: 'p',

@@ -258,6 +258,20 @@ export const catalogEntries = pgTable('catalog_entries', {
   removedAt: ts('removed_at'),
 })
 
+/** One write of the Data Source Catalog and what it changed (migration 0025). */
+export const catalogUpdates = pgTable('catalog_updates', {
+  id: uuid('id').primaryKey().defaultRandom(),
+  runAt: ts('run_at').notNull().defaultNow(),
+  trigger: text('trigger').$type<'manual' | 'scheduled' | 'backfill'>().notNull(),
+  userId: uuid('user_id'),
+  versionSegment: text('version_segment'),
+  versionLabel: text('version_label'),
+  parsers: integer('parsers'),
+  connectors: integer('connectors'),
+  added: jsonb('added').$type<{ kind: CatalogKind; name: string }[]>().notNull().default([]),
+  removed: jsonb('removed').$type<{ kind: CatalogKind; name: string }[]>().notNull().default([]),
+})
+
 export const pocDataSources = pgTable('poc_data_sources', {
   id: uuid('id').primaryKey().defaultRandom(),
   pocId: uuid('poc_id').notNull(),

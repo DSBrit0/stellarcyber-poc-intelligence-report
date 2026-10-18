@@ -1,8 +1,8 @@
-import { CatalogSources } from '@poc-intel/shared'
+import { CatalogSources, type CatalogKind } from '@poc-intel/shared'
 import { and, eq, isNull, notInArray, sql as dsql } from 'drizzle-orm'
 import { EnvHttpProxyAgent, fetch, type Dispatcher } from 'undici'
 import { db } from '../db/client.js'
-import { catalogEntries, settings } from '../db/schema.js'
+import { catalogEntries, catalogUpdates, settings } from '../db/schema.js'
 import { HttpError } from '../lib/http.js'
 import { appLog } from '../lib/log-sink.js'
 import { docsVersion, parseConnectors, parseParsers, type CatalogEntry, type DocsVersion } from './parse.js'
@@ -21,13 +21,19 @@ export interface CatalogState {
   lastResult: { ok: true; parsers: number; connectors: number; added: number; removed: number } | { ok: false; error: string } | null
 }
 
+/** A parser or Connector an update brings in or removes. */
+export interface CatalogChange {
+  kind: CatalogKind
+  name: string
+}
+
 export interface CatalogPreview {
   version: DocsVersion
   buildTime: string | null
   parsers: number
   connectors: number
-  added: string[]
-  removed: string[]
+  added: CatalogChange[]
+  removed: CatalogChange[]
   entries: CatalogEntry[]
 }
 
@@ -106,14 +112,19 @@ export async function previewCatalog(sources: CatalogSources): Promise<CatalogPr
     buildTime: await buildTimeOf(version.base),
     parsers,
     connectors,
-    added: entries.filter((e) => !before.has(id(e))).map((e) => e.name),
-    removed: current.filter((e) => !now.has(id(e))).map((e) => e.name),
+    added: entries.filter((e) => !before.has(id(e))).map((e) => ({ kind: e.kind, name: e.name })),
+    removed: current.filter((e) => !now.has(id(e))).map((e) => ({ kind: e.kind, name: e.name })),
     entries,
   }
 }
 
-/** Writes a preview: upserts every entry, marks the missing ones as removed, saves the sources and state. */
-export async function applyCatalog(sources: CatalogSources, preview: CatalogPreview, userId: string | null): Promise<CatalogState> {
+const byName = (a: CatalogChange, b: CatalogChange) => a.name.localeCompare(b.name)
+
+/**
+ * Writes a preview: upserts every entry, marks the missing ones as removed, records the update in the
+ * catalog's history (what came in, what went out), and saves the sources and state.
+ */
+export async function applyCatalog(sources: CatalogSources, preview: CatalogPreview, userId: string | null, trigger: 'manual' | 'scheduled'): Promise<CatalogState> {
   await db.transaction(async (tx) => {
     for (const kind of ['parser', 'connector'] as const) {
       const rows = preview.entries.filter((e) => e.kind === kind)
@@ -140,6 +151,16 @@ export async function applyCatalog(sources: CatalogSources, preview: CatalogPrev
         .set({ removedAt: dsql`now()` })
         .where(and(eq(catalogEntries.kind, kind), isNull(catalogEntries.removedAt), notInArray(catalogEntries.key, rows.map((e) => e.key))))
     }
+    await tx.insert(catalogUpdates).values({
+      trigger,
+      userId,
+      versionSegment: preview.version.segment,
+      versionLabel: preview.version.label,
+      parsers: preview.parsers,
+      connectors: preview.connectors,
+      added: [...preview.added].sort(byName),
+      removed: [...preview.removed].sort(byName),
+    })
   })
   const state: CatalogState = {
     version: { segment: preview.version.segment!, label: preview.version.label! },
@@ -162,7 +183,7 @@ export async function scheduledCatalogRefresh(): Promise<'skipped' | 'updated'> 
       await putSetting('catalog_state', { ...state, lastRunAt: new Date().toISOString() }, null)
       return 'skipped'
     }
-    await applyCatalog(sources, await previewCatalog(sources), null)
+    await applyCatalog(sources, await previewCatalog(sources), null, 'scheduled')
     return 'updated'
   } catch (err) {
     const error = err instanceof HttpError ? err.code : 'catalog_unreachable'
