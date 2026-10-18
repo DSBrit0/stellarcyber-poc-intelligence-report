@@ -200,6 +200,7 @@
   "err.stellar_forbidden": "La API key no tiene permiso para estos datos.",
   "err.stellar_network": "No se pudo acceder a la instancia. Verifique la URL.",
   "err.stellar_unavailable": "La instancia no respondió correctamente. Intente de nuevo en un momento.",
+  "err.sync_interrupted": "La recolección se interrumpió por un reinicio del servicio. Ejecute el Sync de nuevo.",
   "err.customer_exists": "Ya existe un cliente con este nombre.",
   "err.company_users_own_records": "Los usuarios de esta empresa conducen PoCs o registraron empresas. Un Cliente no puede ser dueño de ellas, así que la empresa sigue como Partner.",
   "err.customer_is_partner": "Elija una empresa con perfil Cliente.",

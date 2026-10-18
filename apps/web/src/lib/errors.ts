@@ -19,6 +19,7 @@ const KNOWN: Record<string, MessageKey> = {
   stellar_network: 'err.stellar_network',
   stellar_unavailable: 'err.stellar_unavailable',
   stellar_bad_response: 'err.stellar_unavailable',
+  stellar_interrupted: 'err.sync_interrupted',
   customer_exists: 'err.customer_exists',
   company_users_own_records: 'err.company_users_own_records',
   customer_is_partner: 'err.customer_is_partner',

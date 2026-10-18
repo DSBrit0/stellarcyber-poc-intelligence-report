@@ -1,10 +1,10 @@
 import { Locale, StellarCredential, Template } from '@poc-intel/shared'
-import { eq } from 'drizzle-orm'
+import { and, eq, inArray, sql as dsql } from 'drizzle-orm'
 import pino from 'pino'
 import { config } from './config.js'
 import { db, sql } from './db/client.js'
 import { migrate } from './db/migrate.js'
-import { pocs, reportData } from './db/schema.js'
+import { pocs, reportData, syncs } from './db/schema.js'
 import { open } from './lib/crypto.js'
 import { MIGRATIONS_DIR } from './lib/paths.js'
 import { QUEUES, startBoss, type RenderPdfJob, type SyncJob } from './queue.js'
@@ -26,12 +26,26 @@ await migrate(sql, MIGRATIONS_DIR)
 const boss = await startBoss()
 const dispatcher = createSafeAgent(cfg.STELLAR_ALLOWED_PRIVATE_CIDRS)
 
+/** Fails a Sync left queued or running, so it never blocks the next Sync on its PoC. */
+const failSync = (where: ReturnType<typeof and>, error: string) =>
+  db.update(syncs).set({ status: 'failed', error, finishedAt: dsql`now()` }).where(where).returning({ id: syncs.id })
+
+// This is the only worker: a Sync still running when it starts was cut short (crash, restart, deploy).
+const interrupted = await failSync(eq(syncs.status, 'running'), 'interrupted')
+if (interrupted.length) appLog('warn', 'sync', `${interrupted.length} Sync(s) interrupted by a worker restart`, { context: { syncIds: interrupted.map((s) => s.id) } })
+
 // ~10 Users: a few Syncs in parallel; each one already runs its collectors concurrently.
 await boss.work<SyncJob>(QUEUES.sync, { localConcurrency: 3 }, async ([job]) => {
   if (!job) return
   try {
     const credential = StellarCredential.parse(JSON.parse(open(job.data.credentialSealed, `sync:${job.data.syncId}`)))
     await runSync(job.data.syncId, credential, dispatcher, log)
+  } catch (err) {
+    // runSync settles its own failures; anything that escapes it (or an unreadable credential) must
+    // still close the Sync, or it stays queued/running and blocks the PoC.
+    await failSync(and(eq(syncs.id, job.data.syncId), inArray(syncs.status, ['queued', 'running'])), 'internal')
+    log.error({ syncId: job.data.syncId, err: (err as Error).message }, 'sync job failed')
+    appLog('error', 'sync', 'Sync failed: internal', { context: { syncId: job.data.syncId, message: (err as Error).message } })
   } finally {
     // The sealed credential must not outlive the Sync.
     await boss.deleteJob(QUEUES.sync, job.id).catch(() => {})

@@ -200,6 +200,7 @@
   "err.stellar_forbidden": "The API key has no permission for this data.",
   "err.stellar_network": "Could not reach the Instance. Check the URL.",
   "err.stellar_unavailable": "The Instance did not answer correctly. Try again in a moment.",
+  "err.sync_interrupted": "The collection was interrupted by a service restart. Run the Sync again.",
   "err.customer_exists": "A customer with this name already exists.",
   "err.company_users_own_records": "This company's users run PoCs or registered companies. A Customer cannot own them, so the company stays a Partner.",
   "err.customer_is_partner": "Choose a company with the Customer profile.",

@@ -18,6 +18,12 @@ import { StellarClient } from '../stellar/client.js'
 import { listTenants } from '../stellar/tenants.js'
 import { archImageOf, canEdit, loadPoc, ownedOrFollowedBy, reportTarget } from './access.js'
 
+/** Postgres unique violation, possibly wrapped by the driver. */
+const isUniqueViolation = (e: unknown): boolean => {
+  const err = e as { code?: string; cause?: unknown }
+  return err?.code === '23505' || (err?.cause != null && isUniqueViolation(err.cause))
+}
+
 const IdParam = z.object({ id: z.uuid() })
 const staff = (req: Parameters<typeof requireAuth>[0]) => requireRole(req, 'admin', 'sales_engineer', 'partner')
 
@@ -246,18 +252,30 @@ export async function pocRoutes(app: FastifyInstance, { dispatcher }: StellarDep
     if (!target) throw new HttpError(409, 'report_target_missing')
     const credential = resolveCredential(req, reply, auth.user.id, target.instanceUrl, input.credential, input.remember)
 
-    const [active] = await db
-      .select({ id: syncs.id })
-      .from(syncs)
-      .where(and(eq(syncs.pocId, poc.id), inArray(syncs.status, [...ACTIVE_SYNC_STATUSES])))
-      .limit(1)
+    // One active Sync per PoC is enforced by a unique index (0026): of two requests at once, the
+    // second's insert conflicts and gets the same 409 as when a Sync is already running.
+    const activeSync = async () =>
+      (await db.select({ id: syncs.id }).from(syncs).where(and(eq(syncs.pocId, poc.id), inArray(syncs.status, [...ACTIVE_SYNC_STATUSES]))).limit(1))[0]
+    const active = await activeSync()
     if (active) return reply.code(409).send({ error: 'sync_in_progress', syncId: active.id })
 
-    const [sync] = await db
-      .insert(syncs)
-      .values({ pocId: poc.id, requestedBy: auth.user.id, periodStart: input.period?.start ?? null, periodEnd: input.period?.end ?? null })
-      .returning({ id: syncs.id })
-    await app.enqueueSync(sync!.id, credential)
+    let sync: { id: string } | undefined
+    try {
+      ;[sync] = await db
+        .insert(syncs)
+        .values({ pocId: poc.id, requestedBy: auth.user.id, periodStart: input.period?.start ?? null, periodEnd: input.period?.end ?? null })
+        .returning({ id: syncs.id })
+    } catch (err) {
+      if (!isUniqueViolation(err)) throw err
+      return reply.code(409).send({ error: 'sync_in_progress', syncId: (await activeSync())?.id ?? null })
+    }
+    // A Sync that never reaches the queue must not stay queued: it would block every later one.
+    try {
+      await app.enqueueSync(sync!.id, credential)
+    } catch (err) {
+      await db.update(syncs).set({ status: 'failed', error: 'enqueue_failed', finishedAt: dsql`now()` }).where(eq(syncs.id, sync!.id))
+      throw err
+    }
     await audit({ action: 'sync.requested', userId: auth.user.id, target: poc.id, ip: req.ip, meta: { syncId: sync!.id, period: input.period ?? null } })
     appLog('info', 'sync', 'Sync requested', { userId: auth.user.id, requestId: req.id, context: { syncId: sync!.id, pocId: poc.id, remembered: !input.credential } })
     return reply.code(202).send({ syncId: sync!.id })

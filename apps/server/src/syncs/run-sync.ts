@@ -50,9 +50,14 @@ export async function runSync(syncId: string, credential: StellarCredential, dis
     .limit(1)
   if (!row) return
   const { poc } = row
-  // The route refuses a Sync on a PoC without a Report target; a row edited since is a hard error.
+  // The route refuses a Sync on a PoC without a Report target; a row edited since fails the Sync, which
+  // must not stay running: it would block every later Sync on the PoC.
   const pocTarget = reportTarget(poc)
-  if (!pocTarget) throw new Error(`PoC ${poc.id} has no Report target`)
+  if (!pocTarget) {
+    await db.update(syncs).set({ status: 'failed', error: 'report_target_missing', finishedAt: dsql`now()` }).where(running(syncId))
+    appLog('error', 'sync', 'Sync failed: report_target_missing', { userId: row.sync.requestedBy, context: { syncId, pocId: poc.id } })
+    return
+  }
 
   const abort = new AbortController()
   const watcher = setInterval(() => {

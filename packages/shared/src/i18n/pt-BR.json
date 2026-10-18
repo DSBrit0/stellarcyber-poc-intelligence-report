@@ -200,6 +200,7 @@
   "err.stellar_forbidden": "A API key não tem permissão para estes dados.",
   "err.stellar_network": "Não foi possível acessar a instância. Verifique a URL.",
   "err.stellar_unavailable": "A instância não respondeu corretamente. Tente novamente em instantes.",
+  "err.sync_interrupted": "A coleta foi interrompida por um reinício do serviço. Rode a Sync novamente.",
   "err.customer_exists": "Já existe um cliente com este nome.",
   "err.company_users_own_records": "Os usuários desta empresa conduzem PoCs ou cadastraram empresas. Um Cliente não pode ser dono delas, então a empresa continua como Partner.",
   "err.customer_is_partner": "Escolha uma empresa com perfil Cliente.",
