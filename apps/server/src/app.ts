@@ -22,6 +22,7 @@ import type { RenderPdfJob } from './queue.js'
 import { reportRoutes } from './report/routes.js'
 import { StellarApiError } from './stellar/client.js'
 import { appLog } from './lib/log-sink.js'
+import { accessLogLevel } from './lib/access-log.js'
 
 export interface StellarDeps {
   dispatcher: Dispatcher
@@ -84,13 +85,12 @@ export async function buildApp(deps: AppDeps): Promise<FastifyInstance> {
     req.auth = await loadSession(req.cookies[SESSION_COOKIE])
   })
 
-  // Access log for the Audit page. Polling endpoints are logged at debug level so they do not drown the rest.
-  const POLLING = /^\/api\/(syncs\/[^/]+|auth\/me|pocs\/[^/]+|stellar\/credentials|admin\/audit\/.+)$/
+  // Access log for the Audit page; polling is logged at debug level so it does not drown the rest.
   app.addHook('onResponse', async (req, reply) => {
     const path = req.url.split('?')[0] ?? ''
     if (path === '/api/health') return
     const status = reply.statusCode
-    const level = status >= 500 ? 'error' : status >= 400 ? 'warn' : req.method === 'GET' && POLLING.test(path) ? 'debug' : 'info'
+    const level = accessLogLevel(req.method, path, status)
     appLog(level, 'http', `${req.method} ${path} → ${status}`, {
       userId: req.auth?.user.id ?? null,
       requestId: req.id,

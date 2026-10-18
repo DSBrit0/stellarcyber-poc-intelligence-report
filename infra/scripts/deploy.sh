@@ -16,4 +16,6 @@ docker compose build --pull
 # starts if stopped but is never recreated (that takes --always-recreate-deps).
 docker compose up -d --remove-orphans --force-recreate api worker web
 docker image prune -f >/dev/null
+# Build cache older than a week: without this it grows by every build (it had reached 52 GB).
+docker builder prune -f --filter until=168h >/dev/null
 docker compose ps

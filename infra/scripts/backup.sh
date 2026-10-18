@@ -1,11 +1,12 @@
 #!/usr/bin/env bash
-# Daily logical backup of PostgreSQL, keeping the newest BACKUP_KEEP dumps (default 14).
+# Daily logical backup of PostgreSQL, keeping the newest BACKUP_KEEP dumps (default 2: the last two
+# days; copies are kept on this server only).
 # Installed in cron by install-cron.sh. Restore: pg_restore --clean -d pocintel <file>.
 set -euo pipefail
 cd "$(dirname "$0")/../.."
 
 dest=${BACKUP_DIR:-/opt/poc-intel/backups}
-keep=${BACKUP_KEEP:-14}
+keep=${BACKUP_KEEP:-2}
 stamp=$(date +%Y%m%d-%H%M%S)
 mkdir -p "$dest"
 
