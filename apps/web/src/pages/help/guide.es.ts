@@ -214,7 +214,7 @@ export const guideEs = (ui: Ui): HelpGuide => ({
       id: 'new-poc',
       title: 'Crear una PoC',
       roles: STAFF,
-      summary: 'Dos caminos: empezar por el Notebook o ir directo al Reporte Final.',
+      summary: 'Tres caminos: empezar por el Notebook, empezar con una Stellar Experience o ir directo al Reporte Final.',
       blocks: [
         { kind: 'p', text: `Haga clic en ${ui('poc.create')}. La herramienta pregunta ${ui('newpoc.choose')}` },
         {
@@ -222,6 +222,7 @@ export const guideEs = (ui: Ui): HelpGuide => ({
           head: ['Camino', 'Cuándo usarlo'],
           rows: [
             [ui('newpoc.notebook'), 'La PoC está empezando. Quiere planificarla y seguirla con el cliente. El Reporte Final se crea después, desde el Notebook. Exige una empresa con perfil Cliente.'],
+            [ui('newpoc.experience'), 'Va a presentar la plataforma al cliente en vivo. Crea el Notebook junto con la primera Stellar Experience y abre la pestaña Experience. Solo Sales Engineers y Admins. Exige una empresa con perfil Cliente.'],
             [ui('newpoc.report'), 'La PoC ya ocurrió y solo necesita el Reporte. Vincular un cliente es opcional.'],
           ],
         },
@@ -232,6 +233,15 @@ export const guideEs = (ui: Ui): HelpGuide => ({
             `Elija la empresa en ${ui('newpoc.chooseCustomer')}. Si aún no existe, use ${ui('wiz.newCustomer')}.`,
             `Informe la ${ui('newpoc.startDate')}: el cronograma se calcula a partir de ella.`,
             `Haga clic en ${ui('newpoc.start')}.`,
+          ],
+        },
+        { kind: 'h3', text: 'Empezar con una Stellar Experience' },
+        {
+          kind: 'steps',
+          items: [
+            `Elija la empresa y la ${ui('newpoc.startDate')}, como en el Notebook.`,
+            `Dé un ${ui('exp.name')} a la Experience y elija el ${ui('exp.profile')}: ${ui('exp.profile.technical')} o ${ui('exp.profile.executive')}.`,
+            `Haga clic en ${ui('newpoc.experienceStart')}. La PoC se abre en la pestaña Experience, lista para empezar la sesión.`,
           ],
         },
         { kind: 'h3', text: 'Crear el Reporte Final directamente' },

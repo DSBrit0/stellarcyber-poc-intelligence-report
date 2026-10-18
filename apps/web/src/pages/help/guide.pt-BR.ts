@@ -220,7 +220,7 @@ export const guidePtBR = (ui: Ui): HelpGuide => ({
       id: 'new-poc',
       title: 'Criar uma PoC',
       roles: STAFF,
-      summary: 'Dois caminhos: começar pelo Notebook ou ir direto ao Relatório Final.',
+      summary: 'Três caminhos: começar pelo Notebook, começar com uma Stellar Experience ou ir direto ao Relatório Final.',
       blocks: [
         { kind: 'p', text: `Clique em ${ui('poc.create')}. A ferramenta pergunta ${ui('newpoc.choose')}` },
         {
@@ -228,6 +228,7 @@ export const guidePtBR = (ui: Ui): HelpGuide => ({
           head: ['Caminho', 'Quando usar'],
           rows: [
             [ui('newpoc.notebook'), 'A PoC está começando. Você quer planejar e acompanhar com o cliente. O Relatório Final é criado depois, a partir do Notebook. Exige uma empresa com perfil Cliente.'],
+            [ui('newpoc.experience'), 'Você vai apresentar a plataforma ao cliente ao vivo. Cria o Notebook junto com a primeira Stellar Experience e abre a aba Experience. Só Sales Engineers e Admins. Exige uma empresa com perfil Cliente.'],
             [ui('newpoc.report'), 'A PoC já aconteceu e você só precisa do Relatório. Vincular um cliente é opcional.'],
           ],
         },
@@ -238,6 +239,15 @@ export const guidePtBR = (ui: Ui): HelpGuide => ({
             `Escolha a empresa em ${ui('newpoc.chooseCustomer')}. Se ela ainda não existe, use ${ui('wiz.newCustomer')}.`,
             `Informe a ${ui('newpoc.startDate')}: o cronograma é calculado a partir dela.`,
             `Clique em ${ui('newpoc.start')}.`,
+          ],
+        },
+        { kind: 'h3', text: 'Começar com uma Stellar Experience' },
+        {
+          kind: 'steps',
+          items: [
+            `Escolha a empresa e a ${ui('newpoc.startDate')}, como no Notebook.`,
+            `Dê um ${ui('exp.name')} à Experience e escolha o ${ui('exp.profile')}: ${ui('exp.profile.technical')} ou ${ui('exp.profile.executive')}.`,
+            `Clique em ${ui('newpoc.experienceStart')}. A PoC abre na aba Experience, pronta para começar a sessão.`,
           ],
         },
         { kind: 'h3', text: 'Criar o Relatório Final direto' },

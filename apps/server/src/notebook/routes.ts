@@ -1,5 +1,5 @@
 import {
-  CreateNotebookInput,
+  CreateNotebookStartInput,
   CriterionInput,
   DataSourceInput,
   DataSourcePatch,
@@ -16,6 +16,7 @@ import {
   ProcessShape,
   ReportTargetInput,
   UpdateNotebookInput,
+  stagesForProfile,
 } from '@poc-intel/shared'
 import { and, asc, eq, gt, gte, lt, sql as dsql } from 'drizzle-orm'
 import type { FastifyInstance, FastifyRequest } from 'fastify'
@@ -23,7 +24,7 @@ import { z } from 'zod'
 import { requireAuth, requireRole } from '../auth/guards.js'
 import type { AuthContext } from '../auth/session.js'
 import { db } from '../db/client.js'
-import { catalogEntries, customers, notebookTemplateItems, pocCriteria, pocDataSources, pocMeetings, pocMilestones, pocProcessItems, pocs, reportData, type Poc } from '../db/schema.js'
+import { catalogEntries, customers, experiences, notebookTemplateItems, pocCriteria, pocDataSources, pocMeetings, pocMilestones, pocProcessItems, pocs, reportData, type Poc } from '../db/schema.js'
 import { getCatalogState } from '../catalog/refresh.js'
 import { templateForNewNotebook } from './template.js'
 import { audit } from '../lib/audit.js'
@@ -49,7 +50,9 @@ export async function notebookRoutes(app: FastifyInstance): Promise<void> {
   // "Start a PoC Notebook": always for a Customer the caller manages (ADR 0010); no Tenant yet.
   app.post('/pocs/notebook', async (req: FastifyRequest, reply) => {
     const auth = requireRole(req, 'admin', 'sales_engineer', 'partner')
-    const input = parse(CreateNotebookInput, req.body)
+    const input = parse(CreateNotebookStartInput, req.body)
+    // Partners never run a Stellar Experience (canRunExperience); the creator is the Owner, so an SE or Admin may.
+    if (input.experience && auth.user.role === 'partner') throw new HttpError(403, 'forbidden')
     const [customer] = await db.select().from(customers).where(eq(customers.id, input.customerId)).limit(1)
     if (!customer || (auth.user.role !== 'admin' && customer.ownerId !== auth.user.id)) throw new HttpError(400, 'customer_not_yours')
     if (customer.profile !== 'customer') throw new HttpError(400, 'customer_is_partner')
@@ -80,10 +83,20 @@ export async function notebookRoutes(app: FastifyInstance): Promise<void> {
           schedule.map((t, i) => ({ pocId: created!.id, position: i + 1, key: t.key, text: t.text, days: t.days ?? 2, tone: t.tone ?? 'poc', phaseId: t.key ? (phases.get(t.key) ?? null) : null })),
         )
       }
-      return created!
+      // Started from "Stellar Experience": the first Experience, Disabled until the Presenter starts it.
+      let experienceId: string | null = null
+      if (input.experience) {
+        const stages = stagesForProfile(input.experience.profile)
+        const [exp] = await tx
+          .insert(experiences)
+          .values({ pocId: created!.id, name: input.experience.name, profile: input.experience.profile, stages, currentStage: stages[0]!, createdBy: auth.user.id })
+          .returning({ id: experiences.id })
+        experienceId = exp!.id
+      }
+      return { ...created!, experienceId }
     })
-    await audit({ action: 'poc.created', userId: auth.user.id, target: poc.id, ip: req.ip, meta: { notebook: true } })
-    return reply.code(201).send({ id: poc.id })
+    await audit({ action: 'poc.created', userId: auth.user.id, target: poc.id, ip: req.ip, meta: { notebook: true, experience: poc.experienceId != null } })
+    return reply.code(201).send({ id: poc.id, experienceId: poc.experienceId })
   })
 
   app.get('/pocs/:id/notebook', async (req) => {

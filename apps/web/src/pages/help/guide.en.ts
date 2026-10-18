@@ -214,7 +214,7 @@ export const guideEn = (ui: Ui): HelpGuide => ({
       id: 'new-poc',
       title: 'Create a PoC',
       roles: STAFF,
-      summary: 'Two paths: start with the Notebook or go straight to the Final Report.',
+      summary: 'Three paths: start with the Notebook, start with a Stellar Experience, or go straight to the Final Report.',
       blocks: [
         { kind: 'p', text: `Click ${ui('poc.create')}. The tool asks ${ui('newpoc.choose')}` },
         {
@@ -222,6 +222,7 @@ export const guideEn = (ui: Ui): HelpGuide => ({
           head: ['Path', 'When to use it'],
           rows: [
             [ui('newpoc.notebook'), 'The PoC is starting. You want to plan and follow it with the customer. The Final Report is created later, from the Notebook. It requires a company with the Customer profile.'],
+            [ui('newpoc.experience'), 'You will present the platform to the customer live. Creates the Notebook together with its first Stellar Experience and opens the Experience tab. Sales Engineers and Admins only. It requires a company with the Customer profile.'],
             [ui('newpoc.report'), 'The PoC already happened and you only need the Report. Linking a customer is optional.'],
           ],
         },
@@ -232,6 +233,15 @@ export const guideEn = (ui: Ui): HelpGuide => ({
             `Pick the company in ${ui('newpoc.chooseCustomer')}. If it does not exist yet, use ${ui('wiz.newCustomer')}.`,
             `Enter the ${ui('newpoc.startDate')}: the schedule is computed from it.`,
             `Click ${ui('newpoc.start')}.`,
+          ],
+        },
+        { kind: 'h3', text: 'Start with a Stellar Experience' },
+        {
+          kind: 'steps',
+          items: [
+            `Pick the company and the ${ui('newpoc.startDate')}, as for a Notebook.`,
+            `Give the Experience a ${ui('exp.name')} and choose the ${ui('exp.profile')}: ${ui('exp.profile.technical')} or ${ui('exp.profile.executive')}.`,
+            `Click ${ui('newpoc.experienceStart')}. The PoC opens on the Experience tab, ready to start the session.`,
           ],
         },
         { kind: 'h3', text: 'Create the Final Report directly' },

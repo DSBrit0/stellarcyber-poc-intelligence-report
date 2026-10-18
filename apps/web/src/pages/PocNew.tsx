@@ -1,8 +1,9 @@
-import type { PocDetails, StellarCredential } from '@poc-intel/shared'
+import { AUDIENCE_PROFILES, type AudienceProfile, type PocDetails, type StellarCredential } from '@poc-intel/shared'
 import { useQuery } from '@tanstack/react-query'
 import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react'
 import { useNavigate, useSearchParams } from 'react-router'
 import { api } from '../lib/api'
+import { useMe } from '../lib/auth'
 import { CredentialFields } from '../lib/CredentialFields'
 import { AutoTriageCheckbox } from '../lib/AutoTriage'
 import { CustomerDialog } from '../lib/CustomerForm'
@@ -63,23 +64,29 @@ function Block({ title, help, helpTip, done, locked, children }: { title: string
   )
 }
 
+type StartMode = 'notebook' | 'experience' | 'report'
+
 /**
- * New PoC: first the choice between starting a PoC Notebook and creating the Final Report straight away.
+ * New PoC: first the choice between starting a PoC Notebook, starting one with a Stellar Experience,
+ * and creating the Final Report straight away.
  * `?from=<pocId>` is "Create the Final Report" on an existing Notebook: the Report flow on that PoC.
  */
 export function PocNewPage() {
   const [params] = useSearchParams()
   const from = params.get('from')
-  const [mode, setMode] = useState<'notebook' | 'report' | null>(null)
+  const [mode, setMode] = useState<StartMode | null>(null)
   if (from) return <ReportFlow key={from} fromId={from} />
   if (mode === 'report') return <ReportFlow onBack={() => setMode(null)} />
-  if (mode === 'notebook') return <NotebookStart onBack={() => setMode(null)} />
+  if (mode === 'notebook' || mode === 'experience') return <NotebookStart key={mode} withExperience={mode === 'experience'} onBack={() => setMode(null)} />
   return <ChooseStart onChoose={setMode} />
 }
 
-function ChooseStart({ onChoose }: { onChoose: (m: 'notebook' | 'report') => void }) {
+function ChooseStart({ onChoose }: { onChoose: (m: StartMode) => void }) {
   const { t } = useI18n()
-  const card = (m: 'notebook' | 'report', title: string, help: string, icon: ReactNode) => (
+  const { data: me } = useMe()
+  // Partners never run a Stellar Experience (CONTEXT.md).
+  const withExperience = me?.role === 'admin' || me?.role === 'sales_engineer'
+  const card = (m: StartMode, title: string, help: string, icon: ReactNode) => (
     <button type="button" className="card group flex h-full flex-col items-start gap-3 text-left transition hover:border-brand focus-visible:border-brand" onClick={() => onChoose(m)}>
       <span className="flex h-10 w-10 items-center justify-center rounded-lg bg-brand/10 text-brand" aria-hidden="true">
         {icon}
@@ -94,24 +101,30 @@ function ChooseStart({ onChoose }: { onChoose: (m: 'notebook' | 'report') => voi
     </svg>
   )
   return (
-    <div className="mx-auto max-w-3xl space-y-4">
+    <div className={`mx-auto space-y-4 ${withExperience ? 'max-w-5xl' : 'max-w-3xl'}`}>
       <h1 className="text-xl font-semibold">{t('poc.create')}</h1>
       <p className="text-sm text-slate-500">{t('newpoc.choose')}</p>
-      <div className="grid gap-4 sm:grid-cols-2">
+      <div className={`grid gap-4 sm:grid-cols-2 ${withExperience ? 'lg:grid-cols-3' : ''}`}>
         {card('notebook', t('newpoc.notebook'), t('newpoc.notebookHelp'), svg('M4 4h12a4 4 0 0 1 4 4v12H8a4 4 0 0 1-4-4zM8 8h8M8 12h8M8 16h5'))}
+        {withExperience ? card('experience', t('newpoc.experience'), t('newpoc.experienceHelp'), svg('M12 2 3 7l9 5 9-5zM3 12l9 5 9-5M3 17l9 5 9-5')) : null}
         {card('report', t('newpoc.report'), t('newpoc.reportHelp'), svg('M4 20V10M10 20V4M16 20v-7M22 20H2'))}
       </div>
     </div>
   )
 }
 
-/** Start a PoC Notebook: a Customer (required, ADR 0010) and the PoC start date; no Tenant yet. */
-function NotebookStart({ onBack }: { onBack: () => void }) {
+/**
+ * Start a PoC Notebook: a Customer (required, ADR 0010) and the PoC start date; no Tenant yet.
+ * `withExperience` also creates its first Stellar Experience (name and Audience Profile) and opens it.
+ */
+function NotebookStart({ withExperience, onBack }: { withExperience: boolean; onBack: () => void }) {
   const { t } = useI18n()
   const navigate = useNavigate()
   const customers = useCustomers()
   const [customerId, setCustomerId] = useState('')
   const [startDate, setStartDate] = useState('')
+  const [name, setName] = useState('')
+  const [profile, setProfile] = useState<AudienceProfile>('technical')
   const [dialog, setDialog] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [busy, setBusy] = useState(false)
@@ -120,8 +133,9 @@ function NotebookStart({ onBack }: { onBack: () => void }) {
     setBusy(true)
     setError(null)
     try {
-      const poc = await api<{ id: string }>('/pocs/notebook', { method: 'POST', body: { customerId, startDate } })
-      navigate(`/pocs/${poc.id}`)
+      const experience = withExperience ? { name: name.trim(), profile } : undefined
+      const poc = await api<{ id: string }>('/pocs/notebook', { method: 'POST', body: { customerId, startDate, experience } })
+      navigate(withExperience ? `/pocs/${poc.id}?tab=experience` : `/pocs/${poc.id}`)
     } catch (err) {
       setError(t(errorKey(err)))
       setBusy(false)
@@ -129,7 +143,7 @@ function NotebookStart({ onBack }: { onBack: () => void }) {
   }
   return (
     <div className="mx-auto max-w-3xl space-y-4">
-      <h1 className="text-xl font-semibold">{t('newpoc.notebookTitle')}</h1>
+      <h1 className="text-xl font-semibold">{t(withExperience ? 'newpoc.experienceTitle' : 'newpoc.notebookTitle')}</h1>
       <form
         className="card space-y-4"
         onSubmit={(e) => {
@@ -160,14 +174,33 @@ function NotebookStart({ onBack }: { onBack: () => void }) {
           <span className="label">{t('newpoc.startDate')}</span>
           <input className="input" type="date" required value={startDate} onChange={(e) => setStartDate(e.target.value)} />
         </label>
+        {withExperience ? (
+          <>
+            <label className="block">
+              <span className="label">{t('exp.name')}</span>
+              <input className="input" required value={name} maxLength={80} placeholder={t('exp.namePlaceholder')} onChange={(e) => setName(e.target.value)} />
+            </label>
+            <fieldset>
+              <legend className="label">{t('exp.profile')}</legend>
+              <div className="flex flex-wrap gap-2">
+                {AUDIENCE_PROFILES.map((p) => (
+                  <label key={p} className={`btn-ghost ${profile === p ? 'border-brand bg-brand/10 text-brand dark:text-blue-300' : ''}`}>
+                    <input type="radio" name="profile" className="sr-only" checked={profile === p} onChange={() => setProfile(p)} />
+                    {t(`exp.profile.${p}`)}
+                  </label>
+                ))}
+              </div>
+            </fieldset>
+          </>
+        ) : null}
         {error ? (
           <p className="text-sm text-red-600" role="alert">
             {error}
           </p>
         ) : null}
         <div className="flex gap-2">
-          <button className="btn" disabled={busy || !customerId || !startDate}>
-            {t('newpoc.start')}
+          <button className="btn" disabled={busy || !customerId || !startDate || (withExperience && !name.trim())}>
+            {t(withExperience ? 'newpoc.experienceStart' : 'newpoc.start')}
           </button>
           <button type="button" className="btn-ghost" onClick={onBack}>
             {t('newpoc.back')}

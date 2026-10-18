@@ -1,5 +1,5 @@
 import { z } from 'zod'
-import { CatalogKind } from './notebook.js'
+import { CatalogKind, CreateNotebookInput } from './notebook.js'
 
 const Text = (max: number) => z.string().trim().max(max)
 
@@ -169,6 +169,8 @@ export const AUTOMATED_MTTD_PHASES: readonly MttdPhase[] = ['collection', 'triag
 export const automatedMinutes = (v: MttdValue) => AUTOMATED_MTTD_PHASES.reduce((sum, p) => sum + v.phases[p], 0)
 
 export const CreateExperienceInput = z.object({ name: Text(80).min(1), profile: AudienceProfile })
+/** "Stellar Experience" on New PoC: a PoC Notebook started together with its first Experience. */
+export const CreateNotebookStartInput = CreateNotebookInput.extend({ experience: CreateExperienceInput.optional() })
 export const UpdateExperienceInput = z
   .object({ name: Text(80).min(1).optional(), stages: StageSelection.optional(), status: ExperienceStatus.optional() })
   .refine((v) => v.name !== undefined || v.stages !== undefined || v.status !== undefined, { message: 'empty' })

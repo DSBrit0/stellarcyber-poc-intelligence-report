@@ -1,7 +1,7 @@
 import { LOCALES, TEMPLATES, type Locale, type PocDetails, type StellarCredential, type Template } from '@poc-intel/shared'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { useEffect, useState } from 'react'
-import { useNavigate, useParams } from 'react-router'
+import { useNavigate, useParams, useSearchParams } from 'react-router'
 import { ApiError, api } from '../lib/api'
 import { AutoTriageConfirm } from '../lib/AutoTriage'
 import { CredentialFields } from '../lib/CredentialFields'
@@ -62,7 +62,9 @@ export function PocDetailPage() {
   const { id = '' } = useParams()
   const { t, locale } = useI18n()
   const navigate = useNavigate()
-  const [tab, setTab] = useState<Tab | null>(null)
+  // `?tab=experience`: a PoC just started from "Stellar Experience" opens on its Experiences.
+  const [params] = useSearchParams()
+  const [tab, setTab] = useState<Tab | null>(params.get('tab') === 'experience' ? 'experience' : null)
   const { data: me } = useMe()
   const { data: poc } = useQuery({
     queryKey: ['poc', id],
@@ -72,11 +74,11 @@ export function PocDetailPage() {
   if (!poc) return null
   const running = poc.syncs.find((x) => x.status === 'queued' || x.status === 'running')
   const latest = poc.syncs[0]
-  // A Notebook PoC opens on its Notebook until it has Reports; any other PoC on its Reports.
-  const current: Tab = tab ?? (poc.notebook && poc.reports.length === 0 ? 'notebook' : 'reports')
-  const back = () => setTab('reports')
   // Partners never take part in a Stellar Experience (CONTEXT.md).
   const withExperience = Boolean(poc.notebook) && me != null && me.role !== 'partner'
+  // A Notebook PoC opens on its Notebook until it has Reports; any other PoC on its Reports.
+  const current: Tab = (tab === 'experience' && !withExperience ? null : tab) ?? (poc.notebook && poc.reports.length === 0 ? 'notebook' : 'reports')
+  const back = () => setTab('reports')
   const tabs: Tab[] = withExperience ? ['notebook', 'experience', 'reports'] : ['notebook', 'reports']
   return (
     <div className="space-y-5">
