@@ -15,6 +15,7 @@ import { eq } from 'drizzle-orm'
 import { renderReportHtml, reportCsp } from './render-html.js'
 import { deleteRenders, renderPath } from './render-cache.js'
 import { loadVersioning } from './versioning.js'
+import { cachedReportHtml, NONCE_SLOT, storeReportHtml, withNonce } from './html-cache.js'
 
 const Params = z.object({ id: z.uuid() })
 const Query = z.object({ template: Template.default('technical'), locale: Locale.optional() })
@@ -29,15 +30,27 @@ export async function reportRoutes(app: FastifyInstance): Promise<void> {
     const auth = requireAuth(req)
     const { id } = parse(Params, req.params)
     const q = parse(Query, req.query)
-    const { report, poc } = await loadReportData(auth, id)
+    const locale = q.locale ?? auth.user.locale
+    // Access first, without the Report itself; the page is rendered only when it is not cached.
+    const { report, poc } = await loadReportMeta(auth, id)
+    const versioning = await loadVersioning(report.id)
+    // Everything the page depends on: editing the PoC (details, criteria, image) moves updatedAt; a
+    // Report comment is a new version.
+    const key = sha256(`${report.id}|${q.template}|${locale}|${poc.updatedAt.toISOString()}|${versioning?.version ?? ''}`)
+    let page = cachedReportHtml(key)
+    if (!page) {
+      const { report: full } = await loadReportData(auth, id)
+      const html = renderReportHtml(full.data, await detailsForReport(poc), q.template, locale, {
+        // Only the Technical Report shows the architecture image: the others never read it.
+        archImage: q.template === 'technical' && poc.hasArchImage ? await archImageOf(poc.id) : null,
+        interactiveNonce: NONCE_SLOT,
+        versioning,
+      })
+      storeReportHtml(key, html)
+      page = cachedReportHtml(key)!
+    }
     const nonce = randomToken(16)
-    const html = renderReportHtml(report.data, await detailsForReport(poc), q.template, q.locale ?? auth.user.locale, {
-      // Only the Technical Report shows the architecture image: the others never read it.
-      archImage: q.template === 'technical' && poc.hasArchImage ? await archImageOf(poc.id) : null,
-      interactiveNonce: nonce,
-      versioning: await loadVersioning(report.id),
-    })
-    return reply.header('content-security-policy', reportCsp(nonce)).type('text/html; charset=utf-8').send(html)
+    return reply.header('content-security-policy', reportCsp(nonce)).type('text/html; charset=utf-8').send(withNonce(page, nonce))
   })
 
   // Permanent deletion of one Report: its Report Data, comments (cascade), the Sync that produced it
