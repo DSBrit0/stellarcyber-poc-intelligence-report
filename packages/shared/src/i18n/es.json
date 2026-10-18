@@ -535,6 +535,7 @@
   "catalog.confirm": "Confirmar y guardar",
   "catalog.applying": "Guardando…",
   "catalog.applied": "Catálogo actualizado.",
+  "catalog.historyButton": "Historial",
   "catalog.history": "Historial de actualizaciones",
   "catalog.historyHelp": "Cada actualización grabada, con los parsers y connectors que entraron al catálogo y los que salieron.",
   "catalog.historySearch": "Buscar un parser o connector en el historial",

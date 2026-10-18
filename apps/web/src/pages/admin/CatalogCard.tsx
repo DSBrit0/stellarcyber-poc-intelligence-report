@@ -47,6 +47,7 @@ export function CatalogCard() {
   const { t, locale } = useI18n()
   const { data } = useQuery({ queryKey: ['admin', 'catalog'], queryFn: () => api<CatalogAdmin>('/admin/catalog') })
   const [open, setOpen] = useState(false)
+  const [history, setHistory] = useState(false)
   if (!data) return null
   const { state, counts } = data
   return (
@@ -56,9 +57,14 @@ export function CatalogCard() {
           <h2 className="font-semibold">{t('catalog.title')}</h2>
           <p className="max-w-3xl text-sm text-slate-500">{t('catalog.help')}</p>
         </div>
-        <button className="btn" onClick={() => setOpen(true)}>
-          {t('catalog.updateNow')}
-        </button>
+        <div className="flex gap-2">
+          <button className="btn-ghost" onClick={() => setHistory(true)}>
+            {t('catalog.historyButton')}
+          </button>
+          <button className="btn" onClick={() => setOpen(true)}>
+            {t('catalog.updateNow')}
+          </button>
+        </div>
       </div>
       <dl className="grid gap-x-6 gap-y-1 text-sm sm:grid-cols-[auto_1fr]">
         <dt className="text-slate-500">{t('catalog.version')}</dt>
@@ -73,8 +79,8 @@ export function CatalogCard() {
         <dt className="text-slate-500">{t('catalog.schedule')}</dt>
         <dd>{t('catalog.scheduleValue')}</dd>
       </dl>
-      <CatalogHistory />
       {open ? <UpdateDialog sources={data.sources} onClose={() => setOpen(false)} /> : null}
+      {history ? <HistoryDialog onClose={() => setHistory(false)} /> : null}
     </section>
   )
 }
@@ -187,6 +193,31 @@ function UpdateDialog({ sources, onClose }: { sources: CatalogSources; onClose: 
   )
 }
 
+/** The history in its own dialog, opened from the Catalog card, so the card stays short. */
+function HistoryDialog({ onClose }: { onClose: () => void }) {
+  const { t } = useI18n()
+  const ref = useRef<HTMLDialogElement>(null)
+  useEffect(() => {
+    ref.current?.showModal()
+  }, [])
+  return (
+    <dialog ref={ref} onClose={onClose} className="m-auto w-[calc(100%-2rem)] max-w-3xl rounded-xl bg-white p-0 shadow-xl backdrop:bg-slate-900/60 dark:bg-slate-900 dark:text-slate-100">
+      <div className="space-y-4 p-6">
+        <div className="flex items-start justify-between gap-3">
+          <div>
+            <h2 className="text-lg font-semibold">{t('catalog.history')}</h2>
+            <p className="text-sm text-slate-500">{t('catalog.historyHelp')}</p>
+          </div>
+          <button type="button" className="btn-ghost" onClick={() => ref.current?.close()} aria-label="Close">
+            ✕
+          </button>
+        </div>
+        <CatalogHistory />
+      </div>
+    </dialog>
+  )
+}
+
 /** How many names a collapsed update shows of each list before "+N more". */
 const PREVIEW = 6
 
@@ -218,14 +249,8 @@ function CatalogHistory() {
       return next
     })
   return (
-    <div className="space-y-2 border-t border-slate-200 pt-3 dark:border-slate-800">
-      <div className="flex flex-wrap items-end justify-between gap-2">
-        <div>
-          <h3 className="font-semibold">{t('catalog.history')}</h3>
-          <p className="text-sm text-slate-500">{t('catalog.historyHelp')}</p>
-        </div>
-        <input className="input max-w-xs" type="search" value={query} placeholder={t('catalog.historySearch')} aria-label={t('catalog.historySearch')} onChange={(e) => setQuery(e.target.value)} />
-      </div>
+    <div className="space-y-2">
+      <input className="input" type="search" value={query} placeholder={t('catalog.historySearch')} aria-label={t('catalog.historySearch')} onChange={(e) => setQuery(e.target.value)} />
       {data.length === 0 ? <p className="text-sm text-slate-500">{t('catalog.historyEmpty')}</p> : null}
       {data.length > 0 && rows.length === 0 ? <p className="text-sm text-slate-500">{t('catalog.historyNoMatch')}</p> : null}
       <ul className="divide-y divide-slate-200 rounded-lg border border-slate-200 dark:divide-slate-800 dark:border-slate-800">

@@ -507,7 +507,7 @@ export const guideEn = (ui: Ui): HelpGuide => ({
         },
         {
           kind: 'p',
-          text: `The ${ui('catalog.history')} lists every update written, manual or weekly, naming each parser and connector that came in (+, green) or left (−, red). A large update shows its first names and opens the full list; the search finds the updates where an item came in or left.`,
+          text: `The ${ui('catalog.historyButton')} button opens the ${ui('catalog.history')}: every update written, manual or weekly, naming each parser and connector that came in (+, green) or left (−, red). A large update shows its first names and opens the full list; the search finds the updates where an item came in or left.`,
         },
         { kind: 'h3', text: ui('tpl.title') },
         {

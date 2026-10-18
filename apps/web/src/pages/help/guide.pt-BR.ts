@@ -522,7 +522,7 @@ export const guidePtBR = (ui: Ui): HelpGuide => ({
         },
         {
           kind: 'p',
-          text: `O ${ui('catalog.history')} lista cada atualização gravada, manual ou semanal, com o nome de cada parser e conector que entrou (+, em verde) ou saiu (−, em vermelho). Uma atualização grande mostra os primeiros nomes e abre a lista completa; a busca acha em quais atualizações um item entrou ou saiu.`,
+          text: `O botão ${ui('catalog.historyButton')} abre o ${ui('catalog.history')}: cada atualização gravada, manual ou semanal, com o nome de cada parser e conector que entrou (+, em verde) ou saiu (−, em vermelho). Uma atualização grande mostra os primeiros nomes e abre a lista completa; a busca acha em quais atualizações um item entrou ou saiu.`,
         },
         { kind: 'h3', text: ui('tpl.title') },
         {

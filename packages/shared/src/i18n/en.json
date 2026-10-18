@@ -535,6 +535,7 @@
   "catalog.confirm": "Confirm and save",
   "catalog.applying": "Saving…",
   "catalog.applied": "Catalog updated.",
+  "catalog.historyButton": "History",
   "catalog.history": "Update history",
   "catalog.historyHelp": "Every update written, with the parsers and Connectors that came into the catalog and the ones that left it.",
   "catalog.historySearch": "Search the history for a parser or Connector",
