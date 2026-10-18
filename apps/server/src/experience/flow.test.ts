@@ -1,4 +1,4 @@
-import { STAGE_IDS, answerSchema, mergeAnswers, stageById, stagesForProfile, type StageId } from '@poc-intel/shared'
+import { DEFAULT_VIEW, STAGE_IDS, ViewInput, answerSchema, applyView, mergeAnswers, stageById, stagesForProfile, type StageId } from '@poc-intel/shared'
 import { describe, expect, it } from 'vitest'
 import { canGoTo, canTransition, stageAfterSelection } from './flow.js'
 
@@ -24,6 +24,17 @@ describe('Stellar Experience flow', () => {
     expect(stageAfterSelection(STAGE_IDS, ['data_sources', 'detection'], 'detection')).toBe('detection')
     expect(stageAfterSelection(STAGE_IDS, ['data_sources', 'detection'], 'normalization')).toBe('data_sources')
     expect(stageAfterSelection(STAGE_IDS, ['detection'], 'collection')).toBe('detection')
+  })
+
+  it("mirrors the Presenter's panel, Spotlight and trace replays", () => {
+    const folded = applyView(DEFAULT_VIEW, { panel: false })
+    expect(folded).toEqual({ panel: false, spot: null, replay: 0 })
+    const pointed = applyView(folded, { spot: 'if:field:src_ip' })
+    expect(pointed).toEqual({ panel: false, spot: 'if:field:src_ip', replay: 0 })
+    expect(applyView(pointed, { replay: true })).toEqual({ panel: false, spot: 'if:field:src_ip', replay: 1 })
+    expect(applyView(pointed, { spot: null }).spot).toBeNull()
+    expect(ViewInput.safeParse({}).success).toBe(false)
+    expect(ViewInput.safeParse({ replay: false }).success).toBe(false)
   })
 
   it('the Executive profile pre-selects five Stages in pipeline order', () => {

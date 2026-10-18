@@ -4,6 +4,7 @@ import { api } from '../../lib/api'
 import { errorKey } from '../../lib/errors'
 import { useI18n } from '../../lib/i18n'
 import { useWords } from './content'
+import { Spot } from './spotlight'
 
 export interface QuestionRow {
   id: string
@@ -84,7 +85,7 @@ function QuestionItem({ base, q, canReply, onChanged }: { base: string; q: Quest
     await onChanged()
   }
   return (
-    <li className="rounded-xl border border-white/10 bg-white/[0.03] px-3 py-2 text-sm">
+    <Spot as="li" id={`cq:${q.id}`} className="rounded-xl border border-white/10 bg-white/[0.03] px-3 py-2 text-sm">
       <p className="mb-0.5 flex flex-wrap items-center gap-2 text-xs text-sc-silver/55">
         {q.mine ? t('exp.you') : (q.userName ?? '—')}
         {pending ? <span className="rounded bg-sc-solar/15 px-1.5 text-sc-solar">{t('exp.cq.pending')}</span> : null}
@@ -127,6 +128,6 @@ function QuestionItem({ base, q, canReply, onChanged }: { base: string; q: Quest
           ) : null}
         </div>
       ) : null}
-    </li>
+    </Spot>
   )
 }

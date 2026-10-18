@@ -199,6 +199,25 @@ export type SceneTarget = z.infer<typeof SceneTarget>
 export const SceneState = z.object({ model: SceneModel, target: SceneTarget.nullable() })
 export type SceneState = z.infer<typeof SceneState>
 
+/**
+ * The rest of the Presenter's screen, mirrored on every participant's: the side panel open or folded,
+ * the Spotlight (the item the Presenter points at, by its spot id, such as `if:field:src_ip`) and
+ * how many times the Record Trace was replayed.
+ */
+export const ExperienceView = z.object({ panel: z.boolean(), spot: Text(200).min(1).nullable(), replay: z.number().int().min(0) })
+export type ExperienceView = z.infer<typeof ExperienceView>
+export const DEFAULT_VIEW: ExperienceView = { panel: true, spot: null, replay: 0 }
+export const ViewInput = z
+  .object({ panel: z.boolean().optional(), spot: Text(200).min(1).nullable().optional(), replay: z.literal(true).optional() })
+  .refine((v) => v.panel !== undefined || v.spot !== undefined || v.replay !== undefined, { message: 'empty' })
+export type ViewInput = z.infer<typeof ViewInput>
+/** The view after a Presenter's change: what the change leaves out stays; a replay counts one more. */
+export const applyView = (view: ExperienceView, input: ViewInput): ExperienceView => ({
+  panel: input.panel ?? view.panel,
+  spot: input.spot === undefined ? view.spot : input.spot,
+  replay: view.replay + (input.replay ? 1 : 0),
+})
+
 export const CustomerQuestionInput = z.object({ text: Text(1000).min(1) })
 /** The Sales Engineer's follow-up: a written Reply (null clears it) or "answered live". */
 export const ReplyInput = z

@@ -1,5 +1,5 @@
 // Mirrors migrations/*.sql — the SQL files are the source of truth; keep both in step.
-import type { AnswerValue, AudienceProfile, BriefingSection, SceneState, ExperienceStatus, StageId, StagePhase, CatalogKind, MilestoneTone, CompanyProfile, CriterionStatus, DataSourceStatus, I18nText, NotebookOverview, PocDetails, ProcessKind, ProcessStatus, ReportData, Role, SyncProgress, SyncStatus, UserStatus, Locale } from '@poc-intel/shared'
+import type { AnswerValue, AudienceProfile, BriefingSection, ExperienceView, SceneState, ExperienceStatus, StageId, StagePhase, CatalogKind, MilestoneTone, CompanyProfile, CriterionStatus, DataSourceStatus, I18nText, NotebookOverview, PocDetails, ProcessKind, ProcessStatus, ReportData, Role, SyncProgress, SyncStatus, UserStatus, Locale } from '@poc-intel/shared'
 import type { SyncMetrics } from '../stellar/request-stats.js'
 import { bigint, boolean, date, doublePrecision, integer, jsonb, pgTable, primaryKey, smallint, text, timestamp, uuid } from 'drizzle-orm/pg-core'
 
@@ -304,6 +304,8 @@ export const experiences = pgTable('experiences', {
   briefingOpen: jsonb('briefing_open').$type<BriefingSection[]>().notNull().default([]),
   /** The 3D interaction model and the object the Presenter entered. */
   scene: jsonb('scene').$type<SceneState>().notNull().default({ model: 'chamber', target: null }),
+  /** The panel, the Spotlight and the trace replays, as on the Presenter's screen (migration 0023). */
+  view: jsonb('view').$type<ExperienceView>().notNull().default({ panel: true, spot: null, replay: 0 }),
   createdBy: uuid('created_by'),
   createdAt: ts('created_at').notNull().defaultNow(),
   updatedAt: ts('updated_at').notNull().defaultNow(),

@@ -5,6 +5,7 @@ import { useI18n } from '../../lib/i18n'
 import { BRIEFING_DOCS, BRIEFING_REFS } from './content/briefing-refs'
 import { useWords } from './content'
 import { CollapseButton } from './CollapseButton'
+import { Spot } from './spotlight'
 
 /** The command each topic answers to: shell idiom, so it reads the same in every language. */
 const COMMANDS: Record<BriefingSection, string> = {
@@ -43,7 +44,8 @@ export function BriefingTerminal({
   onToggle: (section: BriefingSection) => void
   docsVersion: string | null
   reducedMotion: boolean
-  onCollapse: () => void
+  /** Only for whoever leads the view (the Presenter, or the viewer of a replay). */
+  onCollapse?: () => void
 }) {
   const { t } = useI18n()
   const words = useWords()
@@ -102,13 +104,13 @@ export function BriefingTerminal({
         <p className="min-w-0 flex-1 truncate font-mono text-xs text-sc-silver/60">
           stellar@open-xdr:~/{stageById(stage).chapter.replace(/_/g, '-')}/{slug}
         </p>
-        <CollapseButton onClick={onCollapse} />
+        {onCollapse ? <CollapseButton onClick={onCollapse} /> : null}
       </header>
       <div className="min-h-0 flex-1 space-y-2 overflow-y-auto px-3 py-3 font-mono text-[13px] leading-relaxed sm:px-4">
         {BRIEFING_SECTIONS.map((s) => {
           const isOpen = open.includes(s)
           return (
-            <div key={s} className={`rounded-lg ${isOpen ? 'bg-white/[0.03] pb-2' : ''}`}>
+            <Spot key={s} id={`brief:${s}`} pointable={false} className={`rounded-lg ${isOpen ? 'bg-white/[0.03] pb-2' : ''}`}>
               <button
                 type="button"
                 disabled={!canToggle}
@@ -127,7 +129,7 @@ export function BriefingTerminal({
                 {isOpen ? null : <span className="line-clamp-1 w-full pl-4 text-sc-silver/50">{body[s].summary}</span>}
               </button>
               {isOpen ? <Reveal lines={body[s].lines} reducedMotion={reducedMotion} /> : null}
-            </div>
+            </Spot>
           )
         })}
         <div className="px-2 pt-2">

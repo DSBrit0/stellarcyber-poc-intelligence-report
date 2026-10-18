@@ -3,6 +3,7 @@ import { useEffect, useState } from 'react'
 import { useI18n } from '../../lib/i18n'
 import { useWords } from './content'
 import { CAPTURED_ON, fieldsUpTo, type FieldValue, type InterflowSample } from './content/interflow-samples'
+import { Spot } from './spotlight'
 
 const show = (v: FieldValue) => (Array.isArray(v) ? `[${v.map((x) => `"${x}"`).join(', ')}]` : typeof v === 'number' ? String(v) : `"${v}"`)
 
@@ -59,7 +60,7 @@ export function InterflowInspector({
         ) : (
           <span className="rounded bg-sc-solar/15 px-2 py-0.5 text-xs font-medium text-sc-solar">{t('exp.scene.illustrative')}</span>
         )}
-        {model === 'trace' ? (
+        {model === 'trace' && canLeave ? (
           <button type="button" className="rounded px-2 py-0.5 text-xs text-sc-silver/70 hover:bg-white/10 hover:text-sc-silver" onClick={onReplay}>
             {t('exp.scene.replay')}
           </button>
@@ -94,7 +95,7 @@ function ChamberView({ sample, stage, reducedMotion }: { sample: InterflowSample
     return (
       <div className="space-y-2">
         <p className="font-roboto text-sm text-sc-silver/70">{t('exp.scene.noRaw')}</p>
-        <Json rows={Object.entries(parsed?.fields ?? {}).map(([key, value]) => ({ key, value, fresh: true }))} />
+        <Json spot="if:add" rows={Object.entries(parsed?.fields ?? {}).map(([key, value]) => ({ key, value, fresh: true }))} />
       </div>
     )
   }
@@ -106,19 +107,19 @@ function ChamberView({ sample, stage, reducedMotion }: { sample: InterflowSample
       <div className="grid gap-4 lg:grid-cols-2">
         <div>
           <p className="mb-1 font-roboto text-xs text-sc-silver/55">{t('exp.scene.raw')}</p>
-          <p className="break-all text-sc-silver/80">
+          <Spot id="if:raw" className="break-all text-sc-silver/80">
             <Highlighted text={rawText} parts={highlighted.map((m) => m.raw)} />
-          </p>
+          </Spot>
         </div>
         <div>
           <p className="mb-1 font-roboto text-xs text-sc-silver/55">{t('exp.scene.interflow')}</p>
           <ul className="space-y-0.5">
             {sample.mappings.map((m, i) => (
-              <li key={m.field} className={`transition-opacity duration-500 ${i < lit ? 'opacity-100' : 'opacity-0'}`}>
+              <Spot as="li" key={m.field} id={`if:map:${m.field}`} className={`transition-opacity duration-500 ${i < lit ? 'opacity-100' : 'opacity-0'}`}>
                 <span className="text-sc-sky-light">{m.field}</span>
                 <span className="text-sc-silver/40"> ← </span>
                 <span className="text-sc-silver/75">{m.raw}</span>
-              </li>
+              </Spot>
             ))}
           </ul>
         </div>
@@ -132,13 +133,13 @@ function ChamberView({ sample, stage, reducedMotion }: { sample: InterflowSample
     <div className="grid gap-4 lg:grid-cols-2">
       <div>
         <p className="mb-1 font-roboto text-xs text-sc-silver/55">{t('exp.scene.input')}</p>
-        <Json rows={before.map((f) => ({ ...f, fresh: false }))} />
+        <Json spot="if:in" rows={before.map((f) => ({ ...f, fresh: false }))} />
       </div>
       <div>
         <p className="mb-1 font-roboto text-xs text-sc-silver/55">
           {t('exp.scene.adds')}: <span className="text-sc-silver">{step.engine}</span>
         </p>
-        <Json rows={Object.entries(step.fields).map(([key, value]) => ({ key, value, fresh: true }))} />
+        <Json spot="if:add" rows={Object.entries(step.fields).map(([key, value]) => ({ key, value, fresh: true }))} />
       </div>
     </div>
   )
@@ -157,7 +158,7 @@ function TraceView({ sample, steps, index }: { sample: InterflowSample; steps: I
       <ol className="space-y-1 font-roboto text-sm">
         <li className="text-sc-silver/55">{sample.source}</li>
         {steps.map((st, i) => (
-          <li key={st.stage} className={`flex items-baseline gap-2 ${i === index ? 'text-sc-solar' : i < index ? 'text-sc-silver/85' : 'text-sc-silver/30'}`}>
+          <Spot as="li" key={st.stage} id={`if:step:${st.stage}`} className={`flex items-baseline gap-2 ${i === index ? 'text-sc-solar' : i < index ? 'text-sc-silver/85' : 'text-sc-silver/30'}`}>
             <span aria-hidden>{i < index ? '✓' : i === index ? '▸' : '·'}</span>
             <span>
               {words.stages[st.stage].title}
@@ -166,35 +167,36 @@ function TraceView({ sample, steps, index }: { sample: InterflowSample; steps: I
                 {st.real ? <span className="ml-1.5 text-sc-sky-light">● {t('exp.scene.realShort')}</span> : null}
               </span>
             </span>
-          </li>
+          </Spot>
         ))}
       </ol>
       <div className="space-y-3">
-        <Json rows={[...fields].map(([key, v]) => ({ key, ...v }))} />
+        <Json spot="if:field" rows={[...fields].map(([key, v]) => ({ key, ...v }))} />
         {done ? (
-          <p className="rounded-lg border border-sc-solar/40 bg-sc-solar/10 px-3 py-2 font-roboto text-sm">
+          <Spot id="if:case" className="rounded-lg border border-sc-solar/40 bg-sc-solar/10 px-3 py-2 font-roboto text-sm">
             {t('exp.scene.case', { id: sample.outcome.caseId, score: sample.outcome.score, alerts: sample.outcome.alerts })}
             <span className="block text-sc-silver/80">
               {t('exp.scene.response')}: {words.stages.response.options[sample.outcome.response.action]} ({sample.outcome.response.target})
             </span>
-          </p>
+          </Spot>
         ) : null}
       </div>
     </div>
   )
 }
 
-function Json({ rows }: { rows: { key: string; value: FieldValue; fresh: boolean }[] }) {
+/** `spot`: each field can be put in the Spotlight as `<spot>:<field>`. */
+function Json({ rows, spot }: { rows: { key: string; value: FieldValue; fresh: boolean }[]; spot: string }) {
   return (
     <pre className="whitespace-pre-wrap">
       <span className="text-sc-silver/50">{'{'}</span>
       {rows.map((r, i) => (
-        <span key={r.key} className={`block pl-4 transition-colors duration-700 ${r.fresh ? 'bg-sc-solar/10' : ''}`}>
+        <Spot as="span" key={r.key} id={`${spot}:${r.key}`} className={`block pl-4 transition-colors duration-700 ${r.fresh ? 'bg-sc-solar/10' : ''}`}>
           <span className={r.fresh ? 'text-sc-solar' : 'text-sc-sky-light'}>"{r.key}"</span>
           <span className="text-sc-silver/50">: </span>
           <span className="text-sc-silver/85">{show(r.value)}</span>
           <span className="text-sc-silver/50">{i < rows.length - 1 ? ',' : ''}</span>
-        </span>
+        </Spot>
       ))}
       <span className="text-sc-silver/50">{'}'}</span>
     </pre>

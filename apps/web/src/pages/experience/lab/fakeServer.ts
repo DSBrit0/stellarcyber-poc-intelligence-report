@@ -1,4 +1,4 @@
-import { SCENE_MODELS, STAGE_IDS, StageId, stagesForProfile, type AudienceProfile, type BriefingSection, type SceneState, type StagePhase } from '@poc-intel/shared'
+import { applyView, DEFAULT_VIEW, SCENE_MODELS, STAGE_IDS, StageId, stagesForProfile, type AudienceProfile, type BriefingSection, type ExperienceView, type SceneState, type StagePhase } from '@poc-intel/shared'
 
 /**
  * The visual lab's server: an in-memory stand-in for the Experience API, installed over `fetch`
@@ -15,10 +15,11 @@ interface LabState {
   currentPhase: StagePhase
   briefingOpen: BriefingSection[]
   scene: SceneState
+  view: ExperienceView
   settled: Set<StageId>
 }
 
-/** The starting point, read from the lab URL: ?profile=&stage=&phase=&model=&target=kind:key&open=topic */
+/** The starting point, read from the lab URL: ?profile=&stage=&phase=&model=&target=kind:key&open=topic&spot=id&panel=closed */
 export function stateFromUrl(search: string): LabState {
   const q = new URLSearchParams(search)
   const profile: AudienceProfile = q.get('profile') === 'executive' ? 'executive' : 'technical'
@@ -34,6 +35,7 @@ export function stateFromUrl(search: string): LabState {
     currentPhase: q.get('phase') === 'question' ? 'question' : 'briefing',
     briefingOpen: q.get('open') ? [q.get('open') as BriefingSection] : [],
     scene: { model, target: (kind === 'source' || kind === 'stage') && key.length ? { kind, key: key.join(':') } : null },
+    view: { ...DEFAULT_VIEW, panel: q.get('panel') !== 'closed', spot: q.get('spot') || (q.get('open') ? `brief:${q.get('open')}` : null) },
     // Every Stage before the current one counts as done, so the Stack shows progress.
     settled: new Set(stages.slice(0, stages.indexOf(currentStage))),
   }
@@ -55,6 +57,7 @@ export function installFakeServer(state: LabState): () => void {
       currentPhase: state.currentPhase,
       briefingOpen: state.briefingOpen,
       scene: state.scene,
+      view: state.view,
       finishedAt: null,
     },
     customerName: 'Lab Customer',
@@ -80,11 +83,13 @@ export function installFakeServer(state: LabState): () => void {
       state.currentPhase = 'briefing'
       state.briefingOpen = []
       state.scene = { model: state.scene.model, target: null }
+      state.view = { ...state.view, spot: null }
       return json({ ok: true })
     }
-    if (path === `${base}/phase`) return (state.currentPhase = body.phase), json({ ok: true })
-    if (path === `${base}/briefing`) return (state.briefingOpen = body.open), json({ ok: true })
-    if (path === `${base}/scene`) return (state.scene = body), json({ ok: true })
+    if (path === `${base}/phase`) return (state.currentPhase = body.phase), (state.view = { ...state.view, spot: null }), json({ ok: true })
+    if (path === `${base}/briefing`) return (state.briefingOpen = body.open), (state.view = { ...state.view, spot: body.open.at(-1) ? `brief:${body.open.at(-1)}` : null }), json({ ok: true })
+    if (path === `${base}/scene`) return (state.scene = body), (state.view = { ...state.view, spot: null }), json({ ok: true })
+    if (path === `${base}/view`) return (state.view = applyView(state.view, body)), json({ ok: true })
     const stageAction = path.match(new RegExp(`^${base}/stages/([a-z_]+)/(skip|approve)$`))
     if (stageAction && (STAGE_IDS as readonly string[]).includes(stageAction[1]!)) return state.settled.add(stageAction[1] as StageId), json({ ok: true })
     if (path.startsWith(base)) return json({ ok: true })

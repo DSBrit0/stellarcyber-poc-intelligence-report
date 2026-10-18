@@ -11,7 +11,9 @@ import {
   STAGE_IDS,
   StageId,
   UpdateExperienceInput,
+  ViewInput,
   answerSchema,
+  applyView,
   mergeAnswers,
   stageById,
   stagesForProfile,
@@ -214,6 +216,7 @@ export async function experienceRoutes(app: FastifyInstance): Promise<void> {
         currentPhase: exp.currentPhase,
         briefingOpen: exp.briefingOpen,
         scene: exp.scene,
+        view: exp.view,
         finishedAt: exp.finishedAt,
       },
       questions: questions.map((q) => ({ ...q, mine: q.userId === auth.user.id })),
@@ -308,7 +311,7 @@ export async function experienceRoutes(app: FastifyInstance): Promise<void> {
     // Every Stage opens on its Briefing.
     await db
       .update(experiences)
-      .set({ currentStage: stageId, currentPhase: 'briefing', briefingOpen: [], scene: { model: exp.scene.model, target: null }, updatedAt: dsql`now()` })
+      .set({ currentStage: stageId, currentPhase: 'briefing', briefingOpen: [], scene: { model: exp.scene.model, target: null }, view: { ...exp.view, spot: null }, updatedAt: dsql`now()` })
       .where(eq(experiences.id, exp.id))
     return { ok: true }
   })
@@ -321,7 +324,7 @@ export async function experienceRoutes(app: FastifyInstance): Promise<void> {
     const exp = await loadExperience(poc.id, expId)
     requireActive(exp)
     const { phase } = parse(PhaseInput, req.body)
-    await db.update(experiences).set({ currentPhase: phase, updatedAt: dsql`now()` }).where(eq(experiences.id, exp.id))
+    await db.update(experiences).set({ currentPhase: phase, view: { ...exp.view, spot: null }, updatedAt: dsql`now()` }).where(eq(experiences.id, exp.id))
     return { ok: true }
   })
 
@@ -333,7 +336,12 @@ export async function experienceRoutes(app: FastifyInstance): Promise<void> {
     const exp = await loadExperience(poc.id, expId)
     requireActive(exp)
     const { open } = parse(BriefingInput, req.body)
-    await db.update(experiences).set({ briefingOpen: [...new Set(open)], updatedAt: dsql`now()` }).where(eq(experiences.id, exp.id))
+    // The topic just opened is what everyone looks at; folding it lets go of the Spotlight.
+    const opened = open.at(-1)
+    await db
+      .update(experiences)
+      .set({ briefingOpen: [...new Set(open)], view: { ...exp.view, spot: opened ? `brief:${opened}` : null }, updatedAt: dsql`now()` })
+      .where(eq(experiences.id, exp.id))
     return { ok: true }
   })
 
@@ -345,7 +353,19 @@ export async function experienceRoutes(app: FastifyInstance): Promise<void> {
     const exp = await loadExperience(poc.id, expId)
     requireActive(exp)
     const scene = parse(SceneState, req.body)
-    await db.update(experiences).set({ scene, updatedAt: dsql`now()` }).where(eq(experiences.id, exp.id))
+    await db.update(experiences).set({ scene, view: { ...exp.view, spot: null }, updatedAt: dsql`now()` }).where(eq(experiences.id, exp.id))
+    return { ok: true }
+  })
+
+  // The Presenter folds or opens the panel, points at an item (the Spotlight) or replays the trace; everyone follows.
+  app.post('/pocs/:id/experiences/:expId/view', async (req) => {
+    const auth = requireAuth(req)
+    const { id, expId } = parse(ExpParams, req.params)
+    const { poc } = await loadAccess(auth, id, 'run')
+    const exp = await loadExperience(poc.id, expId)
+    requireActive(exp)
+    const view = applyView(exp.view, parse(ViewInput, req.body))
+    await db.update(experiences).set({ view, updatedAt: dsql`now()` }).where(eq(experiences.id, exp.id))
     return { ok: true }
   })
 

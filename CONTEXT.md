@@ -187,8 +187,12 @@ A live, guided 3D walk through the Stellar Cyber data pipeline that a Sales Engi
 _Avoid_: Architecture Tour, demo, presentation
 
 **Presenter**:
-The Sales Engineer leading a Stellar Experience. Every other participant's view follows the Presenter's current stage.
+The Sales Engineer leading a Stellar Experience. Every other participant's view follows the Presenter's screen: the current Stage, the Briefing topics, the scene, the side panel open or folded, the Record Trace replays and the Spotlight.
 _Avoid_: Host, driver
+
+**Spotlight**:
+The item the Presenter points at during a Stellar Experience (an Interflow field or mapping, a Record Trace step, the Case, a Briefing topic, an Answer, a Customer Question), framed on every participant's screen and scrolled into view. Opening a Briefing topic or picking an Answer puts it in the Spotlight; clicking an item again, or changing Stage, phase or scene, clears it.
+_Avoid_: Highlight, selection
 
 **Stage**:
 One step of a Stellar Experience, such as Data Sources, Normalization, Detection or Response. Each Stage opens on its Briefing; the Presenter then opens its question, and moves on only once an Answer is approved or the Stage is Skipped.

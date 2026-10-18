@@ -1,4 +1,4 @@
-import { CHAPTERS, isListQuestion, stageById, type AnswerValue, type AudienceProfile, type DataSourcesValue, type BriefingSection, type ExperienceStatus, type SceneState, type StageId, type StagePhase } from '@poc-intel/shared'
+import { applyView, CHAPTERS, DEFAULT_VIEW, isListQuestion, stageById, type AnswerValue, type AudienceProfile, type DataSourcesValue, type BriefingSection, type ExperienceStatus, type ExperienceView, type SceneState, type ViewInput, type StageId, type StagePhase } from '@poc-intel/shared'
 import '@fontsource/roboto/latin-400.css'
 import '@fontsource/roboto/latin-500.css'
 import '@fontsource/roboto/latin-700.css'
@@ -16,6 +16,7 @@ import { CustomerQuestions, type QuestionRow } from './CustomerQuestions'
 import { familyOf, SAMPLES } from './content/interflow-samples'
 import { InterflowInspector } from './InterflowInspector'
 import { useWords } from './content'
+import { Spot, SpotlightProvider, useSpotlight } from './spotlight'
 import { StackPreview } from './StackPreview'
 
 // three.js and its effects load only where the 3D scene can run.
@@ -61,7 +62,7 @@ interface ResultRow {
   answerIds: string[]
 }
 interface Live {
-  experience: { id: string; name: string; profile: AudienceProfile; status: ExperienceStatus; stages: StageId[]; currentStage: StageId; currentPhase: StagePhase; briefingOpen: BriefingSection[]; scene: SceneState }
+  experience: { id: string; name: string; profile: AudienceProfile; status: ExperienceStatus; stages: StageId[]; currentStage: StageId; currentPhase: StagePhase; briefingOpen: BriefingSection[]; scene: SceneState; view: ExperienceView }
   customerName: string
   docsVersion: string | null
   questions: QuestionRow[]
@@ -89,6 +90,7 @@ export function ExperiencePage() {
   const [replayPhase, setReplayPhase] = useState<StagePhase>('briefing')
   const [replayOpen, setReplayOpen] = useState<BriefingSection[]>([])
   const [replayScene, setReplayScene] = useState<SceneState>({ model: 'chamber', target: null })
+  const [replayView, setReplayView] = useState<ExperienceView>(DEFAULT_VIEW)
   const [moveError, setMoveError] = useState<string | null>(null)
   const refresh = () => qc.invalidateQueries({ queryKey: key })
   // Small screens and browsers without WebGL 2 get the flat Stack; reduced motion keeps 3D but still.
@@ -96,24 +98,6 @@ export function ExperiencePage() {
   const lg = useMedia('(min-width: 1024px)')
   const reducedMotion = useMedia('(prefers-reduced-motion: reduce)')
   const with3D = wide && hasWebGL()
-  // Each viewer can fold the description and questions away to give the scene the whole screen.
-  const [panelOpen, setPanelOpen] = useState(() => {
-    try {
-      return localStorage.getItem('experience.panel') !== 'closed'
-    } catch {
-      return true
-    }
-  })
-  const togglePanel = () =>
-    setPanelOpen((open) => {
-      try {
-        localStorage.setItem('experience.panel', open ? 'closed' : 'open')
-      } catch {
-        // storage unavailable: the choice lasts for this page only
-      }
-      return !open
-    })
-
   const exp = data?.experience
   const live = exp?.status === 'active'
   const stage: StageId | undefined = exp ? (live ? exp.currentStage : (replayStage ?? exp.stages[0])) : undefined
@@ -121,6 +105,25 @@ export function ExperiencePage() {
   const settled = new Set((data?.results ?? []).map((r) => r.stageId))
   const result = data?.results.find((r) => r.stageId === stage)
   const presenting = Boolean(data?.canRun && live)
+  // The Presenter's panel, Spotlight and trace replays: mirrored on every screen; in a replay, the viewer's own.
+  const view: ExperienceView = exp ? (live ? (exp.view ?? DEFAULT_VIEW) : replayView) : DEFAULT_VIEW
+  const leading = presenting || !live
+  const patchLive = (patch: Partial<Live['experience']>) => qc.setQueryData<Live>(key, (d) => (d ? { ...d, experience: { ...d.experience, ...patch } } : d))
+  const setView = async (patch: ViewInput) => {
+    if (!exp || !leading) return
+    const next = applyView(view, patch)
+    if (!live) return setReplayView(next)
+    patchLive({ view: next })
+    try {
+      await api(`/pocs/${id}/experiences/${exp.id}/view`, { method: 'POST', body: patch })
+    } finally {
+      await refresh()
+    }
+  }
+  // The Presenter folds the description and questions away to give the scene the whole screen, for everyone.
+  const panelOpen = view.panel
+  const togglePanel = () => void setView({ panel: !panelOpen })
+  const point = (spot: string | null) => void setView({ spot })
   // Each Stage opens on its Briefing; the Presenter then opens its question.
   const phase: StagePhase = exp ? (live ? exp.currentPhase : replayPhase) : 'briefing'
 
@@ -129,6 +132,7 @@ export function ExperiencePage() {
     if (!live) {
       setReplayPhase('briefing')
       setReplayOpen([])
+      setReplayView((v) => ({ ...v, spot: null }))
       return setReplayStage(target)
     }
     setMoveError(null)
@@ -141,7 +145,10 @@ export function ExperiencePage() {
   }
   const setPhase = async (next: StagePhase) => {
     if (!exp) return
-    if (!live) return setReplayPhase(next)
+    if (!live) {
+      setReplayView((v) => ({ ...v, spot: null }))
+      return setReplayPhase(next)
+    }
     setMoveError(null)
     try {
       await api(`/pocs/${id}/experiences/${exp.id}/phase`, { method: 'POST', body: { phase: next } })
@@ -156,8 +163,13 @@ export function ExperiencePage() {
     if (!exp) return
     // One topic at a time: opening the next one closes the one before.
     const next = briefingOpen.includes(section) ? [] : [section]
-    if (!live) return setReplayOpen(next)
-    qc.setQueryData<Live>(key, (d) => (d ? { ...d, experience: { ...d.experience, briefingOpen: next } } : d))
+    // The topic just opened goes in the Spotlight, as the server does.
+    const spot = next[0] ? `brief:${next[0]}` : null
+    if (!live) {
+      setReplayView((v) => ({ ...v, spot }))
+      return setReplayOpen(next)
+    }
+    patchLive({ briefingOpen: next, view: { ...view, spot } })
     try {
       await api(`/pocs/${id}/experiences/${exp.id}/briefing`, { method: 'POST', body: { open: next } })
     } finally {
@@ -168,8 +180,11 @@ export function ExperiencePage() {
   const scene: SceneState = exp ? (live ? exp.scene : replayScene) : { model: 'chamber', target: null }
   const setScene = async (next: SceneState) => {
     if (!exp) return
-    if (!live) return setReplayScene(next)
-    qc.setQueryData<Live>(key, (d) => (d ? { ...d, experience: { ...d.experience, scene: next } } : d))
+    if (!live) {
+      setReplayView((v) => ({ ...v, spot: null }))
+      return setReplayScene(next)
+    }
+    patchLive({ scene: next, view: { ...view, spot: null } })
     try {
       await api(`/pocs/${id}/experiences/${exp.id}/scene`, { method: 'POST', body: next })
     } finally {
@@ -186,9 +201,8 @@ export function ExperiencePage() {
         ? (Object.values(SAMPLES).find((x) => x.steps.some((st) => st.stage === scene.target!.key)) ?? preferred)
         : preferred
   const sampleSteps = exp ? sample.steps.filter((st) => exp.stages.includes(st.stage)) : []
-  // The traced record advances one engine every few seconds, on every screen, from the moment the Presenter enters.
-  const [traceRun, setTraceRun] = useState(0)
-  const traceKey = scene.model === 'trace' && scene.target ? `${scene.target.kind}:${scene.target.key}:${traceRun}` : null
+  // The traced record advances one engine every few seconds, on every screen, from the moment the Presenter enters or replays.
+  const traceKey = scene.model === 'trace' && scene.target ? `${scene.target.kind}:${scene.target.key}:${view.replay}` : null
   const [traceIndex, setTraceIndex] = useState(0)
   useEffect(() => {
     setTraceIndex(0)
@@ -236,6 +250,7 @@ export function ExperiencePage() {
   const stageWords = words.stages[stage]
 
   return (
+    <SpotlightProvider value={{ spot: view.spot, canPoint: leading, point }}>
     <Screen blades={!with3D}>
       {with3D ? (
         <>
@@ -313,7 +328,7 @@ export function ExperiencePage() {
               traceIndex={traceIndex}
               canLeave={presenting || !live}
               onLeave={() => void setScene({ model: scene.model, target: null })}
-              onReplay={() => setTraceRun((n) => n + 1)}
+              onReplay={() => void setView({ replay: true })}
               reducedMotion={reducedMotion}
             />
           ) : (
@@ -338,10 +353,10 @@ export function ExperiencePage() {
               onToggle={(s) => void toggleTopic(s)}
               docsVersion={data.docsVersion}
               reducedMotion={reducedMotion}
-              onCollapse={togglePanel}
+              onCollapse={leading ? togglePanel : undefined}
             />
           ) : (
-            <StagePanel key={`${exp.id}-${stage}`} pocId={id} data={data} stage={stage} result={result} approvedSources={approvedSources} onChanged={refresh} onCollapse={togglePanel} />
+            <StagePanel key={`${exp.id}-${stage}`} pocId={id} data={data} stage={stage} result={result} approvedSources={approvedSources} onChanged={refresh} onCollapse={leading ? togglePanel : undefined} />
           )}
           <CustomerQuestions
             base={`/pocs/${id}/experiences/${exp.id}`}
@@ -353,9 +368,10 @@ export function ExperiencePage() {
           />
         </div>
         ) : (
-          // Folded: a slim tab on the right edge brings the panel back, and says if questions are waiting.
+          // Folded: a slim tab on the right edge brings the panel back (the Presenter's, for everyone), and says if questions are waiting.
           <button
             type="button"
+            disabled={!leading}
             onClick={togglePanel}
             aria-expanded={false}
             aria-controls="experience-panel"
@@ -401,6 +417,7 @@ export function ExperiencePage() {
         {!live ? <p className="w-full text-center text-xs text-sc-silver/50">{exp.status === 'finished' ? t('exp.finishedNote') : t('exp.notLive')}</p> : null}
       </footer>
     </Screen>
+    </SpotlightProvider>
   )
 }
 
@@ -484,7 +501,7 @@ function StagePanel({
   result: ResultRow | undefined
   approvedSources: string[]
   onChanged: () => unknown
-  onCollapse: () => void
+  onCollapse?: () => void
 }) {
   const { t } = useI18n()
   const words = useWords()
@@ -512,12 +529,18 @@ function StagePanel({
       setBusy(false)
     }
   }
-  const togglePick = (answerId: string) => setPicked((p) => (list ? (p.includes(answerId) ? p.filter((x) => x !== answerId) : [...p, answerId]) : [answerId]))
+  const { spot, canPoint, point } = useSpotlight()
+  // The Presenter's pick goes in the Spotlight, so everyone sees which Answer is about to be approved.
+  const togglePick = (answerId: string) => {
+    const dropping = list && picked.includes(answerId)
+    setPicked((p) => (list ? (p.includes(answerId) ? p.filter((x) => x !== answerId) : [...p, answerId]) : [answerId]))
+    if (canPoint) point(dropping ? (spot === `ans:${answerId}` ? null : spot) : `ans:${answerId}`)
+  }
 
   return (
     <aside className="pointer-events-auto flex min-h-0 shrink flex-col gap-5 self-start overflow-y-auto rounded-2xl border border-white/12 bg-white/[0.06] p-5 shadow-[0_30px_80px_-30px_rgba(0,0,0,0.6)] backdrop-blur-xl sm:p-6">
       <div className="relative pr-24">
-        <CollapseButton onClick={onCollapse} className="absolute top-0 right-0" />
+        {onCollapse ? <CollapseButton onClick={onCollapse} className="absolute top-0 right-0" /> : null}
         <h2 className="text-xl leading-snug font-semibold text-balance">{words.stages[stage].question}</h2>
         {words.stages[stage].hint ? <p className="mt-1 text-sm text-sc-silver/60">{words.stages[stage].hint}</p> : null}
       </div>
@@ -566,7 +589,7 @@ function StagePanel({
               </>
             )
             return (
-              <li key={a.id}>
+              <Spot as="li" key={a.id} id={`ans:${a.id}`} pointable={false}>
                 {data.canApprove ? (
                   <button
                     type="button"
@@ -580,7 +603,7 @@ function StagePanel({
                 ) : (
                   <div className="rounded-xl border border-white/10 bg-white/[0.03] px-3 py-2 text-sm">{content}</div>
                 )}
-              </li>
+              </Spot>
             )
           })}
         </ul>
