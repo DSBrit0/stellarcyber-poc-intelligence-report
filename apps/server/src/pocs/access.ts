@@ -65,15 +65,25 @@ export async function loadPocAccess(auth: AuthContext, pocId: string, mode: 'vie
   return { poc, followerId }
 }
 
-export async function loadReportData(auth: AuthContext, reportDataId: string, opts: { anyVersion?: boolean } = {}) {
-  const [row] = await db
-    .select({ report: reportData, poc: pocFields })
-    .from(reportData)
-    .innerJoin(pocs, eq(pocs.id, reportData.pocId))
-    .where(eq(reportData.id, reportDataId))
-    .limit(1)
+/** Report Data without its `data` (the whole Report as jsonb): what access, comments, deletion and the PDF need. */
+const { data: _data, ...reportMetaColumns } = getTableColumns(reportData)
+
+async function checkReportAccess(auth: AuthContext, row: { report: { version: number }; poc: PocRow } | undefined, anyVersion: boolean) {
   if (!row || !canView(auth, row.poc, await followerFor(auth, row.poc))) throw notFound()
   // Report Data from an older collector cannot feed the current Templates; a new Sync replaces it.
-  if (!opts.anyVersion && row.report.version !== REPORT_DATA_VERSION) throw new HttpError(409, 'report_data_outdated')
-  return row
+  if (!anyVersion && row.report.version !== REPORT_DATA_VERSION) throw new HttpError(409, 'report_data_outdated')
+}
+
+/** The Report Data with the whole Report, for rendering it. */
+export async function loadReportData(auth: AuthContext, reportDataId: string, opts: { anyVersion?: boolean } = {}) {
+  const [row] = await db.select({ report: reportData, poc: pocFields }).from(reportData).innerJoin(pocs, eq(pocs.id, reportData.pocId)).where(eq(reportData.id, reportDataId)).limit(1)
+  await checkReportAccess(auth, row, opts.anyVersion ?? false)
+  return row!
+}
+
+/** The Report Data without the Report itself, for everything that only needs to know it and reach it. */
+export async function loadReportMeta(auth: AuthContext, reportDataId: string, opts: { anyVersion?: boolean } = {}) {
+  const [row] = await db.select({ report: reportMetaColumns, poc: pocFields }).from(reportData).innerJoin(pocs, eq(pocs.id, reportData.pocId)).where(eq(reportData.id, reportDataId)).limit(1)
+  await checkReportAccess(auth, row, opts.anyVersion ?? false)
+  return row!
 }

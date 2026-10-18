@@ -7,7 +7,7 @@ import { db } from '../db/client.js'
 import { reportComments, users } from '../db/schema.js'
 import { audit } from '../lib/audit.js'
 import { HttpError, parse } from '../lib/http.js'
-import { loadReportData } from '../pocs/access.js'
+import { loadReportMeta } from '../pocs/access.js'
 
 const Params = z.object({ id: z.uuid() })
 
@@ -20,7 +20,7 @@ const Params = z.object({ id: z.uuid() })
 export async function commentRoutes(app: FastifyInstance): Promise<void> {
   app.get('/report-data/:id/comments', async (req) => {
     const auth = requireAuth(req)
-    const { report } = await loadReportData(auth, parse(Params, req.params).id, { anyVersion: true })
+    const { report } = await loadReportMeta(auth, parse(Params, req.params).id, { anyVersion: true })
     return db
       .select({
         id: reportComments.id,
@@ -40,7 +40,7 @@ export async function commentRoutes(app: FastifyInstance): Promise<void> {
 
   app.post('/report-data/:id/comments', { config: { rateLimit: { max: 20, timeWindow: '1 minute' } } }, async (req, reply) => {
     const auth = requireAuth(req)
-    const { report } = await loadReportData(auth, parse(Params, req.params).id, { anyVersion: true })
+    const { report } = await loadReportMeta(auth, parse(Params, req.params).id, { anyVersion: true })
     const { body, kind, private: isPrivate } = parse(CommentInput, req.body)
     if (isPrivate && auth.user.role === 'customer') throw new HttpError(403, 'forbidden')
     const [c] = await db.insert(reportComments).values({ reportDataId: report.id, userId: auth.user.id, body, kind, isPrivate }).returning({ id: reportComments.id })

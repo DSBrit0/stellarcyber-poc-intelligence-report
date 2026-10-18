@@ -7,7 +7,7 @@ import { requireAuth } from '../auth/guards.js'
 import { audit } from '../lib/audit.js'
 import { randomToken, sha256 } from '../lib/crypto.js'
 import { HttpError, parse } from '../lib/http.js'
-import { archImageOf, canEdit, loadReportData } from '../pocs/access.js'
+import { archImageOf, canEdit, loadReportData, loadReportMeta } from '../pocs/access.js'
 import { detailsForReport } from './poc-details.js'
 import { db } from '../db/client.js'
 import { reportData, syncs } from '../db/schema.js'
@@ -44,7 +44,7 @@ export async function reportRoutes(app: FastifyInstance): Promise<void> {
   // and every cached PDF. Only the Owner or an Admin. The audit log keeps only that it happened.
   app.delete('/report-data/:id', async (req, reply) => {
     const auth = requireAuth(req)
-    const { report, poc } = await loadReportData(auth, parse(Params, req.params).id, { anyVersion: true })
+    const { report, poc } = await loadReportMeta(auth, parse(Params, req.params).id, { anyVersion: true })
     if (!canEdit(auth, poc)) throw new HttpError(403, 'forbidden')
     await db.transaction(async (tx) => {
       await tx.delete(syncs).where(eq(syncs.reportDataId, report.id))
@@ -60,7 +60,7 @@ export async function reportRoutes(app: FastifyInstance): Promise<void> {
     const { id } = parse(Params, req.params)
     const q = parse(Query, req.query)
     const locale = q.locale ?? auth.user.locale
-    const { report, poc } = await loadReportData(auth, id)
+    const { report, poc } = await loadReportMeta(auth, id)
 
     // Cache key covers everything the PDF depends on: editing PoC details or adding a Report comment
     // (a new version) yields a fresh render.
