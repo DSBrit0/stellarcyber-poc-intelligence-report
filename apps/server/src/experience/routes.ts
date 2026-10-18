@@ -15,8 +15,6 @@ import {
   ViewInput,
   answerSchema,
   hasQuestion,
-  applyView,
-  clearFocus,
   viewOf,
   mergeAnswers,
   stageById,
@@ -36,6 +34,7 @@ import { HttpError, notFound, parse } from '../lib/http.js'
 import { canJoinExperience, canRunExperience, loadPocAccess, type PocRow } from '../pocs/access.js'
 import { getCatalogState } from '../catalog/refresh.js'
 import { canGoTo, canTransition, stageAfterSelection } from './flow.js'
+import { viewClearFocus, viewPatch, viewSpot } from './view-sql.js'
 
 const IdParam = z.object({ id: z.uuid() })
 const ExpParams = z.object({ id: z.uuid(), expId: z.uuid() })
@@ -381,7 +380,7 @@ export async function experienceRoutes(app: FastifyInstance): Promise<void> {
     // Every Stage opens on its Briefing.
     await db
       .update(experiences)
-      .set({ currentStage: stageId, currentPhase: 'briefing', briefingOpen: [], scene: { model: exp.scene.model, target: null }, view: clearFocus(viewOf(exp.view)), updatedAt: dsql`now()` })
+      .set({ currentStage: stageId, currentPhase: 'briefing', briefingOpen: [], scene: dsql`jsonb_set(${experiences.scene}, '{target}', 'null'::jsonb)`, view: viewClearFocus(), updatedAt: dsql`now()` })
       .where(eq(experiences.id, exp.id))
     return { ok: true }
   })
@@ -395,7 +394,7 @@ export async function experienceRoutes(app: FastifyInstance): Promise<void> {
     requireActive(exp)
     const { phase } = parse(PhaseInput, req.body)
     if (phase === 'question' && !hasQuestion(exp.currentStage)) throw new HttpError(409, 'no_question')
-    await db.update(experiences).set({ currentPhase: phase, view: clearFocus(viewOf(exp.view)), updatedAt: dsql`now()` }).where(eq(experiences.id, exp.id))
+    await db.update(experiences).set({ currentPhase: phase, view: viewClearFocus(), updatedAt: dsql`now()` }).where(eq(experiences.id, exp.id))
     return { ok: true }
   })
 
@@ -411,7 +410,7 @@ export async function experienceRoutes(app: FastifyInstance): Promise<void> {
     const opened = open.at(-1)
     await db
       .update(experiences)
-      .set({ briefingOpen: [...new Set(open)], view: { ...viewOf(exp.view), spot: opened ? `brief:${opened}` : null }, updatedAt: dsql`now()` })
+      .set({ briefingOpen: [...new Set(open)], view: viewSpot(opened ? `brief:${opened}` : null), updatedAt: dsql`now()` })
       .where(eq(experiences.id, exp.id))
     return { ok: true }
   })
@@ -424,7 +423,7 @@ export async function experienceRoutes(app: FastifyInstance): Promise<void> {
     const exp = await loadExperience(poc.id, expId)
     requireActive(exp)
     const scene = parse(SceneState, req.body)
-    await db.update(experiences).set({ scene, view: clearFocus(viewOf(exp.view)), updatedAt: dsql`now()` }).where(eq(experiences.id, exp.id))
+    await db.update(experiences).set({ scene, view: viewClearFocus(), updatedAt: dsql`now()` }).where(eq(experiences.id, exp.id))
     return { ok: true }
   })
 
@@ -436,7 +435,7 @@ export async function experienceRoutes(app: FastifyInstance): Promise<void> {
     const { poc } = await loadAccess(auth, id, 'run')
     const exp = await loadExperience(poc.id, expId)
     requireActive(exp)
-    const view = applyView(viewOf(exp.view), parse(ViewInput, req.body))
+    const view = viewPatch(parse(ViewInput, req.body))
     await db.update(experiences).set({ view, updatedAt: dsql`now()` }).where(eq(experiences.id, exp.id))
     return { ok: true }
   })
