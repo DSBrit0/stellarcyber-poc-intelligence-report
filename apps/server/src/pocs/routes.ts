@@ -16,7 +16,7 @@ import type { FastifyReply, FastifyRequest } from 'fastify'
 import type { StellarDeps } from '../app.js'
 import { StellarClient } from '../stellar/client.js'
 import { listTenants } from '../stellar/tenants.js'
-import { canEdit, loadPoc, ownedOrFollowedBy, reportTarget } from './access.js'
+import { archImageOf, canEdit, loadPoc, ownedOrFollowedBy, reportTarget } from './access.js'
 
 const IdParam = z.object({ id: z.uuid() })
 const staff = (req: Parameters<typeof requireAuth>[0]) => requireRole(req, 'admin', 'sales_engineer', 'partner')
@@ -190,8 +190,6 @@ export async function pocRoutes(app: FastifyInstance, { dispatcher }: StellarDep
     const [customer] = poc.customerId ? await db.select({ name: customers.name }).from(customers).where(eq(customers.id, poc.customerId)).limit(1) : []
     return {
       ...poc,
-      archImage: undefined,
-      hasArchImage: poc.archImage != null,
       customerName: customer?.name ?? null,
       canEdit: canEdit(auth, poc),
       hasReportTarget: reportTarget(poc) != null,
@@ -277,8 +275,9 @@ export async function pocRoutes(app: FastifyInstance, { dispatcher }: StellarDep
 
   app.get('/pocs/:id/arch-image', async (req, reply) => {
     const poc = await loadPoc(requireAuth(req), parse(IdParam, req.params).id)
-    if (!poc.archImage) throw notFound()
-    const [, mime, b64] = poc.archImage.match(/^data:(image\/(?:png|jpeg));base64,(.+)$/) ?? []
+    const archImage = poc.hasArchImage ? await archImageOf(poc.id) : null
+    if (!archImage) throw notFound()
+    const [, mime, b64] = archImage.match(/^data:(image\/(?:png|jpeg));base64,(.+)$/) ?? []
     return reply.type(mime ?? 'application/octet-stream').header('cache-control', 'private, max-age=60').send(Buffer.from(b64 ?? '', 'base64'))
   })
 

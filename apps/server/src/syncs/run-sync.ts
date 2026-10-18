@@ -7,7 +7,7 @@ import { StellarApiError, StellarClient } from '../stellar/client.js'
 import type { SyncMetrics } from '../stellar/request-stats.js'
 import { appLog, apiCallRecorder } from '../lib/log-sink.js'
 import { collectReportData } from './collect-report-data.js'
-import { reportTarget } from '../pocs/access.js'
+import { pocFields, reportTarget } from '../pocs/access.js'
 
 type Logger = { info: (obj: object, msg: string) => void; warn: (obj: object, msg: string) => void }
 
@@ -43,7 +43,7 @@ export async function runSync(syncId: string, credential: StellarCredential, dis
     .returning({ id: syncs.id })
   if (!started) return
   const [row] = await db
-    .select({ sync: syncs, poc: pocs })
+    .select({ sync: syncs, poc: pocFields })
     .from(syncs)
     .innerJoin(pocs, eq(pocs.id, syncs.pocId))
     .where(eq(syncs.id, syncId))

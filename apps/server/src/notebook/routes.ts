@@ -24,18 +24,18 @@ import { z } from 'zod'
 import { requireAuth, requireRole } from '../auth/guards.js'
 import type { AuthContext } from '../auth/session.js'
 import { db } from '../db/client.js'
-import { catalogEntries, customers, experiences, notebookTemplateItems, pocCriteria, pocDataSources, pocMeetings, pocMilestones, pocProcessItems, pocs, reportData, type Poc } from '../db/schema.js'
+import { catalogEntries, customers, experiences, notebookTemplateItems, pocCriteria, pocDataSources, pocMeetings, pocMilestones, pocProcessItems, pocs, reportData } from '../db/schema.js'
 import { getCatalogState } from '../catalog/refresh.js'
 import { templateForNewNotebook } from './template.js'
 import { audit } from '../lib/audit.js'
 import { HttpError, notFound, parse } from '../lib/http.js'
-import { canFillNotebook, canShapeNotebook, loadPocAccess, reportTarget } from '../pocs/access.js'
+import { canFillNotebook, canShapeNotebook, loadPocAccess, reportTarget, type PocRow } from '../pocs/access.js'
 
 const IdParam = z.object({ id: z.uuid() })
 const RowParams = z.object({ id: z.uuid(), rowId: z.uuid() })
 
 /** The PoC, if it has a Notebook the caller may fill in (`shape`: may also hide, remove or add items). */
-async function loadNotebook(auth: AuthContext, pocId: string, mode: 'view' | 'fill' | 'shape' = 'view'): Promise<{ poc: Poc; canFill: boolean; canShape: boolean }> {
+async function loadNotebook(auth: AuthContext, pocId: string, mode: 'view' | 'fill' | 'shape' = 'view'): Promise<{ poc: PocRow; canFill: boolean; canShape: boolean }> {
   const { poc, followerId } = await loadPocAccess(auth, pocId)
   if (poc.notebook == null) throw notFound()
   const canFill = canFillNotebook(auth, poc, followerId)

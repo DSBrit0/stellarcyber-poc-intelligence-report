@@ -30,10 +30,10 @@ import { z } from 'zod'
 import { requireAuth } from '../auth/guards.js'
 import type { AuthContext } from '../auth/session.js'
 import { db } from '../db/client.js'
-import { experienceAnswers, experienceParticipants, experienceQuestions, experiences, experienceStageResults, pocDataSources, users, type Experience, type Poc } from '../db/schema.js'
+import { experienceAnswers, experienceParticipants, experienceQuestions, experiences, experienceStageResults, pocDataSources, users, type Experience } from '../db/schema.js'
 import { audit } from '../lib/audit.js'
 import { HttpError, notFound, parse } from '../lib/http.js'
-import { canJoinExperience, canRunExperience, loadPocAccess } from '../pocs/access.js'
+import { canJoinExperience, canRunExperience, loadPocAccess, type PocRow } from '../pocs/access.js'
 import { getCatalogState } from '../catalog/refresh.js'
 import { canGoTo, canTransition, stageAfterSelection } from './flow.js'
 
@@ -43,7 +43,7 @@ const StageParams = ExpParams.extend({ stageId: StageId })
 const QuestionParams = ExpParams.extend({ questionId: z.uuid() })
 
 interface Access {
-  poc: Poc
+  poc: PocRow
   canRun: boolean
 }
 
@@ -81,6 +81,34 @@ const requireCurrent = (exp: Experience, stageId: StageId, phase?: 'question') =
 const isUniqueViolation = (e: unknown): boolean => {
   const err = e as { code?: string; cause?: unknown }
   return err?.code === '23505' || (err?.cause != null && isUniqueViolation(err.cause))
+}
+
+/**
+ * When this process last marked each participant present: polling comes every second, the row needs
+ * writing every 5 s at most, so the statement itself is skipped in between (one API process, ADR 0006).
+ */
+const presenceWritten = new Map<string, number>()
+function markPresent(experienceId: string, userId: string): Promise<unknown> | undefined {
+  const key = `${experienceId}:${userId}`
+  const now = Date.now()
+  if (now - (presenceWritten.get(key) ?? 0) < 5_000) return undefined
+  presenceWritten.set(key, now)
+  if (presenceWritten.size > 5_000) for (const [k, at] of presenceWritten) if (now - at > 60_000) presenceWritten.delete(k)
+  return db
+    .insert(experienceParticipants)
+    .values({ experienceId, userId })
+    .onConflictDoUpdate({
+      target: [experienceParticipants.experienceId, experienceParticipants.userId],
+      set: { lastSeenAt: dsql`now()` },
+      setWhere: dsql`${experienceParticipants.lastSeenAt} < now() - interval '5 seconds'`,
+    })
+}
+
+/** The documentation version the Briefings link to: it changes once a week at most, so it is read once a minute. */
+let docsVersion = { at: 0, value: null as string | null }
+async function currentDocsVersion(): Promise<string | null> {
+  if (Date.now() - docsVersion.at > 60_000) docsVersion = { at: Date.now(), value: (await getCatalogState()).version?.segment ?? null }
+  return docsVersion.value
 }
 
 const touch = (expId: string) => db.update(experiences).set({ updatedAt: dsql`now()` }).where(eq(experiences.id, expId))
@@ -184,23 +212,21 @@ export async function experienceRoutes(app: FastifyInstance): Promise<void> {
     const exp = await loadExperience(poc.id, expId)
     if (!canRun && exp.status === 'disabled') throw notFound()
     // Polling marks the caller present; written at most every five seconds per participant.
-    if (exp.status === 'active') {
-      await db
-        .insert(experienceParticipants)
-        .values({ experienceId: exp.id, userId: auth.user.id })
-        .onConflictDoUpdate({
-          target: [experienceParticipants.experienceId, experienceParticipants.userId],
-          set: { lastSeenAt: dsql`now()` },
-          setWhere: dsql`${experienceParticipants.lastSeenAt} < now() - interval '5 seconds'`,
-        })
-    }
-    const [answers, results, questions, catalog, participants] = await Promise.all([
-      db
-        .select({ id: experienceAnswers.id, stageId: experienceAnswers.stageId, userId: experienceAnswers.userId, userName: users.name, value: experienceAnswers.value, updatedAt: experienceAnswers.updatedAt })
-        .from(experienceAnswers)
-        .innerJoin(users, eq(users.id, experienceAnswers.userId))
-        .where(eq(experienceAnswers.experienceId, exp.id))
-        .orderBy(asc(experienceAnswers.updatedAt)),
+    if (exp.status === 'active') await markPresent(exp.id, auth.user.id)
+    // Live, the screen shows Answers only with the question open, and Participants only on the Lab
+    // Stage: the other polls skip those queries. A replay (not Active) gets everything at once.
+    const live = exp.status === 'active'
+    const wantAnswers = !live || exp.currentPhase === 'question'
+    const wantParticipants = !live || exp.currentStage === 'lab'
+    const [answers, results, questions, docs, participants] = await Promise.all([
+      !wantAnswers
+        ? []
+        : db
+            .select({ id: experienceAnswers.id, stageId: experienceAnswers.stageId, userId: experienceAnswers.userId, userName: users.name, value: experienceAnswers.value, updatedAt: experienceAnswers.updatedAt })
+            .from(experienceAnswers)
+            .innerJoin(users, eq(users.id, experienceAnswers.userId))
+            .where(eq(experienceAnswers.experienceId, exp.id))
+            .orderBy(asc(experienceAnswers.updatedAt)),
       db
         .select({ stageId: experienceStageResults.stageId, outcome: experienceStageResults.outcome, value: experienceStageResults.value, answerIds: experienceStageResults.answerIds, decidedAt: experienceStageResults.decidedAt })
         .from(experienceStageResults)
@@ -220,21 +246,23 @@ export async function experienceRoutes(app: FastifyInstance): Promise<void> {
         .leftJoin(users, eq(users.id, experienceQuestions.userId))
         .where(eq(experienceQuestions.experienceId, exp.id))
         .orderBy(asc(experienceQuestions.createdAt)),
-      getCatalogState(),
+      currentDocsVersion(),
       // Who is in the session now (seen in the last 30 s), and anyone who confirmed their lab access.
-      db
-        .select({
-          userId: experienceParticipants.userId,
-          name: users.name,
-          email: users.email,
-          role: users.role,
-          online: dsql<boolean>`${experienceParticipants.lastSeenAt} > now() - interval '30 seconds'`,
-          labConfirmedAt: experienceParticipants.labConfirmedAt,
-        })
-        .from(experienceParticipants)
-        .innerJoin(users, eq(users.id, experienceParticipants.userId))
-        .where(and(eq(experienceParticipants.experienceId, exp.id), dsql`(${experienceParticipants.lastSeenAt} > now() - interval '30 seconds' OR ${experienceParticipants.labConfirmedAt} IS NOT NULL)`))
-        .orderBy(asc(users.name)),
+      !wantParticipants
+        ? []
+        : db
+            .select({
+              userId: experienceParticipants.userId,
+              name: users.name,
+              email: users.email,
+              role: users.role,
+              online: dsql<boolean>`${experienceParticipants.lastSeenAt} > now() - interval '30 seconds'`,
+              labConfirmedAt: experienceParticipants.labConfirmedAt,
+            })
+            .from(experienceParticipants)
+            .innerJoin(users, eq(users.id, experienceParticipants.userId))
+            .where(and(eq(experienceParticipants.experienceId, exp.id), dsql`(${experienceParticipants.lastSeenAt} > now() - interval '30 seconds' OR ${experienceParticipants.labConfirmedAt} IS NOT NULL)`))
+            .orderBy(asc(users.name)),
     ])
     return {
       experience: {
@@ -253,7 +281,7 @@ export async function experienceRoutes(app: FastifyInstance): Promise<void> {
       questions: questions.map((q) => ({ ...q, mine: q.userId === auth.user.id })),
       customerName: poc.details.customerName,
       // The documentation version the Briefings link to, the same one the Data Source Catalog reads.
-      docsVersion: catalog.version?.segment ?? null,
+      docsVersion: docs,
       answers: answers.map((a) => ({ ...a, mine: a.userId === auth.user.id })),
       // E-mails only for whoever runs the session (to invite people to the lab) and for one's own row.
       participants: participants.map((p) => ({

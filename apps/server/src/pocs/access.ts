@@ -1,5 +1,5 @@
 import { REPORT_DATA_VERSION } from '@poc-intel/shared'
-import { and, eq, sql as dsql, type SQL } from 'drizzle-orm'
+import { and, eq, getTableColumns, sql as dsql, type SQL } from 'drizzle-orm'
 import type { AuthContext } from '../auth/session.js'
 import { db } from '../db/client.js'
 import { customers, pocs, reportData, users, type Poc } from '../db/schema.js'
@@ -19,14 +19,30 @@ export async function followerOf(ownerId: string): Promise<string | null> {
   return row?.id ?? null
 }
 
+/**
+ * A PoC as the routes read it: every column but the architecture image, a data URL of up to 3 MB that
+ * only the Technical Report and the image route show, plus whether there is one. Reading the full row
+ * on every request (the Experience polls each second, per participant) moved ~3 MB from the database
+ * each time.
+ */
+const { archImage: _archImage, ...pocColumns } = getTableColumns(pocs)
+export const pocFields = { ...pocColumns, hasArchImage: dsql<boolean>`${pocs.archImage} IS NOT NULL` }
+export type PocRow = Omit<Poc, 'archImage'> & { hasArchImage: boolean }
+
+/** The architecture image of a PoC, read only where it is shown. */
+export async function archImageOf(pocId: string): Promise<string | null> {
+  const [row] = await db.select({ archImage: pocs.archImage }).from(pocs).where(eq(pocs.id, pocId)).limit(1)
+  return row?.archImage ?? null
+}
+
 /** The Report target of a PoC, or null while it is only a PoC Notebook (ADR 0010). */
-export function reportTarget(poc: Poc) {
+export function reportTarget(poc: Pick<Poc, 'instanceUrl' | 'tenantId' | 'tenantName' | 'periodStart' | 'periodEnd'>) {
   const { instanceUrl, tenantId, periodStart, periodEnd } = poc
   return instanceUrl && tenantId && periodStart && periodEnd ? { instanceUrl, tenantId, tenantName: poc.tenantName, periodStart, periodEnd } : null
 }
 
 /** Only an SE who does not own the PoC needs the lookup. */
-const followerFor = (auth: AuthContext, poc: Poc) =>
+const followerFor = (auth: AuthContext, poc: Pick<Poc, 'ownerId'>) =>
   auth.user.role === 'sales_engineer' && poc.ownerId !== auth.user.id ? followerOf(poc.ownerId) : Promise.resolve(null)
 
 /** The PoCs an SE owns or follows, as a WHERE condition on `pocs`. */
@@ -35,13 +51,13 @@ export const ownedOrFollowedBy = (userId: string): SQL =>
     SELECT u.id FROM users u JOIN customers c ON c.id = u.customer_id
     WHERE c.owner_id = ${userId} AND c.profile = 'partner' AND u.role = 'partner'))`
 
-export async function loadPoc(auth: AuthContext, pocId: string, mode: 'view' | 'edit' = 'view'): Promise<Poc> {
+export async function loadPoc(auth: AuthContext, pocId: string, mode: 'view' | 'edit' = 'view'): Promise<PocRow> {
   return (await loadPocAccess(auth, pocId, mode)).poc
 }
 
 /** The PoC together with the SE who follows its Owner, when the caller is that SE. */
-export async function loadPocAccess(auth: AuthContext, pocId: string, mode: 'view' | 'edit' = 'view'): Promise<{ poc: Poc; followerId: string | null }> {
-  const [poc] = await db.select().from(pocs).where(eq(pocs.id, pocId)).limit(1)
+export async function loadPocAccess(auth: AuthContext, pocId: string, mode: 'view' | 'edit' = 'view'): Promise<{ poc: PocRow; followerId: string | null }> {
+  const [poc] = await db.select(pocFields).from(pocs).where(eq(pocs.id, pocId)).limit(1)
   if (!poc) throw notFound()
   const followerId = await followerFor(auth, poc)
   if (!canView(auth, poc, followerId)) throw notFound()
@@ -51,7 +67,7 @@ export async function loadPocAccess(auth: AuthContext, pocId: string, mode: 'vie
 
 export async function loadReportData(auth: AuthContext, reportDataId: string, opts: { anyVersion?: boolean } = {}) {
   const [row] = await db
-    .select({ report: reportData, poc: pocs })
+    .select({ report: reportData, poc: pocFields })
     .from(reportData)
     .innerJoin(pocs, eq(pocs.id, reportData.pocId))
     .where(eq(reportData.id, reportDataId))

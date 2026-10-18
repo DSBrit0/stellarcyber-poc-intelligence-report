@@ -7,7 +7,7 @@ import { requireAuth } from '../auth/guards.js'
 import { audit } from '../lib/audit.js'
 import { randomToken, sha256 } from '../lib/crypto.js'
 import { HttpError, parse } from '../lib/http.js'
-import { canEdit, loadReportData } from '../pocs/access.js'
+import { archImageOf, canEdit, loadReportData } from '../pocs/access.js'
 import { detailsForReport } from './poc-details.js'
 import { db } from '../db/client.js'
 import { reportData, syncs } from '../db/schema.js'
@@ -32,7 +32,8 @@ export async function reportRoutes(app: FastifyInstance): Promise<void> {
     const { report, poc } = await loadReportData(auth, id)
     const nonce = randomToken(16)
     const html = renderReportHtml(report.data, await detailsForReport(poc), q.template, q.locale ?? auth.user.locale, {
-      archImage: poc.archImage,
+      // Only the Technical Report shows the architecture image: the others never read it.
+      archImage: q.template === 'technical' && poc.hasArchImage ? await archImageOf(poc.id) : null,
       interactiveNonce: nonce,
       versioning: await loadVersioning(report.id),
     })
