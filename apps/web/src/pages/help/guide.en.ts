@@ -221,8 +221,8 @@ export const guideEn = (ui: Ui): HelpGuide => ({
           kind: 'table',
           head: ['Path', 'When to use it'],
           rows: [
-            [ui('newpoc.notebook'), 'The PoC is starting. You want to plan and follow it with the customer. The Final Report is created later, from the Notebook. It requires a company with the Customer profile.'],
             [ui('newpoc.experience'), 'You will present the platform to the customer live. Creates the Notebook together with its first Stellar Experience and opens the Experience tab. Sales Engineers and Admins only. It requires a company with the Customer profile.'],
+            [ui('newpoc.notebook'), 'The PoC is starting. You want to plan and follow it with the customer. The Final Report is created later, from the Notebook. It requires a company with the Customer profile.'],
             [ui('newpoc.report'), 'The PoC already happened and you only need the Report. Linking a customer is optional.'],
           ],
         },

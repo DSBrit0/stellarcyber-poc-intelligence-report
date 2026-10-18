@@ -105,8 +105,8 @@ function ChooseStart({ onChoose }: { onChoose: (m: StartMode) => void }) {
       <h1 className="text-xl font-semibold">{t('poc.create')}</h1>
       <p className="text-sm text-slate-500">{t('newpoc.choose')}</p>
       <div className={`grid gap-4 sm:grid-cols-2 ${withExperience ? 'lg:grid-cols-3' : ''}`}>
-        {card('notebook', t('newpoc.notebook'), t('newpoc.notebookHelp'), svg('M4 4h12a4 4 0 0 1 4 4v12H8a4 4 0 0 1-4-4zM8 8h8M8 12h8M8 16h5'))}
         {withExperience ? card('experience', t('newpoc.experience'), t('newpoc.experienceHelp'), svg('M12 2 3 7l9 5 9-5zM3 12l9 5 9-5M3 17l9 5 9-5')) : null}
+        {card('notebook', t('newpoc.notebook'), t('newpoc.notebookHelp'), svg('M4 4h12a4 4 0 0 1 4 4v12H8a4 4 0 0 1-4-4zM8 8h8M8 12h8M8 16h5'))}
         {card('report', t('newpoc.report'), t('newpoc.reportHelp'), svg('M4 20V10M10 20V4M16 20v-7M22 20H2'))}
       </div>
     </div>

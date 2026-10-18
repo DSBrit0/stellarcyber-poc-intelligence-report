@@ -227,8 +227,8 @@ export const guidePtBR = (ui: Ui): HelpGuide => ({
           kind: 'table',
           head: ['Caminho', 'Quando usar'],
           rows: [
-            [ui('newpoc.notebook'), 'A PoC está começando. Você quer planejar e acompanhar com o cliente. O Relatório Final é criado depois, a partir do Notebook. Exige uma empresa com perfil Cliente.'],
             [ui('newpoc.experience'), 'Você vai apresentar a plataforma ao cliente ao vivo. Cria o Notebook junto com a primeira Stellar Experience e abre a aba Experience. Só Sales Engineers e Admins. Exige uma empresa com perfil Cliente.'],
+            [ui('newpoc.notebook'), 'A PoC está começando. Você quer planejar e acompanhar com o cliente. O Relatório Final é criado depois, a partir do Notebook. Exige uma empresa com perfil Cliente.'],
             [ui('newpoc.report'), 'A PoC já aconteceu e você só precisa do Relatório. Vincular um cliente é opcional.'],
           ],
         },
