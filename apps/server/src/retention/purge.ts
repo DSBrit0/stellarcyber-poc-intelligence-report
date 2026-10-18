@@ -1,6 +1,6 @@
 import { readdir, rm, stat } from 'node:fs/promises'
 import { join } from 'node:path'
-import { and, eq, isNull, lt, notExists, or, sql as dsql } from 'drizzle-orm'
+import { and, eq, inArray, isNotNull, lt, or, sql as dsql } from 'drizzle-orm'
 import { purgeExpiredSessions } from '../auth/session.js'
 import { config } from '../config.js'
 import { db } from '../db/client.js'
@@ -12,27 +12,21 @@ import { deleteRenders } from '../report/render-cache.js'
 const RENDER_CACHE_MAX_AGE_MS = 24 * 3_600_000
 
 /**
- * Applies the Retention Period: Report Data older than it is deleted for good, then PoCs left with no
- * Report Data and untouched for the same period, unless they have a PoC Notebook: a Notebook is the PoC
- * itself (ADR 0010), with its Experiences, criteria and meetings, and is never purged for being idle.
- * The Admin's current setting always applies.
+ * Applies the Retention Period (ADR 0016): a PoC Closed for longer than it is deleted for good, with its
+ * Report Data, Notebook, Experiences and everything else it holds (by cascade). An Active PoC is never
+ * deleted, however old its Report Data. The Admin's current setting always applies.
  */
 export async function purgeExpired(): Promise<{ reportData: number; pocs: number; sessions: number; renders: number; apiCalls: number; appLogs: number }> {
   const { retentionDays } = await getSettings()
   const cutoff = dsql`now() - make_interval(days => ${retentionDays})`
 
-  const deletedReports = await db.delete(reportData).where(lt(reportData.createdAt, cutoff)).returning({ id: reportData.id })
+  const expired = and(isNotNull(pocs.closedAt), lt(pocs.closedAt, cutoff))
+  const deletedReports = await db
+    .select({ id: reportData.id })
+    .from(reportData)
+    .where(inArray(reportData.pocId, db.select({ id: pocs.id }).from(pocs).where(expired)))
+  const deletedPocs = await db.delete(pocs).where(expired).returning({ id: pocs.id })
   await deleteRenders(deletedReports.map((r) => r.id))
-  const deletedPocs = await db
-    .delete(pocs)
-    .where(
-      and(
-        lt(pocs.updatedAt, cutoff),
-        isNull(pocs.notebook),
-        notExists(db.select({ one: dsql`1` }).from(reportData).where(eq(reportData.pocId, pocs.id))),
-      ),
-    )
-    .returning({ id: pocs.id })
   const sessions = await purgeExpiredSessions()
 
   // Audit data follows the same period; debug-level logs (mostly polling) are kept for 7 days only.

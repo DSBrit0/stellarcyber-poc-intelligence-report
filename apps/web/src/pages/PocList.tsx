@@ -6,6 +6,8 @@ import { useMe } from '../lib/auth'
 import { useI18n } from '../lib/i18n'
 import { Select } from '../lib/Select'
 import { useDialogs } from '../lib/dialogs'
+import type { DealResult } from '@poc-intel/shared'
+import { ClosedBadge } from './PocDetail'
 
 interface PocRow {
   id: string
@@ -16,6 +18,8 @@ interface PocRow {
   /** A Sync is queued or running: the PoC cannot be deleted until it ends or is cancelled. */
   syncing: boolean
   draft: boolean
+  closedAt: string | null
+  dealResult: DealResult | null
   /** Started as a PoC Notebook; until it has a Report target it has no Tenant or period. */
   notebook: boolean
   startDate: string | null
@@ -35,7 +39,17 @@ export function PocListPage() {
   const isAdmin = me?.role === 'admin'
   // Admins see every PoC; the filter narrows to their own or one Owner's.
   const owner = isAdmin ? (params.get('owner') ?? '') : ''
-  const { data = [], isLoading } = useQuery({ queryKey: ['pocs', owner], queryFn: () => api<PocRow[]>(`/pocs${owner ? `?owner=${owner}` : ''}`) })
+  // Active PoCs by default; Closed ones are one click away until retention deletes them (ADR 0016).
+  const closed = params.get('status') === 'closed'
+  const setParam = (key: string, value: string) => {
+    const next = new URLSearchParams(params)
+    if (value) next.set(key, value)
+    else next.delete(key)
+    setParams(next)
+  }
+  const { data: rows = [], isLoading } = useQuery({ queryKey: ['pocs', owner], queryFn: () => api<PocRow[]>(`/pocs${owner ? `?owner=${owner}` : ''}`) })
+  const data = rows.filter((p) => Boolean(p.closedAt) === closed)
+  const closedCount = rows.filter((p) => p.closedAt).length
   const all = useQuery({ queryKey: ['pocs', ''], queryFn: () => api<PocRow[]>('/pocs'), enabled: isAdmin })
   const ownerName = owner && owner !== 'me' ? (all.data ?? []).find((p) => p.ownerId === owner)?.ownerName : null
   // The heading follows the Owner filter: an Admin's unfiltered list holds everyone's PoCs.
@@ -50,7 +64,7 @@ export function PocListPage() {
             className="input mr-auto w-auto"
             aria-label={t('poc.owner')}
             value={owner}
-            onChange={(e) => setParams(e.target.value ? { owner: e.target.value } : {})}
+            onChange={(e) => setParam('owner', e.target.value)}
           >
             <option value="">{t('poc.allOwners', { n: all.data?.length ?? 0 })}</option>
             <option value="me">{t('poc.mine')}</option>
@@ -63,13 +77,26 @@ export function PocListPage() {
               ))}
           </Select>
         ) : null}
+        <div className={`flex rounded-lg border border-slate-200 p-0.5 text-sm dark:border-slate-700 ${isAdmin ? '' : 'mr-auto'}`} role="group" aria-label={t('poc.closed')}>
+          {[false, true].map((c) => (
+            <button
+              key={String(c)}
+              type="button"
+              aria-pressed={closed === c}
+              className={`rounded-md px-3 py-1 font-medium ${closed === c ? 'bg-brand text-white' : 'text-slate-500 hover:text-slate-800 dark:hover:text-slate-200'}`}
+              onClick={() => setParam('status', c ? 'closed' : '')}
+            >
+              {t(c ? 'poc.filter.closed' : 'poc.filter.active', { n: c ? closedCount : rows.length - closedCount })}
+            </button>
+          ))}
+        </div>
         {me?.role !== 'customer' ? (
           <Link to="/pocs/new" className="btn">
             {t('poc.create')}
           </Link>
         ) : null}
       </div>
-      {!isLoading && data.length === 0 ? <p className="text-slate-500">{t('poc.empty')}</p> : null}
+      {!isLoading && data.length === 0 ? <p className="text-slate-500">{t(closed ? 'poc.emptyClosed' : 'poc.empty')}</p> : null}
       <ul className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3 2xl:grid-cols-4">
         {data.map((p) => (
           <li key={p.id} className="relative">
@@ -90,6 +117,7 @@ export function PocListPage() {
                     {t('exp.liveBadge')}
                   </span>
                 ) : null}
+                {p.closedAt ? <ClosedBadge result={p.dealResult} /> : null}
                 {p.draft ? <span className="rounded bg-amber-100 px-2 py-0.5 text-xs font-medium whitespace-nowrap text-amber-800 dark:bg-amber-950 dark:text-amber-300">{t('poc.draft')}</span> : null}
                 {p.syncing ? (
                   <span className="inline-flex items-center gap-1.5 rounded bg-blue-100 px-2 py-0.5 text-xs font-medium whitespace-nowrap text-blue-800 dark:bg-blue-950 dark:text-blue-300">

@@ -97,6 +97,12 @@ export const UpdatePocInput = z.object({
   finalize: z.boolean().optional(),
 })
 
+/** How a Closed PoC ended commercially; not the Verdict, which is the technical outcome. */
+export const DEAL_RESULTS = ['won', 'lost', 'no_decision'] as const
+export const DealResult = z.enum(DEAL_RESULTS)
+export type DealResult = z.infer<typeof DealResult>
+export const ClosePocInput = z.object({ dealResult: DealResult })
+
 /** Customer company name: matching ignores case and repeated spaces. */
 export const customerNameKey = (name: string) => name.trim().toLowerCase().replace(/\s+/g, ' ')
 

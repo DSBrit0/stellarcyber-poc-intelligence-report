@@ -1,6 +1,6 @@
-import { LOCALES, TEMPLATES, type Locale, type PocDetails, type StellarCredential, type Template } from '@poc-intel/shared'
+import { DEAL_RESULTS, LOCALES, TEMPLATES, type DealResult, type Locale, type PocDetails, type StellarCredential, type Template } from '@poc-intel/shared'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { useNavigate, useParams, useSearchParams } from 'react-router'
 import { ApiError, api } from '../lib/api'
 import { AutoTriageConfirm } from '../lib/AutoTriage'
@@ -36,6 +36,12 @@ interface PocView {
   hasArchImage: boolean
   canEdit: boolean
   draft: boolean
+  /** Set while the PoC is Closed (ADR 0016). */
+  closedAt: string | null
+  dealResult: DealResult | null
+  /** When retention deletes the PoC: only a Closed PoC has one. */
+  purgeAt: string | null
+  retentionDays: number
   reports: ReportRow[]
   syncs: (Pick<SyncRow, 'id' | 'status' | 'progress' | 'error' | 'createdAt'> & { periodStart: string; periodEnd: string })[]
 }
@@ -43,7 +49,8 @@ interface PocView {
 interface ReportRow {
   id: string
   createdAt: string
-  expiresAt: string
+  /** Null while the PoC is Active: its Reports are kept. */
+  expiresAt: string | null
   seq: number
   /** seq.minor: one minor version per Report comment. */
   version: string
@@ -88,6 +95,7 @@ export function PocDetailPage() {
           <h1 className="flex items-center gap-2 text-xl font-semibold">
             {poc.details.customerName}
             {poc.draft ? <span className="rounded bg-amber-100 px-2 py-0.5 text-xs font-medium text-amber-800 dark:bg-amber-950 dark:text-amber-300">{t('poc.draft')}</span> : null}
+            {poc.closedAt ? <ClosedBadge result={poc.dealResult} /> : null}
           </h1>
           <p className="text-sm text-slate-500 dark:text-slate-400">
             {[
@@ -101,7 +109,7 @@ export function PocDetailPage() {
         </div>
         {poc.canEdit ? (
           <div className="flex flex-wrap gap-2">
-            {poc.hasReportTarget ? (
+            {poc.closedAt ? null : poc.hasReportTarget ? (
               <>
                 <button className={current === 'sync' ? 'btn' : 'btn-ghost'} onClick={() => setTab(current === 'sync' ? 'reports' : 'sync')}>
                   {t('sync.new')}
@@ -115,10 +123,12 @@ export function PocDetailPage() {
                 {t('nb.createReport')}
               </button>
             )}
+            {poc.closedAt ? null : <ClosePocButton poc={poc} syncing={Boolean(running)} />}
             <DeletePocButton id={poc.id} syncing={Boolean(running)} />
           </div>
         ) : null}
       </div>
+      {poc.closedAt ? <ClosedBanner poc={poc} /> : null}
       {withExperience ? <LiveExperienceBanner pocId={poc.id} /> : null}
       {poc.notebook ? (
         <nav className="flex gap-1 border-b border-slate-200 dark:border-slate-800" aria-label="PoC">
@@ -206,7 +216,7 @@ function ReportItem({ poc, r }: { poc: PocView; r: ReportRow }) {
         <span className="text-slate-500 dark:text-slate-400">
           {r.periodStart} → {r.periodEnd}
         </span>
-        <span className="text-xs text-slate-400">{t('report.expiresOn', { date: date(r.expiresAt) })}</span>
+        <span className="text-xs text-slate-400">{r.expiresAt ? t('report.expiresOn', { date: date(r.expiresAt) }) : t('report.keptWhileActive')}</span>
         {poc.canEdit ? (
           <span className="ml-auto">
             <DeleteReportButton pocId={poc.id} reportId={r.id} />
@@ -536,5 +546,122 @@ function DeletePocButton({ id, syncing }: { id: string; syncing: boolean }) {
       <TrashIcon />
       <span className="hidden sm:inline">{t('poc.delete')}</span>
     </button>
+  )
+}
+
+export function ClosedBadge({ result }: { result: DealResult | null }) {
+  const { t } = useI18n()
+  const tone =
+    result === 'won'
+      ? 'bg-green-100 text-green-800 dark:bg-green-950 dark:text-green-300'
+      : result === 'lost'
+        ? 'bg-red-100 text-red-800 dark:bg-red-950 dark:text-red-300'
+        : 'bg-slate-200 text-slate-700 dark:bg-slate-800 dark:text-slate-300'
+  return (
+    <span className={`rounded px-2 py-0.5 text-xs font-medium whitespace-nowrap ${tone}`}>
+      {t('poc.closed')}
+      {result ? ` · ${t(`poc.deal.${result}`)}` : ''}
+    </span>
+  )
+}
+
+/** A Closed PoC: when it closed, how it ended, when retention deletes it, and Reopen for its editors. */
+function ClosedBanner({ poc }: { poc: PocView }) {
+  const { t, locale } = useI18n()
+  const { alert } = useDialogs()
+  const qc = useQueryClient()
+  const date = (iso: string) => new Date(iso).toLocaleDateString(locale)
+  const reopen = useMutation({
+    mutationFn: () => api(`/pocs/${poc.id}/reopen`, { method: 'POST', body: {} }),
+    onSuccess: () => void qc.invalidateQueries({ queryKey: ['poc', poc.id] }),
+    onError: (err) => void alert(t(errorKey(err))),
+    onSettled: () => void qc.invalidateQueries({ queryKey: ['pocs'] }),
+  })
+  return (
+    <div className="flex flex-wrap items-center gap-3 rounded-lg border border-slate-300 bg-slate-50 px-4 py-3 text-sm dark:border-slate-700 dark:bg-slate-800/50">
+      <div className="min-w-0 flex-1">
+        <div className="font-medium">{t('poc.closedBanner', { date: date(poc.closedAt!), result: poc.dealResult ? t(`poc.deal.${poc.dealResult}`) : '—' })}</div>
+        {poc.purgeAt ? <div className="text-xs text-slate-500 dark:text-slate-400">{t('poc.purgeOn', { date: date(poc.purgeAt) })}</div> : null}
+      </div>
+      {poc.canEdit ? (
+        <button className="btn-ghost" disabled={reopen.isPending} onClick={() => reopen.mutate()}>
+          {t('poc.reopen')}
+        </button>
+      ) : null}
+    </div>
+  )
+}
+
+/** Closes the PoC with its Deal Result, after saying when retention will delete it. */
+function ClosePocButton({ poc, syncing }: { poc: PocView; syncing: boolean }) {
+  const { t, locale } = useI18n()
+  const { alert } = useDialogs()
+  const qc = useQueryClient()
+  const ref = useRef<HTMLDialogElement>(null)
+  const [result, setResult] = useState<DealResult | null>(null)
+  const purgeOn = new Date(Date.now() + poc.retentionDays * 86_400_000).toLocaleDateString(locale)
+  const close = useMutation({
+    mutationFn: (dealResult: DealResult) => api(`/pocs/${poc.id}/close`, { method: 'POST', body: { dealResult } }),
+    onSuccess: () => {
+      ref.current?.close()
+      void qc.invalidateQueries({ queryKey: ['poc', poc.id] })
+    },
+    onError: (err) => {
+      ref.current?.close()
+      void alert(t(errorKey(err)))
+    },
+    onSettled: () => void qc.invalidateQueries({ queryKey: ['pocs'] }),
+  })
+  return (
+    <>
+      <button
+        className="btn-ghost disabled:cursor-not-allowed disabled:opacity-40"
+        disabled={syncing}
+        title={syncing ? t('err.sync_in_progress') : undefined}
+        onClick={() => {
+          setResult(null)
+          ref.current?.showModal()
+        }}
+      >
+        {t('poc.close')}
+      </button>
+      <dialog ref={ref} aria-labelledby="close-poc-title" onClick={(e) => e.target === e.currentTarget && ref.current?.close()} className="dialog-panel max-w-md">
+        <form
+          onSubmit={(e) => {
+            e.preventDefault()
+            if (result) close.mutate(result)
+          }}
+        >
+          <div className="space-y-4 px-6 pt-6">
+            <h2 id="close-poc-title" className="text-base font-semibold">
+              {t('poc.closeTitle')}
+            </h2>
+            <p className="text-sm text-slate-600 dark:text-slate-300">{t('poc.closeHelp', { date: purgeOn, days: poc.retentionDays })}</p>
+            <fieldset>
+              <legend className="label mb-2">{t('poc.dealResult')}</legend>
+              <div className="grid grid-cols-3 gap-2">
+                {DEAL_RESULTS.map((r) => (
+                  <label
+                    key={r}
+                    className={`cursor-pointer rounded-lg border px-3 py-2 text-center text-sm font-medium has-[:focus-visible]:ring-2 has-[:focus-visible]:ring-brand ${result === r ? 'border-brand bg-brand/10 text-brand' : 'border-slate-200 hover:border-slate-400 dark:border-slate-700'}`}
+                  >
+                    <input type="radio" name="deal-result" value={r} className="sr-only" checked={result === r} onChange={() => setResult(r)} />
+                    {t(`poc.deal.${r}`)}
+                  </label>
+                ))}
+              </div>
+            </fieldset>
+          </div>
+          <div className="mt-6 flex flex-col-reverse gap-2 border-t border-slate-200 bg-slate-50 px-6 py-4 sm:flex-row sm:justify-end dark:border-slate-800 dark:bg-slate-800/40">
+            <button type="button" className="btn-ghost" onClick={() => ref.current?.close()}>
+              {t('common.cancel')}
+            </button>
+            <button type="submit" className="btn" disabled={!result || close.isPending}>
+              {t('poc.close')}
+            </button>
+          </div>
+        </form>
+      </dialog>
+    </>
   )
 }

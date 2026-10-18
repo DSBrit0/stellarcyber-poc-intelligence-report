@@ -126,8 +126,16 @@ The assessment of Asset Count or Licensing Volume against the licensed amount un
 ### PoC and reporting
 
 **PoC**:
-One customer's evaluation of Stellar Cyber, owned by a User. It starts either as a PoC Notebook, with no Tenant yet, or straight in the Report flow; a Report always covers one Tenant over a period of up to 30 days. It holds the customer details, contacts, success criteria and Verdict.
+One customer's evaluation of Stellar Cyber, owned by a User. It starts either as a PoC Notebook, with no Tenant yet, or straight in the Report flow; a Report always covers one Tenant over a period of up to 30 days. It holds the customer details, contacts, success criteria and Verdict. A PoC is Active until its Owner or an Admin closes it with a Deal Result; a Closed PoC can be reopened.
 _Avoid_: Project, trial, evaluation
+
+**Closed PoC**:
+A PoC its Owner or an Admin has closed, with a Deal Result. It takes no new Sync, and it is deleted with everything it holds once the Retention Period has passed since its closing, unless it is reopened first.
+_Avoid_: Archived, finished, encerrada (in English text)
+
+**Deal Result**:
+How a Closed PoC ended commercially: Won, Lost or No decision. Not the Verdict, which is the technical outcome.
+_Avoid_: Outcome, verdict
 
 **PoC Notebook**:
 The working record of a PoC from planning to closeout, kept with the customer: overview, Data Sources and Connectors, Success Criteria and Use Cases, Meeting Notes, PoC Process and PoC Schedule. It shares the PoC's details (customer, contacts, success criteria) with the PoC's Reports, so they are entered once. A PoC Notebook always belongs to a Customer; a PoC started straight in the Report flow may have none.
@@ -161,7 +169,7 @@ The rendering of Report Data in a given Template and language. It can be viewed 
 _Avoid_: Export, document
 
 **Retention Period**:
-How long Report Data is kept and its Reports stay downloadable. An Admin can change it at any time; the default is 90 days. When it ends, the Report Data is permanently deleted.
+How long a Closed PoC is kept, counted from its closing; the default is 90 days and an Admin can change it at any time. When it ends, the PoC and everything it holds (Report Data, PoC Notebook, Stellar Experiences) are permanently deleted. An Active PoC is never deleted by it. Audit events, API calls and logs are kept for the same period.
 _Avoid_: TTL, expiry
 
 **Template**:

@@ -1,4 +1,4 @@
-import { ACTIVE_SYNC_STATUSES, ArchImageInput, CreatePocInput, InstanceUrl, PocPeriod, StellarCredential, UpdatePocInput } from '@poc-intel/shared'
+import { ACTIVE_SYNC_STATUSES, ArchImageInput, ClosePocInput, CreatePocInput, InstanceUrl, PocPeriod, StellarCredential, UpdatePocInput } from '@poc-intel/shared'
 import { and, desc, eq, inArray, notExists, or, sql as dsql } from 'drizzle-orm'
 import type { FastifyInstance } from 'fastify'
 import { z } from 'zod'
@@ -54,7 +54,8 @@ async function checkCustomer(auth: AuthContext, customerId: string | null | unde
   if (c.profile !== 'customer') throw new HttpError(400, 'customer_is_partner')
 }
 
-const expiresAt = (createdAt: Date, retentionDays: number) => new Date(createdAt.getTime() + retentionDays * 86_400_000)
+/** When retention deletes a Closed PoC and its Report Data; an Active PoC is never deleted (ADR 0016). */
+const purgeAt = (closedAt: Date | null, retentionDays: number) => (closedAt ? new Date(closedAt.getTime() + retentionDays * 86_400_000) : null)
 
 export async function pocRoutes(app: FastifyInstance, { dispatcher }: StellarDeps): Promise<void> {
   // Lists the Tenants a Stellar Credential can see, so the User can pick one when creating a PoC.
@@ -109,6 +110,8 @@ export async function pocRoutes(app: FastifyInstance, { dispatcher }: StellarDep
         periodStart: pocs.periodStart,
         periodEnd: pocs.periodEnd,
         draft: pocs.draft,
+        closedAt: pocs.closedAt,
+        dealResult: pocs.dealResult,
         notebook: dsql<boolean>`${pocs.notebook} IS NOT NULL`,
         startDate: dsql<string | null>`${pocs.notebook}->>'startDate'`,
         updatedAt: pocs.updatedAt,
@@ -194,12 +197,15 @@ export async function pocRoutes(app: FastifyInstance, { dispatcher }: StellarDep
         .limit(10),
     ])
     const [customer] = poc.customerId ? await db.select({ name: customers.name }).from(customers).where(eq(customers.id, poc.customerId)).limit(1) : []
+    const expiresAt = purgeAt(poc.closedAt, retentionDays)
     return {
       ...poc,
       customerName: customer?.name ?? null,
       canEdit: canEdit(auth, poc),
       hasReportTarget: reportTarget(poc) != null,
-      reports: reports.map((r) => ({ ...r, expiresAt: expiresAt(r.createdAt, retentionDays) })),
+      retentionDays,
+      purgeAt: expiresAt,
+      reports: reports.map((r) => ({ ...r, expiresAt })),
       syncs: recentSyncs,
     }
   })
@@ -241,6 +247,30 @@ export async function pocRoutes(app: FastifyInstance, { dispatcher }: StellarDep
     return reply.code(204).send()
   })
 
+  // Closes the PoC with its Deal Result. A Closed PoC takes no new Sync and is deleted, with everything
+  // it holds, once the Retention Period has passed since its closing; until then it can be reopened.
+  app.post('/pocs/:id/close', async (req) => {
+    const auth = requireAuth(req)
+    const poc = await loadPoc(auth, parse(IdParam, req.params).id, 'edit')
+    const { dealResult } = parse(ClosePocInput, req.body)
+    const [closed] = await db
+      .update(pocs)
+      .set({ closedAt: dsql`now()`, closedBy: auth.user.id, dealResult, updatedAt: dsql`now()` })
+      .where(and(eq(pocs.id, poc.id), notExists(db.select({ one: dsql`1` }).from(syncs).where(and(eq(syncs.pocId, poc.id), inArray(syncs.status, [...ACTIVE_SYNC_STATUSES]))))))
+      .returning({ closedAt: pocs.closedAt, dealResult: pocs.dealResult })
+    if (!closed) throw new HttpError(409, 'sync_in_progress')
+    await audit({ action: 'poc.closed', userId: auth.user.id, target: poc.id, ip: req.ip, meta: { dealResult } })
+    return closed
+  })
+
+  app.post('/pocs/:id/reopen', async (req) => {
+    const auth = requireAuth(req)
+    const poc = await loadPoc(auth, parse(IdParam, req.params).id, 'edit')
+    await db.update(pocs).set({ closedAt: null, closedBy: null, dealResult: null, updatedAt: dsql`now()` }).where(eq(pocs.id, poc.id))
+    await audit({ action: 'poc.reopened', userId: auth.user.id, target: poc.id, ip: req.ip, meta: { dealResult: poc.dealResult } })
+    return { closedAt: null, dealResult: null }
+  })
+
   app.post('/pocs/:id/syncs', { config: { rateLimit: { max: 10, timeWindow: '1 minute' } } }, async (req, reply) => {
     const auth = requireAuth(req)
     const poc = await loadPoc(auth, parse(IdParam, req.params).id, 'edit')
@@ -248,6 +278,7 @@ export async function pocRoutes(app: FastifyInstance, { dispatcher }: StellarDep
     // Data is complete only for past days: the period must end yesterday (UTC) at the latest.
     if (input.period && input.period.end >= new Date().toISOString().slice(0, 10)) throw new HttpError(400, 'period_future')
     // A PoC Notebook has no Report target until "Create the Final Report" sets one.
+    if (poc.closedAt) throw new HttpError(409, 'poc_closed')
     const target = reportTarget(poc)
     if (!target) throw new HttpError(409, 'report_target_missing')
     const credential = resolveCredential(req, reply, auth.user.id, target.instanceUrl, input.credential, input.remember)

@@ -1,5 +1,5 @@
 // Mirrors migrations/*.sql — the SQL files are the source of truth; keep both in step.
-import type { AnswerValue, AudienceProfile, BriefingSection, ExperienceView, SceneState, ExperienceStatus, StageId, StagePhase, CatalogKind, MilestoneTone, CompanyProfile, CriterionStatus, DataSourceStatus, I18nText, NotebookOverview, PocDetails, ProcessKind, ProcessStatus, ReportData, Role, SyncProgress, SyncStatus, UserStatus, Locale } from '@poc-intel/shared'
+import type { AnswerValue, AudienceProfile, BriefingSection, ExperienceView, SceneState, ExperienceStatus, StageId, StagePhase, CatalogKind, MilestoneTone, CompanyProfile, CriterionStatus, DataSourceStatus, DealResult, I18nText, NotebookOverview, PocDetails, ProcessKind, ProcessStatus, ReportData, Role, SyncProgress, SyncStatus, UserStatus, Locale } from '@poc-intel/shared'
 import type { SyncMetrics } from '../stellar/request-stats.js'
 import { bigint, boolean, date, doublePrecision, integer, jsonb, pgTable, primaryKey, smallint, text, timestamp, uuid } from 'drizzle-orm/pg-core'
 
@@ -77,6 +77,10 @@ export const pocs = pgTable('pocs', {
   archImage: text('arch_image'),
   customerId: uuid('customer_id'),
   draft: boolean('draft').notNull().default(false),
+  /** Set while the PoC is Closed; only a Closed PoC is subject to the Retention Period (ADR 0016). */
+  closedAt: ts('closed_at'),
+  closedBy: uuid('closed_by'),
+  dealResult: text('deal_result').$type<DealResult>(),
   createdAt: ts('created_at').notNull().defaultNow(),
   updatedAt: ts('updated_at').notNull().defaultNow(),
 })

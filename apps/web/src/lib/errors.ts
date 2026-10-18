@@ -25,6 +25,7 @@ const KNOWN: Record<string, MessageKey> = {
   customer_is_partner: 'err.customer_is_partner',
   customer_not_yours: 'err.customer_not_yours',
   report_target_missing: 'err.report_target_missing',
+  poc_closed: 'err.poc_closed',
   report_target_set: 'err.report_target_set',
   cannot_delete_self: 'err.cannot_delete_self',
   root_protected: 'err.root_protected',

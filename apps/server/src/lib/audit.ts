@@ -19,6 +19,8 @@ export type AuditAction =
   | 'poc.created'
   | 'poc.updated'
   | 'poc.deleted'
+  | 'poc.closed'
+  | 'poc.reopened'
   | 'sync.requested'
   | 'sync.cancelled'
   | 'report.rendered'
