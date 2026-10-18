@@ -96,3 +96,15 @@ body {
     animation: none;
   }
 }
+
+/* Stellar Experience Closing: records gliding along a topology link (its dash pattern is 28 long). */
+@keyframes link-flow {
+  to {
+    stroke-dashoffset: -28;
+  }
+}
+@keyframes link-flow-back {
+  to {
+    stroke-dashoffset: 28;
+  }
+}

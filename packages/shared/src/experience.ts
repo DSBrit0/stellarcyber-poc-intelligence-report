@@ -13,8 +13,11 @@ export const AUDIENCE_PROFILES = ['technical', 'executive'] as const
 export const AudienceProfile = z.enum(AUDIENCE_PROFILES)
 export type AudienceProfile = z.infer<typeof AudienceProfile>
 
-/** The three layers of the Multi-Layer AI™ Stack that group the Stages. */
-export const CHAPTERS = ['data_engine', 'open_xdr', 'agentic_soc'] as const
+/** The three layers of the Multi-Layer AI™ Stack, each drawn as a layer of the 3D Stack. */
+export const STACK_CHAPTERS = ['data_engine', 'open_xdr', 'agentic_soc'] as const
+export type StackChapter = (typeof STACK_CHAPTERS)[number]
+/** The Chapters that group the Stages: the Stack's three layers, then the Closing (topology and lab), off the Stack. */
+export const CHAPTERS = [...STACK_CHAPTERS, 'closing'] as const
 export type Chapter = (typeof CHAPTERS)[number]
 
 export const MTTD_PHASES = ['collection', 'triage', 'correlation', 'investigation'] as const
@@ -29,6 +32,8 @@ export type Question =
   | { kind: 'items'; max: number }
   | { kind: 'filters'; max: number }
   | { kind: 'mttd' }
+  /** A Stage that only presents: no Answers, and the Presenter moves on from its Briefing. */
+  | { kind: 'none' }
 
 /**
  * The Stages in pipeline order. Ids are stable: an Experience stores the ids it was enabled with, so
@@ -58,6 +63,9 @@ export const STAGES = [
     chapter: 'agentic_soc',
     question: { kind: 'choice', multiple: true, options: ['block_ip', 'isolate_host', 'disable_user', 'quarantine_email', 'reset_password', 'open_ticket', 'notify_team'] },
   },
+  // The Closing: how Stellar Cyber is deployed, then the lab the Customer is invited to.
+  { id: 'topology', chapter: 'closing', question: { kind: 'none' } },
+  { id: 'lab', chapter: 'closing', question: { kind: 'none' } },
 ] as const satisfies readonly { id: string; chapter: Chapter; question: Question }[]
 
 export type StageId = (typeof STAGES)[number]['id']
@@ -65,8 +73,10 @@ export const STAGE_IDS = STAGES.map((s) => s.id) as [StageId, ...StageId[]]
 export const StageId = z.enum(STAGE_IDS)
 
 export const stageById = (id: StageId) => STAGES.find((s) => s.id === id)!
+/** Whether the Stage asks a question; one that does not is passed freely, never settled. */
+export const hasQuestion = (id: StageId) => stageById(id).question.kind !== 'none'
 
-const EXECUTIVE_STAGES: readonly StageId[] = ['data_sources', 'detection', 'correlation', 'agentic_soc', 'response']
+const EXECUTIVE_STAGES: readonly StageId[] = ['data_sources', 'detection', 'correlation', 'agentic_soc', 'response', 'topology', 'lab']
 export const stagesForProfile = (profile: AudienceProfile): StageId[] => (profile === 'technical' ? [...STAGE_IDS] : STAGE_IDS.filter((id) => EXECUTIVE_STAGES.includes(id)))
 
 /** A Stage selection in pipeline order, without repeats. */
@@ -112,6 +122,8 @@ export function answerSchema(q: Question) {
       return z
         .object({ mttdHours: z.number().min(0).max(100_000), phases: z.object({ collection: Minutes, triage: Minutes, correlation: Minutes, investigation: Minutes }).strict() })
         .strict()
+    case 'none':
+      return z.never()
   }
 }
 
@@ -240,6 +252,9 @@ export const applyView = (view: ExperienceView, input: ViewInput): ExperienceVie
 })
 /** New content on screen (another Stage, phase or scene): nothing pointed at, every area back at its top. */
 export const clearFocus = (view: ExperienceView): ExperienceView => ({ ...view, spot: null, scroll: {} })
+
+/** A participant confirms (or withdraws) their access to the lab, on the Closing's Lab Stage. */
+export const LabAccessInput = z.object({ confirmed: z.boolean() })
 
 export const CustomerQuestionInput = z.object({ text: Text(1000).min(1) })
 /** The Sales Engineer's follow-up: a written Reply (null clears it) or "answered live". */

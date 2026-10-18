@@ -1,4 +1,4 @@
-import { AUDIENCE_PROFILES, CHAPTERS, STAGES, type AudienceProfile, type ExperienceStatus, type StageId } from '@poc-intel/shared'
+import { AUDIENCE_PROFILES, CHAPTERS, STAGES, hasQuestion, type AudienceProfile, type ExperienceStatus, type StageId } from '@poc-intel/shared'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { useState } from 'react'
 import { Link } from 'react-router'
@@ -133,6 +133,8 @@ function CreateExperience({ pocId }: { pocId: string }) {
 
 function ExperienceItem({ pocId, e, canRun, anotherLive }: { pocId: string; e: ExperienceRow; canRun: boolean; anotherLive: boolean }) {
   const { t, locale } = useI18n()
+  // Progress counts the Stages that ask a question; the Closing only presents.
+  const asking = e.stages.filter(hasQuestion).length
   const qc = useQueryClient()
   const { confirm } = useDialogs()
   const [editing, setEditing] = useState(false)
@@ -160,7 +162,7 @@ function ExperienceItem({ pocId, e, canRun, anotherLive }: { pocId: string; e: E
             <span className={`rounded px-2 py-0.5 text-xs font-medium ${STATUS_STYLE[e.status]}`}>{t(`exp.status.${e.status}`)}</span>
           </p>
           <p className="text-sm text-slate-500 dark:text-slate-400">
-            {t(`exp.profile.${e.profile}`)} · {t('exp.progress', { settled: Math.min(e.settled, e.stages.length), total: e.stages.length })}
+            {t(`exp.profile.${e.profile}`)} · {t('exp.progress', { settled: Math.min(e.settled, asking), total: asking })}
             {e.finishedAt ? ` · ${new Date(e.finishedAt).toLocaleDateString(locale)}` : ''}
             {e.pendingQuestions > 0 ? <span className="ml-2 rounded bg-amber-100 px-1.5 text-xs font-medium text-amber-800 dark:bg-amber-950 dark:text-amber-300">{t('exp.pendingQuestions', { n: e.pendingQuestions })}</span> : null}
           </p>

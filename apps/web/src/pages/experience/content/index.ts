@@ -16,3 +16,8 @@ export function optionLabel(words: ExperienceWords, stageId: string, option: str
   const stage = words.stages[stageId as keyof ExperienceWords['stages']] as { options?: Record<string, string> }
   return stage.options?.[option] ?? option
 }
+
+/** The question words of a Stage that asks one (every Stage outside the Closing). */
+export function questionWords(words: ExperienceWords, stageId: string): { question: string; hint?: string } {
+  return words.stages[stageId as keyof ExperienceWords['stages']] as unknown as { question: string; hint?: string }
+}

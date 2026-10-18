@@ -1,4 +1,4 @@
-import { applyView, CHAPTERS, DEFAULT_VIEW, viewOf, isListQuestion, stageById, type AnswerValue, type AudienceProfile, type DataSourcesValue, type BriefingSection, type ExperienceStatus, type ExperienceView, type SceneState, type ViewInput, type StageId, type StagePhase } from '@poc-intel/shared'
+import { applyView, CHAPTERS, DEFAULT_VIEW, hasQuestion, viewOf, isListQuestion, stageById, type AnswerValue, type AudienceProfile, type DataSourcesValue, type BriefingSection, type ExperienceStatus, type ExperienceView, type SceneState, type ViewInput, type StageId, type StagePhase } from '@poc-intel/shared'
 import '@fontsource/roboto/latin-400.css'
 import '@fontsource/roboto/latin-500.css'
 import '@fontsource/roboto/latin-700.css'
@@ -11,11 +11,12 @@ import { errorKey } from '../../lib/errors'
 import { useI18n } from '../../lib/i18n'
 import { AnswerInput, AnswerSummary, type Draft } from './AnswerInputs'
 import { BriefingTerminal } from './BriefingTerminal'
+import { ClosingView, type Participant } from './ClosingView'
 import { CollapseButton } from './CollapseButton'
 import { CustomerQuestions, type QuestionRow } from './CustomerQuestions'
 import { familyOf, SAMPLES } from './content/interflow-samples'
 import { InterflowInspector } from './InterflowInspector'
-import { useWords } from './content'
+import { questionWords, useWords } from './content'
 import { Spot, SpotlightProvider, useMirroredScroll, useSpotlight } from './spotlight'
 import { StackPreview } from './StackPreview'
 
@@ -68,6 +69,7 @@ interface Live {
   questions: QuestionRow[]
   answers: AnswerRow[]
   results: ResultRow[]
+  participants?: Participant[]
   canRun: boolean
   canAnswer: boolean
   canApprove: boolean
@@ -237,7 +239,10 @@ export function ExperiencePage() {
 
   const prev = exp && index > 0 ? exp.stages[index - 1] : undefined
   const next = exp && index >= 0 && index < exp.stages.length - 1 ? exp.stages[index + 1] : undefined
-  const canNext = Boolean(next && (!live || (stage && settled.has(stage))))
+  // A Stage without a question (the Closing) has no question phase and never holds the Presenter back.
+  const asks = stage ? hasQuestion(stage) : true
+  const closing = stage ? stageById(stage).chapter === 'closing' : false
+  const canNext = Boolean(next && (!live || (stage && (settled.has(stage) || !asks))))
 
   // Arrow keys move the Presenter (or the replay) when no field has focus.
   useEffect(() => {
@@ -246,7 +251,7 @@ export function ExperiencePage() {
       const el = e.target as HTMLElement
       if (el.closest('input, textarea, select, [contenteditable]')) return
       if (e.key === 'ArrowRight') {
-        if (phase === 'briefing') void setPhase('question')
+        if (phase === 'briefing' && asks) void setPhase('question')
         else if (canNext) void go(next)
       }
       if (e.key === 'ArrowLeft') {
@@ -273,8 +278,8 @@ export function ExperiencePage() {
     <SpotlightProvider
       value={{ spot: view.spot, canPoint: leading, point, scroll: view.scroll, onScroll: presenting ? (area, ratio) => mirror(`scroll:${area}`, { scroll: { area, ratio } }) : undefined }}
     >
-    <Screen blades={!with3D}>
-      {with3D ? (
+    <Screen blades={!with3D || closing}>
+      {with3D && !closing ? (
         <>
         {/* A soft shade behind the title so text never sits on bright glass. */}
         <div aria-hidden className="pointer-events-none absolute inset-x-0 top-0 z-[1] h-72 bg-linear-to-b from-[#04060D]/85 via-[#04060D]/40 to-transparent" />
@@ -316,15 +321,15 @@ export function ExperiencePage() {
       </header>
 
       <main
-        className={`pointer-events-none relative z-10 grid flex-1 gap-6 px-4 pb-4 sm:px-8 lg:gap-10 ${!panelOpen ? 'lg:grid-cols-[minmax(0,1fr)_auto]' : phase === 'briefing' ? 'lg:grid-cols-[minmax(0,1fr)_minmax(26rem,38rem)]' : 'lg:grid-cols-[minmax(0,1fr)_minmax(22rem,30rem)]'}`}
+        className={`pointer-events-none relative z-10 grid flex-1 gap-6 px-4 pb-4 sm:px-8 lg:gap-10 ${closing ? '' : !panelOpen ? 'lg:grid-cols-[minmax(0,1fr)_auto]' : phase === 'briefing' ? 'lg:grid-cols-[minmax(0,1fr)_minmax(26rem,38rem)]' : 'lg:grid-cols-[minmax(0,1fr)_minmax(22rem,30rem)]'}`}
       >
         <section className="flex min-h-0 flex-col">
           <p className="text-sm font-medium text-sc-sky-light">
             {words.chapters[def.chapter].title}
             <span className="ml-3 text-sc-silver/50 tabular-nums">{t('exp.stageOf', { n: index + 1, total: exp.stages.length })}</span>
           </p>
-          <h1 className={`mt-2 leading-[1.05] font-bold tracking-tight text-balance ${scene.target ? 'text-3xl sm:text-4xl' : 'text-4xl sm:text-6xl'}`}>{stageWords.title}</h1>
-          {with3D ? (
+          <h1 className={`mt-2 leading-[1.05] font-bold tracking-tight text-balance ${scene.target || closing ? 'text-3xl sm:text-4xl' : 'text-4xl sm:text-6xl'}`}>{stageWords.title}</h1>
+          {with3D && !closing ? (
             <div className="pointer-events-auto mt-3 flex flex-wrap items-center gap-2 text-xs">
               <div className="flex rounded-lg border border-white/15 p-0.5" role="radiogroup" aria-label={t('exp.scene.mode')}>
                 {(['stack', 'chamber', 'trace'] as const).map((m) => {
@@ -346,7 +351,7 @@ export function ExperiencePage() {
               </div>
             </div>
           ) : null}
-          {scene.target && with3D ? (
+          {scene.target && with3D && !closing ? (
             <InterflowInspector
               key={`${scene.model}:${scene.target.kind}:${scene.target.key}`}
               model={scene.model}
@@ -361,17 +366,33 @@ export function ExperiencePage() {
               reducedMotion={reducedMotion}
             />
           ) : (
-            <p className="mt-4 max-w-[60ch] text-base leading-relaxed text-sc-silver/75 sm:text-lg">{stageWords.lead}</p>
+            <>
+              <p className={`mt-4 max-w-[60ch] leading-relaxed text-sc-silver/75 ${closing ? 'text-base' : 'text-base sm:text-lg'}`}>{stageWords.lead}</p>
+              {/* The Closing shows its diagrams where the Stack would be. */}
+              {closing ? (
+                <ClosingView
+                  stage={stage as 'topology' | 'lab'}
+                  participants={data.participants ?? []}
+                  canRun={data.canRun}
+                  live={live}
+                  onLabAccess={async (confirmed) => {
+                    await api(`/pocs/${id}/experiences/${exp.id}/lab-access`, { method: 'POST', body: { confirmed } })
+                    await refresh()
+                  }}
+                />
+              ) : null}
+            </>
           )}
-          {with3D ? null : (
+          {with3D || closing ? null : (
             <div className="mt-6 flex min-h-64 flex-1 items-center justify-center">
               <StackPreview stages={exp.stages} current={stage} settled={settled} />
             </div>
           )}
         </section>
 
-        {/* A fixed height on large screens: the Briefing scrolls inside, the questions stay in view. */}
-        {panelOpen ? (
+        {/* A fixed height on large screens: the Briefing scrolls inside, the questions stay in view.
+            The Closing has no panel: its diagrams take the whole width. */}
+        {closing ? null : panelOpen ? (
         <div id="experience-panel" className="flex min-h-0 flex-col gap-4 lg:h-[calc(100dvh-10.5rem)]">
           {phase === 'briefing' ? (
             <BriefingTerminal
@@ -414,7 +435,7 @@ export function ExperiencePage() {
         )}
       </main>
 
-      {with3D ? (
+      {with3D && !closing ? (
         // How to handle the 3D view; each viewer's camera is their own.
         <p className="pointer-events-none absolute right-4 bottom-[4.4rem] z-10 hidden text-[10px] text-sc-silver/40 lg:block sm:right-8">{t('exp.scene.controls')}</p>
       ) : null}
@@ -438,14 +459,14 @@ export function ExperiencePage() {
             <button
               type="button"
               className="rounded-lg bg-sc-sky px-5 py-2 text-sm font-semibold text-sc-silver hover:bg-sc-sky-mid disabled:opacity-30"
-              disabled={phase === 'question' && !canNext}
-              onClick={() => void (phase === 'briefing' ? setPhase('question') : go(next))}
+              disabled={(phase === 'question' || !asks) && !canNext}
+              onClick={() => void (phase === 'briefing' && asks ? setPhase('question') : go(next))}
             >
               {t('exp.next')} →
             </button>
           </>
         ) : (
-          <p className="text-sm text-sc-silver/60">{phase === 'briefing' ? t('exp.waitQuestion') : t('exp.following')}</p>
+          <p className="text-sm text-sc-silver/60">{phase === 'briefing' && asks ? t('exp.waitQuestion') : t('exp.following')}</p>
         )}
         {!live ? <p className="w-full text-center text-xs text-sc-silver/50">{exp.status === 'finished' ? t('exp.finishedNote') : t('exp.notLive')}</p> : null}
       </footer>
@@ -575,8 +596,8 @@ function StagePanel({
     <aside {...mirrored} className="pointer-events-auto flex min-h-0 shrink flex-col gap-5 self-start overflow-y-auto rounded-2xl border border-white/12 bg-white/[0.06] p-5 shadow-[0_30px_80px_-30px_rgba(0,0,0,0.6)] backdrop-blur-xl sm:p-6">
       <div className="relative pr-24">
         {onCollapse ? <CollapseButton onClick={onCollapse} className="absolute top-0 right-0" /> : null}
-        <h2 className="text-xl leading-snug font-semibold text-balance">{words.stages[stage].question}</h2>
-        {words.stages[stage].hint ? <p className="mt-1 text-sm text-sc-silver/60">{words.stages[stage].hint}</p> : null}
+        <h2 className="text-xl leading-snug font-semibold text-balance">{questionWords(words, stage).question}</h2>
+        {questionWords(words, stage).hint ? <p className="mt-1 text-sm text-sc-silver/60">{questionWords(words, stage).hint}</p> : null}
       </div>
 
       {result ? (

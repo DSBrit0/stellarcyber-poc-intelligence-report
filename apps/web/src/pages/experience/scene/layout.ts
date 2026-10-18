@@ -1,4 +1,4 @@
-import { CHAPTERS, stageById, type Chapter, type StageId } from '@poc-intel/shared'
+import { STACK_CHAPTERS, stageById, type StackChapter, type StageId } from '@poc-intel/shared'
 
 /** Scene units. The Stack climbs on +Y: Data Engine at the base, Agentic SOC on top. */
 export const SLAB = { size: 6, thickness: 0.34, gap: 0.68, chapterGap: 1.1 }
@@ -8,22 +8,22 @@ export const SATELLITE_STAGES: readonly StageId[] = ['threat_intel', 'ndr', 'san
 
 export interface SlabPlace {
   id: StageId
-  chapter: Chapter
+  chapter: StackChapter
   y: number
 }
 
 export interface StackLayout {
   slabs: SlabPlace[]
-  chapters: { chapter: Chapter; from: number; to: number }[]
+  chapters: { chapter: StackChapter; from: number; to: number }[]
   top: number
 }
 
-/** Where each chosen Stage sits in the Stack. */
+/** Where each chosen Stage sits in the Stack; the Closing's Stages are not part of it. */
 export function stackLayout(stages: readonly StageId[]): StackLayout {
   const slabs: SlabPlace[] = []
   const chapters: StackLayout['chapters'] = []
   let y = 0
-  for (const chapter of CHAPTERS) {
+  for (const chapter of STACK_CHAPTERS) {
     const ids = stages.filter((s) => stageById(s).chapter === chapter)
     if (ids.length === 0) continue
     const from = y

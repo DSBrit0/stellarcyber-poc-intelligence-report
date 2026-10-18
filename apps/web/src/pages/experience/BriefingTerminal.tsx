@@ -136,26 +136,29 @@ export function BriefingTerminal({
             </Spot>
           )
         })}
-        <div className="mt-2 border-t border-white/[0.06] px-2 pt-4">
-          <p className="flex flex-wrap items-baseline gap-x-3">
-            <span className="text-sc-sky-light/75">
-              <span className="text-sc-silver/35">$ </span>
-              stellar docs {slug}
-            </span>
-            <span className="font-semibold text-sc-silver/85"># {t('exp.briefing.docs')}</span>
-          </p>
-          {docs.map((d) => (
-            <a
-              key={d.path}
-              className="mt-1.5 block pl-4 font-roboto text-sm text-sc-silver/85 underline decoration-sc-sky-light/60 underline-offset-4 hover:text-sc-silver hover:decoration-sc-sky-light"
-              href={`https://docs.stellarcyber.ai/prod-docs/${docsVersion ?? '7.0.xs'}/${d.path}`}
-              target="_blank"
-              rel="noreferrer"
-            >
-              {d.title} ↗
-            </a>
-          ))}
-        </div>
+        {/* A Stage without a documentation page of its own (the lab) ends with its last topic. */}
+        {docs.length > 0 ? (
+          <div className="mt-2 border-t border-white/[0.06] px-2 pt-4">
+            <p className="flex flex-wrap items-baseline gap-x-3">
+              <span className="text-sc-sky-light/75">
+                <span className="text-sc-silver/35">$ </span>
+                stellar docs {slug}
+              </span>
+              <span className="font-semibold text-sc-silver/85"># {t('exp.briefing.docs')}</span>
+            </p>
+            {docs.map((d) => (
+              <a
+                key={d.path}
+                className="mt-1.5 block pl-4 font-roboto text-sm text-sc-silver/85 underline decoration-sc-sky-light/60 underline-offset-4 hover:text-sc-silver hover:decoration-sc-sky-light"
+                href={`https://docs.stellarcyber.ai/prod-docs/${docsVersion ?? '7.0.xs'}/${d.path}`}
+                target="_blank"
+                rel="noreferrer"
+              >
+                {d.title} ↗
+              </a>
+            ))}
+          </div>
+        ) : null}
       </div>
     </section>
   )

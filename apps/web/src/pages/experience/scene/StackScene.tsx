@@ -1,4 +1,4 @@
-import type { Chapter, SceneState, SceneTarget, StageId } from '@poc-intel/shared'
+import type { SceneState, SceneTarget, StackChapter, StageId } from '@poc-intel/shared'
 import { Edges, Html, Line, OrbitControls } from '@react-three/drei'
 import { Canvas, useFrame, useThree, type ThreeEvent } from '@react-three/fiber'
 import { Bloom, ChromaticAberration, EffectComposer, Vignette } from '@react-three/postprocessing'
@@ -29,14 +29,14 @@ const C = {
  * Open XDR in Solar Orange, the Autonomous SOC in blue, inside an AI Purple housing. `edge` lights
  * the plate outlines and the label leaders; `mission` is the data sheet's name for what the layer delivers.
  */
-const LAYER: Record<Chapter, { base: string; edge: string; mission: string }> = {
+const LAYER: Record<StackChapter, { base: string; edge: string; mission: string }> = {
   data_engine: { base: '#D8261C', edge: '#FF7A4D', mission: 'Data Transformation' },
   open_xdr: { base: C.solar, edge: '#FFC870', mission: 'Detection Management' },
   agentic_soc: { base: C.cube, edge: C.skyLight, mission: 'Remediation' },
 }
 
 /** What powers each layer, as the Multi-Layer AI v4 brief names it. */
-const ENABLEMENT: Record<Chapter, string[]> = {
+const ENABLEMENT: Record<StackChapter, string[]> = {
   data_engine: ['Machine Learning'],
   open_xdr: ['Machine Learning', 'Graph ML'],
   agentic_soc: ['Agentic AI', 'GenAI LLM', 'MCP'],
@@ -60,7 +60,7 @@ export interface StackSceneProps {
   settled: ReadonlySet<StageId>
   /** The approved Data Sources: they take the place of the brand's source families at the base. */
   sources: string[]
-  chapterTitles: Record<Chapter, string>
+  chapterTitles: Record<StackChapter, string>
   stageTitles: Record<StageId, string>
   reducedMotion: boolean
   /** Fraction of the width the HUD covers on the right: the Stack is framed in what is left. */
@@ -250,7 +250,7 @@ export default function StackScene(props: StackSceneProps) {
 }
 
 /** Each layer's name sits level with its plates, pushed apart when a short layer would make two overlap. */
-function chapterLabelYs(chapters: { chapter: Chapter; from: number; to: number }[]) {
+function chapterLabelYs(chapters: { chapter: StackChapter; from: number; to: number }[]) {
   const MIN = 1.9
   const out = chapters.map((c) => ({ c, y: (c.from + c.to) / 2 }))
   for (let i = 1; i < out.length; i++) out[i]!.y = Math.max(out[i]!.y, out[i - 1]!.y + MIN)

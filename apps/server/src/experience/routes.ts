@@ -5,6 +5,7 @@ import {
   CreateExperienceInput,
   CustomerQuestionInput,
   GoToStageInput,
+  LabAccessInput,
   PhaseInput,
   ReplyInput,
   SceneState,
@@ -13,6 +14,7 @@ import {
   UpdateExperienceInput,
   ViewInput,
   answerSchema,
+  hasQuestion,
   applyView,
   clearFocus,
   viewOf,
@@ -28,7 +30,7 @@ import { z } from 'zod'
 import { requireAuth } from '../auth/guards.js'
 import type { AuthContext } from '../auth/session.js'
 import { db } from '../db/client.js'
-import { experienceAnswers, experienceQuestions, experiences, experienceStageResults, pocDataSources, users, type Experience, type Poc } from '../db/schema.js'
+import { experienceAnswers, experienceParticipants, experienceQuestions, experiences, experienceStageResults, pocDataSources, users, type Experience, type Poc } from '../db/schema.js'
 import { audit } from '../lib/audit.js'
 import { HttpError, notFound, parse } from '../lib/http.js'
 import { canJoinExperience, canRunExperience, loadPocAccess } from '../pocs/access.js'
@@ -71,6 +73,8 @@ const requireActive = (exp: Experience) => {
 /** Participants answer and approve only the Stage the Presenter is on, once its question is open. */
 const requireCurrent = (exp: Experience, stageId: StageId, phase?: 'question') => {
   if (exp.currentStage !== stageId) throw new HttpError(409, 'stage_not_current')
+  // A presenting-only Stage has no question to open, answer or approve.
+  if (phase && !hasQuestion(stageId)) throw new HttpError(409, 'no_question')
   if (phase && exp.currentPhase !== phase) throw new HttpError(409, 'question_not_open')
 }
 
@@ -179,7 +183,18 @@ export async function experienceRoutes(app: FastifyInstance): Promise<void> {
     const { poc, canRun } = await loadAccess(auth, id)
     const exp = await loadExperience(poc.id, expId)
     if (!canRun && exp.status === 'disabled') throw notFound()
-    const [answers, results, questions, catalog] = await Promise.all([
+    // Polling marks the caller present; written at most every five seconds per participant.
+    if (exp.status === 'active') {
+      await db
+        .insert(experienceParticipants)
+        .values({ experienceId: exp.id, userId: auth.user.id })
+        .onConflictDoUpdate({
+          target: [experienceParticipants.experienceId, experienceParticipants.userId],
+          set: { lastSeenAt: dsql`now()` },
+          setWhere: dsql`${experienceParticipants.lastSeenAt} < now() - interval '5 seconds'`,
+        })
+    }
+    const [answers, results, questions, catalog, participants] = await Promise.all([
       db
         .select({ id: experienceAnswers.id, stageId: experienceAnswers.stageId, userId: experienceAnswers.userId, userName: users.name, value: experienceAnswers.value, updatedAt: experienceAnswers.updatedAt })
         .from(experienceAnswers)
@@ -206,6 +221,20 @@ export async function experienceRoutes(app: FastifyInstance): Promise<void> {
         .where(eq(experienceQuestions.experienceId, exp.id))
         .orderBy(asc(experienceQuestions.createdAt)),
       getCatalogState(),
+      // Who is in the session now (seen in the last 30 s), and anyone who confirmed their lab access.
+      db
+        .select({
+          userId: experienceParticipants.userId,
+          name: users.name,
+          email: users.email,
+          role: users.role,
+          online: dsql<boolean>`${experienceParticipants.lastSeenAt} > now() - interval '30 seconds'`,
+          labConfirmedAt: experienceParticipants.labConfirmedAt,
+        })
+        .from(experienceParticipants)
+        .innerJoin(users, eq(users.id, experienceParticipants.userId))
+        .where(and(eq(experienceParticipants.experienceId, exp.id), dsql`(${experienceParticipants.lastSeenAt} > now() - interval '30 seconds' OR ${experienceParticipants.labConfirmedAt} IS NOT NULL)`))
+        .orderBy(asc(users.name)),
     ])
     return {
       experience: {
@@ -226,6 +255,16 @@ export async function experienceRoutes(app: FastifyInstance): Promise<void> {
       // The documentation version the Briefings link to, the same one the Data Source Catalog reads.
       docsVersion: catalog.version?.segment ?? null,
       answers: answers.map((a) => ({ ...a, mine: a.userId === auth.user.id })),
+      // E-mails only for whoever runs the session (to invite people to the lab) and for one's own row.
+      participants: participants.map((p) => ({
+        userId: p.userId,
+        name: p.name,
+        email: canRun || p.userId === auth.user.id ? p.email : null,
+        customer: p.role === 'customer',
+        online: p.online,
+        labConfirmed: p.labConfirmedAt != null,
+        mine: p.userId === auth.user.id,
+      })),
       results,
       canRun,
       canAnswer: exp.status === 'active',
@@ -289,6 +328,7 @@ export async function experienceRoutes(app: FastifyInstance): Promise<void> {
     const exp = await loadExperience(poc.id, expId)
     requireActive(exp)
     requireCurrent(exp, stageId)
+    if (!hasQuestion(stageId)) throw new HttpError(409, 'no_question')
     await db
       .insert(experienceStageResults)
       .values({ experienceId: exp.id, stageId, outcome: 'skipped', value: null, answerIds: [], decidedBy: auth.user.id })
@@ -326,6 +366,7 @@ export async function experienceRoutes(app: FastifyInstance): Promise<void> {
     const exp = await loadExperience(poc.id, expId)
     requireActive(exp)
     const { phase } = parse(PhaseInput, req.body)
+    if (phase === 'question' && !hasQuestion(exp.currentStage)) throw new HttpError(409, 'no_question')
     await db.update(experiences).set({ currentPhase: phase, view: clearFocus(viewOf(exp.view)), updatedAt: dsql`now()` }).where(eq(experiences.id, exp.id))
     return { ok: true }
   })
@@ -369,6 +410,22 @@ export async function experienceRoutes(app: FastifyInstance): Promise<void> {
     requireActive(exp)
     const view = applyView(viewOf(exp.view), parse(ViewInput, req.body))
     await db.update(experiences).set({ view, updatedAt: dsql`now()` }).where(eq(experiences.id, exp.id))
+    return { ok: true }
+  })
+
+  // A participant confirms their own access to the lab (the Closing's Lab Stage), or withdraws it.
+  app.post('/pocs/:id/experiences/:expId/lab-access', async (req) => {
+    const auth = requireAuth(req)
+    const { id, expId } = parse(ExpParams, req.params)
+    const { poc } = await loadAccess(auth, id)
+    const exp = await loadExperience(poc.id, expId)
+    requireActive(exp)
+    const { confirmed } = parse(LabAccessInput, req.body)
+    const labConfirmedAt = confirmed ? dsql`now()` : null
+    await db
+      .insert(experienceParticipants)
+      .values({ experienceId: exp.id, userId: auth.user.id, labConfirmedAt })
+      .onConflictDoUpdate({ target: [experienceParticipants.experienceId, experienceParticipants.userId], set: { labConfirmedAt, lastSeenAt: dsql`now()` } })
     return { ok: true }
   })
 

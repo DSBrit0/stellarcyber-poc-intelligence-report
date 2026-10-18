@@ -195,4 +195,32 @@ export const briefingsEs: Briefings = {
     objectives: ['Reducción del MTTR', 'Contención automática', 'Pista de auditoría de la respuesta'],
     techniquesLead: 'La respuesta automática limita el impacto de:',
   },
+  topology: {
+    how: [
+      'Modular Sensor: appliance virtual o físico que recibe la copia del tráfico (span port o switch virtual) para visibilidad de red e IDS, y también actúa como Log Forwarder para syslog.',
+      'Server Sensor: agente liviano en servidores Windows y Linux que recolecta los eventos del sistema y ejecuta acciones de respuesta en el host.',
+      'Integraciones por API: los Connectors traen datos de identidad, EDR, nube (PaaS), gestión de vulnerabilidades, firewalls y aplicaciones SaaS, sin agente.',
+      'Todo pasa por parsing, filtrado y normalización en Interflow antes de llegar al Data Lake, y las respuestas vuelven por los mismos caminos.',
+    ],
+    value: [
+      'Visibilidad completa de la superficie de ataque: red, endpoints, identidad, nube y SaaS en un solo lugar.',
+      'Aprovecha las herramientas que ya tienen (cualquier EDR, firewall o SaaS) en lugar de reemplazarlas.',
+    ],
+    objectives: ['Cobertura de visibilidad', 'Inventario de fuentes', 'Implementación sin cambiar herramientas', 'Respuesta con sus propias herramientas'],
+    techniquesLead: 'Sin visibilidad en estos puntos, pasan desapercibidos:',
+  },
+  lab: {
+    how: [
+      'Red de laboratorio detrás de un firewall SonicWall, con Security Sensor y Log Forwarder en el puerto de sensor.',
+      'Un Active Directory (redteam-dc), Windows Server 2016/2019/2022, estaciones Windows 10/11 y servidores Ubuntu, todos con SentinelOne y enviando sus logs.',
+      'Caldera ejecuta una cadena de ataque real desde un servidor: escaneo nmap, fuerza bruta en LDAP, volcado de credenciales, desactivación de las shadow copies, recolección de información del sistema, montaje SMB y propagación de malware.',
+      'Las respuestas automáticas incluyen deshabilitar el usuario en Active Directory y aislar el host con SentinelOne.',
+    ],
+    value: [
+      'Ven a la plataforma detectar un ataque completo, correlacionarlo en un Case y responder, del primer escaneo a la propagación.',
+      'Acceso en coe.stellarcyber.cloud: el usuario es su e-mail, y el código de acceso llega por e-mail.',
+    ],
+    objectives: ['Ver la detección de punta a punta', 'Explorar Cases e investigaciones', 'Probar respuestas automáticas'],
+    techniquesLead: 'La cadena de ataque del laboratorio ejecuta:',
+  },
 }

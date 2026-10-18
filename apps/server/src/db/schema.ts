@@ -336,6 +336,18 @@ export const experienceStageResults = pgTable(
   (t) => [primaryKey({ columns: [t.experienceId, t.stageId] })],
 )
 
+/** Who is in a session (migration 0024): seen on the live-state polling, and their lab access confirmation. */
+export const experienceParticipants = pgTable(
+  'experience_participants',
+  {
+    experienceId: uuid('experience_id').notNull(),
+    userId: uuid('user_id').notNull(),
+    lastSeenAt: ts('last_seen_at').notNull().defaultNow(),
+    labConfirmedAt: ts('lab_confirmed_at'),
+  },
+  (t) => [primaryKey({ columns: [t.experienceId, t.userId] })],
+)
+
 export const experienceQuestions = pgTable('experience_questions', {
   id: uuid('id').primaryKey().defaultRandom(),
   experienceId: uuid('experience_id').notNull(),

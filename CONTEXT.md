@@ -195,7 +195,7 @@ The item the Presenter points at during a Stellar Experience (an Interflow field
 _Avoid_: Highlight, selection
 
 **Stage**:
-One step of a Stellar Experience, such as Data Sources, Normalization, Detection or Response. Each Stage opens on its Briefing; the Presenter then opens its question, and moves on only once an Answer is approved or the Stage is Skipped.
+One step of a Stellar Experience, such as Data Sources, Normalization, Detection or Response. Each Stage opens on its Briefing; the Presenter then opens its question, and moves on only once an Answer is approved or the Stage is Skipped. The Closing's Stages ask no question.
 _Avoid_: Step, phase, scene
 
 **Answer**:
@@ -218,6 +218,13 @@ _Avoid_: Answer (an Answer replies to the Stage's own question), comment
 
 **Skipped**:
 A Stage the Presenter moved past without an Approved Answer.
+
+**Closing**:
+The last Chapter of a Stellar Experience, off the 3D Stack: the **Topology** Stage shows how Stellar Cyber is deployed (Modular and Server Sensors, API integrations, normalization into the platform), and the **Lab** Stage shows the lab environment and its attack chain and invites the participants to it (coe.stellarcyber.cloud). Its Stages ask no question: the Presenter moves on from their Briefing, and they are never Skipped or approved. They have no side panel.
+_Avoid_: Outro, wrap-up slide
+
+**Participant**:
+Anyone in an Active Stellar Experience session, seen through their live-state polling (present if seen in the last 30 seconds). On the Lab Stage the Presenter sees every Participant's e-mail to invite them, and each Customer User confirms their own **Lab Access** with a thumbs-up.
 
 **Current MTTD**:
 The Customer's own figure for their mean time to detect, given in a Stellar Experience together with the time each manual phase takes them today. The detection gain shown is the time of the phases Stellar Cyber automates, from the Customer's own figures; the Experience never shows a reference figure of its own.

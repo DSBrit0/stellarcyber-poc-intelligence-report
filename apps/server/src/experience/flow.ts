@@ -1,4 +1,4 @@
-import type { ExperienceStatus, StageId } from '@poc-intel/shared'
+import { hasQuestion, type ExperienceStatus, type StageId } from '@poc-intel/shared'
 
 /** Disabled → Active → Finished, and a Finished Experience reopens to Active. */
 const TRANSITIONS: Record<ExperienceStatus, readonly ExperienceStatus[]> = {
@@ -11,14 +11,14 @@ export const canTransition = (from: ExperienceStatus, to: ExperienceStatus) => T
 
 /**
  * Whether the Presenter may move from `current` to `target`: back to any Stage, forward only past
- * Stages already settled (approved or Skipped).
+ * Stages already settled (approved or Skipped) or that ask no question.
  */
 export function canGoTo(stages: readonly StageId[], settled: ReadonlySet<StageId>, current: StageId, target: StageId): boolean {
   const from = stages.indexOf(current)
   const to = stages.indexOf(target)
   if (to < 0) return false
   if (from < 0 || to <= from) return true
-  return stages.slice(from, to).every((s) => settled.has(s))
+  return stages.slice(from, to).every((s) => settled.has(s) || !hasQuestion(s))
 }
 
 /** The Presenter's Stage after the selection changed: kept when still chosen, else the nearest earlier one chosen. */

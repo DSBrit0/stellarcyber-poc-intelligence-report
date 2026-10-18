@@ -1,4 +1,4 @@
-import { DEFAULT_VIEW, STAGE_IDS, ViewInput, answerSchema, applyView, clearFocus, viewOf, mergeAnswers, stageById, stagesForProfile, type StageId } from '@poc-intel/shared'
+import { DEFAULT_VIEW, STAGE_IDS, hasQuestion, ViewInput, answerSchema, applyView, clearFocus, viewOf, mergeAnswers, stageById, stagesForProfile, type StageId } from '@poc-intel/shared'
 import { describe, expect, it } from 'vitest'
 import { canGoTo, canTransition, stageAfterSelection } from './flow.js'
 
@@ -18,6 +18,17 @@ describe('Stellar Experience flow', () => {
     expect(canGoTo(stages, new Set(['data_sources']), 'data_sources', 'collection')).toBe(true)
     expect(canGoTo(stages, new Set(['data_sources']), 'data_sources', 'normalization')).toBe(false)
     expect(canGoTo(stages, new Set(['data_sources']), 'data_sources', 'response')).toBe(false)
+  })
+
+  it('passes the Closing Stages freely: they ask no question and are never settled', () => {
+    expect(hasQuestion('topology')).toBe(false)
+    expect(hasQuestion('lab')).toBe(false)
+    expect(hasQuestion('response')).toBe(true)
+    const stages: StageId[] = ['response', 'topology', 'lab']
+    expect(canGoTo(stages, new Set(), 'topology', 'lab')).toBe(true)
+    // A Stage with a question still holds the Presenter until it is settled.
+    expect(canGoTo(stages, new Set(), 'response', 'topology')).toBe(false)
+    expect(canGoTo(stages, new Set(['response']), 'response', 'lab')).toBe(true)
   })
 
   it('keeps the Presenter on a Stage still chosen, else on the nearest earlier one', () => {
@@ -51,8 +62,8 @@ describe('Stellar Experience flow', () => {
   })
 
   it('the Executive profile pre-selects five Stages in pipeline order', () => {
-    expect(stagesForProfile('executive')).toEqual(['data_sources', 'detection', 'correlation', 'agentic_soc', 'response'])
-    expect(stagesForProfile('technical')).toHaveLength(15)
+    expect(stagesForProfile('executive')).toEqual(['data_sources', 'detection', 'correlation', 'agentic_soc', 'response', 'topology', 'lab'])
+    expect(stagesForProfile('technical')).toHaveLength(17)
   })
 })
 

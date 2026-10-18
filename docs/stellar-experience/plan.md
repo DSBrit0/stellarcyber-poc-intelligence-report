@@ -10,6 +10,7 @@ Terms are defined in `CONTEXT.md` (section "Stellar Experience"); decisions in A
 - Every Stage opens on its Briefing, a terminal-style technical explanation (how it works, SOC value, SOC objectives, frameworks, ATT&CK techniques); the Presenter then opens its question. Executive profile: "how it works" and the techniques start folded. References (ATT&CK, NIST CSF 2.0, CIS v8, PCI DSS v4.0, ISO 27001:2022, D3FEND, LGPD) live once in `briefing-refs.ts`, outside the locale files.
 - Any participant asks Customer Questions during a Stage; the Sales Engineer replies in writing or marks them answered live, during or after the session; unanswered ones show as pending on the PoC.
 - Everything the Presenter does on screen is mirrored: the side panel open or folded, the Record Trace replays, and the Spotlight, a frame on the item the Presenter points at (Interflow fields, trace steps, Briefing topics, Answers, Customer Questions). Also the Stack layer under the Presenter's pointer and how far each panel is scrolled (as a share of its height). Kept in the Experience's `view` (migration 0023), polled with the rest. The camera stays each viewer's own; a small legend in the bottom-right corner explains it.
+- The Closing (2026-10-18) ends every Experience, both profiles: Topology (the deployment drawing from the Lab presentation, slide 1) and Lab (the lab network, the Caldera chain, the invitation to coe.stellarcyber.cloud, the session's Participants with e-mails for the Presenter and a thumbs-up for each Customer User). They ask no question and have no side panel; presence and lab access live in `experience_participants` (migration 0024).
 - Every Stage asks a question. Each participant sends their own Answer; the Presenter or a Customer User approves one (list questions: several, merged). The Presenter moves forward only past an approved or Skipped Stage. Everyone's view follows the Presenter, polled every second (ADR 0014).
 - Approved Data Sources are written to the PoC Notebook's Data Sources. The Notebook shows each Experience's approved Answers, read-only.
 - MTTD gain: only the Customer's own figures (current MTTD and the time of each manual phase).
@@ -34,6 +35,8 @@ Terms are defined in `CONTEXT.md` (section "Stellar Experience"); decisions in A
 | | `correlation` | Alerts per day today? | number |
 | Agentic SOC | `agentic_soc` | Minutes to triage a Case today? | number |
 | | `response` | Which responses to automate? | multiple choice (options follow the approved Data Sources) |
+| Closing | `topology` | (none: presents the deployment topology) | none |
+| | `lab` | (none: presents the lab and invites to it) | none |
 
 ## Visual direction (brand guidelines 2026 v4)
 

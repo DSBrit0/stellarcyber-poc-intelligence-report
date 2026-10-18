@@ -195,4 +195,32 @@ export const briefingsEn: Briefings = {
     objectives: ['Lower MTTR', 'Automatic containment', 'Audit trail of the response'],
     techniquesLead: 'Automatic response limits the impact of:',
   },
+  topology: {
+    how: [
+      'Modular Sensor: a virtual or physical appliance that receives a copy of the traffic (span port or virtual switch) for network visibility and IDS, and doubles as a Log Forwarder for syslog.',
+      'Server Sensor: a light agent on Windows and Linux servers that collects system events and carries out response actions on the host.',
+      'API integrations: Connectors pull data from identity, EDR, cloud (PaaS), vulnerability management, firewalls and SaaS applications, with no agent.',
+      'Everything is parsed, filtered and normalized into Interflow before it reaches the Data Lake, and responses travel back the same way.',
+    ],
+    value: [
+      'Complete visibility of the attack surface: network, endpoints, identity, cloud and SaaS in one place.',
+      'Builds on the tools you already have (any EDR, firewall or SaaS) instead of replacing them.',
+    ],
+    objectives: ['Visibility coverage', 'Source inventory', 'Deployment without replacing tools', 'Response through your own tools'],
+    techniquesLead: 'Without visibility at these points, these go unnoticed:',
+  },
+  lab: {
+    how: [
+      'A lab network behind a SonicWall firewall, with a Security Sensor and Log Forwarder on the sensor port.',
+      'An Active Directory (redteam-dc), Windows Server 2016/2019/2022, Windows 10/11 workstations and Ubuntu servers, all with SentinelOne and sending their logs.',
+      'Caldera runs a real attack chain from one server: nmap scan, LDAP brute force, credential dump, disabling volume shadow copies, system information discovery, SMB mount and malware propagation.',
+      'Automatic responses include disabling the user in Active Directory and isolating the host through SentinelOne.',
+    ],
+    value: [
+      'You watch the platform detect a complete attack, correlate it into a Case and respond, from the first scan to the propagation.',
+      'Access at coe.stellarcyber.cloud: your user is your e-mail, and the access code arrives by e-mail.',
+    ],
+    objectives: ['See detection end to end', 'Explore Cases and investigations', 'Try automatic responses'],
+    techniquesLead: 'The lab attack chain runs:',
+  },
 }

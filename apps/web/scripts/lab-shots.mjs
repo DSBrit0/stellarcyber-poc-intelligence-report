@@ -22,6 +22,9 @@ const STATES = [
   ['09-zoom-out', 'stage=detection', 5000, 'zoomout'],
   // The Pipeline beside the wide Briefing, half way down the tunnel.
   ['10-pipeline-briefing', 'stage=detection&model=trace&target=source:Network', 12000],
+  // The Closing: the deployment topology, then the lab and its invitation.
+  ['11-topology', 'stage=topology'],
+  ['12-lab', 'stage=lab'],
 ]
 
 const browser = await chromium.launch({ channel: 'chrome', headless: true, args: ['--use-angle=metal', '--enable-gpu', '--ignore-gpu-blocklist'] })

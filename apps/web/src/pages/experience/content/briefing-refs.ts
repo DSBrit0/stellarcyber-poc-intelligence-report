@@ -203,6 +203,35 @@ export const BRIEFING_REFS: Record<StageId, BriefingRefs> = {
     ],
     techniques: [t('T1486', 'Data Encrypted for Impact'), t('T1490', 'Inhibit System Recovery'), t('T1041', 'Exfiltration Over C2 Channel'), t('T1078', 'Valid Accounts'), t('T1566', 'Phishing')],
   },
+  topology: {
+    frameworks: [
+      csf('ID.AM-03', 'Representations of authorized network communication and data flows are maintained'),
+      csf('DE.CM-01', 'Networks and network services are monitored'),
+      csf('DE.CM-09', 'Computing hardware and software, runtime environments, and their data are monitored'),
+      cis('8.2', 'Collect Audit Logs'),
+      cis('13.6', 'Collect Network Traffic Flow Logs'),
+      iso('A.8.16', 'Monitoring activities'),
+    ],
+    techniques: [t('T1562.001', 'Impair Defenses: Disable or Modify Tools'), t('T1070', 'Indicator Removal'), t('T1021', 'Remote Services'), t('T1133', 'External Remote Services')],
+  },
+  // The lab's Caldera attack chain, step by step (Lab presentation, slide 3).
+  lab: {
+    frameworks: [
+      csf('DE.AE-02', 'Potentially adverse events are analyzed to better understand associated activities'),
+      csf('RS.MI-01', 'Incidents are contained'),
+      d3f('D3-NI', 'Network Isolation'),
+      d3f('D3-AL', 'Account Locking'),
+    ],
+    techniques: [
+      t('T1046', 'Network Service Discovery'),
+      t('T1110', 'Brute Force'),
+      t('T1003', 'OS Credential Dumping'),
+      t('T1490', 'Inhibit System Recovery'),
+      t('T1082', 'System Information Discovery'),
+      t('T1021.002', 'Remote Services: SMB/Windows Admin Shares'),
+      t('T1570', 'Lateral Tool Transfer'),
+    ],
+  },
 }
 
 /**
@@ -248,4 +277,10 @@ export const BRIEFING_DOCS: Record<StageId, { path: string; title: string }[]> =
     { path: 'Using/Auto-Triage/alert-auto-triage.htm', title: 'Alert Auto Triage in Stellar Cyber' },
   ],
   response: [{ path: 'Using/Respond/Automation-Main.htm', title: 'Automated Threat Hunting (ATH) in Stellar Cyber' }],
+  topology: [
+    { path: 'Common/Stellar-Architecture.htm', title: 'Stellar Cyber Architecture' },
+    { path: 'Configure/Overview-Connectors.htm', title: 'Configuring Connectors' },
+  ],
+  // The lab is reached at coe.stellarcyber.cloud; it has no documentation page of its own.
+  lab: [],
 }
