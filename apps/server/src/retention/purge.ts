@@ -1,6 +1,6 @@
 import { readdir, rm, stat } from 'node:fs/promises'
 import { join } from 'node:path'
-import { and, eq, lt, notExists, or, sql as dsql } from 'drizzle-orm'
+import { and, eq, isNull, lt, notExists, or, sql as dsql } from 'drizzle-orm'
 import { purgeExpiredSessions } from '../auth/session.js'
 import { config } from '../config.js'
 import { db } from '../db/client.js'
@@ -13,7 +13,9 @@ const RENDER_CACHE_MAX_AGE_MS = 24 * 3_600_000
 
 /**
  * Applies the Retention Period: Report Data older than it is deleted for good, then PoCs left with no
- * Report Data and untouched for the same period. The Admin's current setting always applies.
+ * Report Data and untouched for the same period, unless they have a PoC Notebook: a Notebook is the PoC
+ * itself (ADR 0010), with its Experiences, criteria and meetings, and is never purged for being idle.
+ * The Admin's current setting always applies.
  */
 export async function purgeExpired(): Promise<{ reportData: number; pocs: number; sessions: number; renders: number; apiCalls: number; appLogs: number }> {
   const { retentionDays } = await getSettings()
@@ -26,6 +28,7 @@ export async function purgeExpired(): Promise<{ reportData: number; pocs: number
     .where(
       and(
         lt(pocs.updatedAt, cutoff),
+        isNull(pocs.notebook),
         notExists(db.select({ one: dsql`1` }).from(reportData).where(eq(reportData.pocId, pocs.id))),
       ),
     )
