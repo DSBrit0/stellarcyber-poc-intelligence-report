@@ -731,10 +731,10 @@
   "exp.pendingQuestions": "{n} questions pending",
   "err.question_not_open": "The presenter has not opened this question yet.",
   "exp.briefing.docs": "Official documentation",
-  "exp.scene.chamber": "Engine chamber",
-  "exp.scene.trace": "Record trace",
+  "exp.scene.stack": "Stack",
+  "exp.scene.chamber": "Data ingestion",
+  "exp.scene.trace": "Pipeline",
   "exp.scene.leave": "Leave",
-  "exp.scene.illustrative": "Illustrative example",
   "exp.scene.raw": "Raw log",
   "exp.scene.interflow": "Interflow",
   "exp.scene.input": "What arrives",
@@ -746,8 +746,6 @@
   "exp.scene.controls": "Drag: rotate · Right-drag or Shift + drag: move · Wheel: zoom · Double-click: recenter",
   "exp.panel.collapse": "Hide panel",
   "exp.panel.expand": "Show panel",
-  "exp.scene.real": "Real Interflow, anonymised ({date})",
-  "exp.scene.realShort": "real",
   "exp.scene.noRaw": "This source sends structured fields (sensor or API), so there is no raw log line. This is what it delivers, already as Interflow:",
   "exp.scene.mode": "Way into the Stack"
 }

@@ -7,7 +7,7 @@ import type { ChromaticAberrationEffect } from 'postprocessing'
 import type { Line2, LineGeometry } from 'three-stdlib'
 import { useEffect, useMemo, useRef, useState, type RefObject } from 'react'
 import * as THREE from 'three'
-import { Chamber, CHAMBER } from './Chamber'
+import { Chamber, ringStops, tubeView } from './Chamber'
 import { SATELLITE_STAGES, SLAB, stackLayout } from './layout'
 
 /** Brand colours (Brand Guidelines 2026 v4; Cube Blue from the Multi-Layer AI v4 brief). */
@@ -71,8 +71,9 @@ export interface StackSceneProps {
   wide: boolean
   /** The interaction model and the object the Presenter entered (plan, Q38–Q39). */
   scene: SceneState
-  /** In the trace model: the Stage the traced record has reached, or null before it starts. */
-  traceStage: StageId | null
+  /** In the pipeline: the Stages the traced record goes through, in order, and how far it has got. */
+  traceStages: StageId[]
+  traceIndex: number
   /** Whether this viewer may enter objects: the Presenter, or anyone in a replay. */
   canInteract: boolean
   onEnter: (target: SceneTarget) => void
@@ -97,9 +98,12 @@ export default function StackScene(props: StackSceneProps) {
   const offset = useMemo(() => new THREE.Vector2(0.0003, 0.00015), [])
   const sources = props.sources.length > 0 ? props.sources.slice(0, 12) : DEFAULT_SOURCES
   const target = props.scene.target
-  const inChamber = props.scene.model === 'chamber' && target != null
+  // Entering an object, either way, takes everyone into the tunnel: one ring in Data ingestion, one per engine in the Pipeline.
   const tracing = props.scene.model === 'trace' && target != null
-  const traceY = tracing ? (layout.slabs.find((s) => s.id === props.traceStage)?.y ?? bottom - 2.4) : null
+  const tubeStages: (StageId | null)[] | null =
+    target == null ? null : tracing && props.traceStages.length > 0 ? props.traceStages : [target.kind === 'stage' ? (target.key as StageId) : null]
+  const traced = tracing && tubeStages ? Math.min(props.traceIndex, tubeStages.length - 1) : null
+  const tube = tubeStages ? tubeView(ringStops(tubeStages.length)[traced ?? 0]!) : null
   // A click, not the end of a drag: R3F reports how far the pointer travelled.
   const enter = (t: SceneTarget) => (e: ThreeEvent<MouseEvent>) => {
     if (!props.canInteract || e.delta > 4) return
@@ -136,7 +140,7 @@ export default function StackScene(props: StackSceneProps) {
       <Backdrop />
       <Shell bottom={bottom - 0.5} top={top + 0.5} />
       {layout.slabs.map((s) => {
-        const state = s.id === props.current || (tracing && s.id === props.traceStage) ? 'lit' : props.settled.has(s.id) ? 'done' : 'idle'
+        const state = s.id === props.current ? 'lit' : props.settled.has(s.id) ? 'done' : 'idle'
         return (
           <group key={s.id}>
             <Plate
@@ -202,13 +206,12 @@ export default function StackScene(props: StackSceneProps) {
         onHover={hover}
       />
       <DataStream from={bottom - 2.5} to={focus} reducedMotion={props.reducedMotion} />
-      {traceY != null ? <TracedRecord y={traceY} reducedMotion={props.reducedMotion} /> : null}
-      {inChamber ? <Chamber stage={target.kind === 'stage' ? (target.key as StageId) : null} reducedMotion={props.reducedMotion} /> : null}
+      {tubeStages ? <Chamber stages={tubeStages} traced={traced} reducedMotion={props.reducedMotion} /> : null}
       {/* Aim mostly at the Stack's middle, a little towards the lit plate: the whole Stack stays in frame. */}
       <CameraRig
-        focusY={((traceY ?? focus) + 3 * ((top + bottom) / 2)) / 4}
-        distance={tracing ? 46 : props.wide ? 45 : 41}
-        chamber={inChamber}
+        focusY={(focus + 3 * ((top + bottom) / 2)) / 4}
+        distance={props.wide ? 45 : 41}
+        tube={tube}
         recenter={recenter}
         reducedMotion={props.reducedMotion}
         aberration={ca}
@@ -216,7 +219,7 @@ export default function StackScene(props: StackSceneProps) {
       {/* Left drag turns the Stack; right drag (or Shift + drag) moves it, never farther than a Stack's width; wheel zooms. */}
       <OrbitControls
         makeDefault
-        enabled={!inChamber}
+        enabled={!tube}
         enablePan
         screenSpacePanning
         enableDamping
@@ -226,8 +229,9 @@ export default function StackScene(props: StackSceneProps) {
         maxPolarAngle={1.45}
         onChange={(e) => {
           // Pulls camera and target back together, so a pan past the limit stops instead of tilting the view.
+          // Not in the tunnel: it lies far from the Stack, and the limit would drag the camera back out of it.
           const c = e?.target as unknown as { target: THREE.Vector3; object: THREE.Camera } | undefined
-          if (!c) return
+          if (!c || tube) return
           const t = c.target
           const back = new THREE.Vector3(THREE.MathUtils.clamp(t.x, -PAN, PAN), THREE.MathUtils.clamp(t.y, bottom - PAN, top + PAN), THREE.MathUtils.clamp(t.z, -PAN, PAN)).sub(t)
           if (back.lengthSq() === 0) return
@@ -276,14 +280,15 @@ function Framing({ shift, shiftDown }: { shift: number; shiftDown: number }) {
 function CameraRig({
   focusY,
   distance,
-  chamber,
+  tube,
   recenter,
   reducedMotion,
   aberration,
 }: {
   focusY: number
   distance: number
-  chamber: boolean
+  /** Inside the tunnel: where the camera sits and what it looks at. */
+  tube: { eye: { x: number; y: number; z: number }; look: { x: number; y: number; z: number } } | null
   /** Bumped by a double click: the camera glides back even when nothing else changed. */
   recenter: number
   reducedMotion: boolean
@@ -294,9 +299,9 @@ function CameraRig({
   useEffect(() => {
     if (!controls) return
     const dir = new THREE.Vector3(1, 0.5, 1).normalize().multiplyScalar(distance)
-    // Inside a chamber the camera sits at the tunnel's mouth, looking down it towards the engine.
-    const target = chamber ? CHAMBER.look : { x: 0, y: focusY, z: 0 }
-    const pos = chamber ? CHAMBER.eye : { x: dir.x, y: focusY + dir.y, z: dir.z }
+    // Inside the tunnel the camera sits just before the ring at work, looking down towards it.
+    const target = tube ? tube.look : { x: 0, y: focusY, z: 0 }
+    const pos = tube ? tube.eye : { x: dir.x, y: focusY + dir.y, z: dir.z }
     if (reducedMotion) {
       camera.position.set(pos.x, pos.y, pos.z)
       controls.target.set(target.x, target.y, target.z)
@@ -310,7 +315,7 @@ function CameraRig({
     return () => {
       tl.kill()
     }
-  }, [focusY, distance, chamber, recenter, controls, camera, reducedMotion, aberration])
+  }, [focusY, distance, tube?.eye.x, tube?.eye.y, tube?.eye.z, recenter, controls, camera, reducedMotion, aberration])
   return null
 }
 
@@ -691,32 +696,5 @@ function DataStream({ from, to, reducedMotion }: { from: number; to: number; red
     <points ref={points} geometry={geometry}>
       <pointsMaterial map={map} color={C.skyLight} size={0.075} sizeAttenuation transparent opacity={0.55} depthWrite={false} blending={THREE.AdditiveBlending} />
     </points>
-  )
-}
-
-/** The one record being traced: a bright point that climbs to the plate of the engine now at work. */
-function TracedRecord({ y, reducedMotion }: { y: number; reducedMotion: boolean }) {
-  const mesh = useRef<THREE.Mesh>(null)
-  const halo = useRef<THREE.Mesh>(null)
-  useFrame(({ clock }, dt) => {
-    if (!mesh.current) return
-    const k = reducedMotion ? 1 : 1 - Math.exp(-dt * 3)
-    mesh.current.position.y += (y + 0.45 - mesh.current.position.y) * k
-    if (halo.current) {
-      halo.current.position.y = mesh.current.position.y
-      halo.current.scale.setScalar(1 + (reducedMotion ? 0 : Math.sin(clock.elapsedTime * 4) * 0.15))
-    }
-  })
-  return (
-    <group>
-      <mesh ref={mesh} position={[0, y, 0]}>
-        <sphereGeometry args={[0.2, 24, 24]} />
-        <meshStandardMaterial color={C.solar} emissive={C.solar} emissiveIntensity={1.6} />
-      </mesh>
-      <mesh ref={halo} position={[0, y, 0]} rotation={[-Math.PI / 2, 0, 0]}>
-        <ringGeometry args={[0.45, 0.55, 48]} />
-        <meshBasicMaterial color={C.solar} transparent opacity={0.45} side={THREE.DoubleSide} />
-      </mesh>
-    </group>
   )
 }

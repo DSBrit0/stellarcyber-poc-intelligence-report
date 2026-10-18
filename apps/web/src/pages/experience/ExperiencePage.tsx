@@ -203,6 +203,14 @@ export function ExperiencePage() {
       await refresh()
     }
   }
+  // The view picker: the Stack, or straight into the tunnel. Data ingestion opens on the engine of the Stage
+  // on screen; the Pipeline follows a record from a source (the first approved one, else network traffic).
+  // Clicking a plate or a source tile on the Stack still enters that object instead.
+  const openView = (m: 'stack' | SceneState['model']) => {
+    if (m === 'stack') return setScene({ model: scene.model, target: null })
+    const target = scene.target ?? (m === 'trace' ? { kind: 'source' as const, key: approvedSources[0] ?? 'Network' } : stage ? { kind: 'stage' as const, key: stage } : null)
+    return setScene({ model: m, target })
+  }
   const approvedSources = (data?.results.find((r) => r.stageId === 'data_sources' && r.value)?.value as DataSourcesValue | undefined)?.sources.map((s) => s.name) ?? []
   // A source shows its own family's record; a Stage, a record that actually goes through that engine.
   const preferred = SAMPLES[familyOf(approvedSources[0] ?? 'FortiGate')]
@@ -279,11 +287,13 @@ export function ExperiencePage() {
             chapterTitles={{ data_engine: words.chapters.data_engine.title, open_xdr: words.chapters.open_xdr.title, agentic_soc: words.chapters.agentic_soc.title }}
             stageTitles={Object.fromEntries(Object.entries(words.stages).map(([k, v]) => [k, v.title])) as Record<StageId, string>}
             reducedMotion={reducedMotion}
-            shift={lg && panelOpen ? (phase === 'briefing' ? 0.24 : 0.2) : 0}
-            shiftDown={scene.target && scene.model === 'trace' ? 0.2 : 0.1}
+            // The Stack sits left of the panel; inside the tunnel, the tunnel sits right of the text box on the left.
+            shift={!lg ? 0 : scene.target ? (panelOpen ? (phase === 'briefing' ? -0.01 : -0.05) : -0.2) : panelOpen ? (phase === 'briefing' ? 0.24 : 0.2) : 0}
+            shiftDown={scene.target ? 0 : 0.1}
             wide={panelOpen && phase === 'briefing'}
             scene={scene}
-            traceStage={sampleSteps[traceIndex]?.stage ?? null}
+            traceStages={sampleSteps.map((st) => st.stage)}
+            traceIndex={traceIndex}
             canInteract={presenting || !live}
             onEnter={(target) => void setScene({ model: scene.model, target })}
             pointedLayer={live ? view.layer : null}
@@ -317,19 +327,22 @@ export function ExperiencePage() {
           {with3D ? (
             <div className="pointer-events-auto mt-3 flex flex-wrap items-center gap-2 text-xs">
               <div className="flex rounded-lg border border-white/15 p-0.5" role="radiogroup" aria-label={t('exp.scene.mode')}>
-                {(['chamber', 'trace'] as const).map((m) => (
-                  <button
-                    key={m}
-                    type="button"
-                    role="radio"
-                    aria-checked={scene.model === m}
-                    disabled={!(presenting || !live)}
-                    className={`rounded-md px-2.5 py-1 ${scene.model === m ? 'bg-white/15 text-sc-silver' : 'text-sc-silver/60 enabled:hover:text-sc-silver'}`}
-                    onClick={() => void setScene({ model: m, target: scene.target })}
-                  >
-                    {t(m === 'chamber' ? 'exp.scene.chamber' : 'exp.scene.trace')}
-                  </button>
-                ))}
+                {(['stack', 'chamber', 'trace'] as const).map((m) => {
+                  const on = m === 'stack' ? !scene.target : Boolean(scene.target) && scene.model === m
+                  return (
+                    <button
+                      key={m}
+                      type="button"
+                      role="radio"
+                      aria-checked={on}
+                      disabled={!(presenting || !live)}
+                      className={`rounded-md px-2.5 py-1 ${on ? 'bg-white/15 text-sc-silver' : 'text-sc-silver/60 enabled:hover:text-sc-silver'}`}
+                      onClick={() => void openView(m)}
+                    >
+                      {t(m === 'stack' ? 'exp.scene.stack' : m === 'chamber' ? 'exp.scene.chamber' : 'exp.scene.trace')}
+                    </button>
+                  )
+                })}
               </div>
             </div>
           ) : null}

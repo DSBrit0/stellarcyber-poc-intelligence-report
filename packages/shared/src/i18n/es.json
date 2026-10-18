@@ -731,10 +731,10 @@
   "exp.pendingQuestions": "{n} preguntas pendientes",
   "err.question_not_open": "El presentador aún no abrió esta pregunta.",
   "exp.briefing.docs": "Documentación oficial",
-  "exp.scene.chamber": "Cámara del motor",
-  "exp.scene.trace": "Rastro del registro",
+  "exp.scene.stack": "Stack",
+  "exp.scene.chamber": "Ingestión de datos",
+  "exp.scene.trace": "Pipeline",
   "exp.scene.leave": "Salir del objeto",
-  "exp.scene.illustrative": "Ejemplo ilustrativo",
   "exp.scene.raw": "Log en bruto",
   "exp.scene.interflow": "Interflow",
   "exp.scene.input": "Lo que llega",
@@ -746,8 +746,6 @@
   "exp.scene.controls": "Arrastrar: girar · Botón derecho o Shift + arrastrar: mover · Rueda: zoom · Doble clic: centrar",
   "exp.panel.collapse": "Ocultar panel",
   "exp.panel.expand": "Mostrar panel",
-  "exp.scene.real": "Interflow real, anonimizado ({date})",
-  "exp.scene.realShort": "real",
   "exp.scene.noRaw": "Esta fuente envía campos estructurados (sensor o API), así que no hay línea de log en bruto. Esto es lo que entrega, ya en Interflow:",
   "exp.scene.mode": "Forma de entrar en el Stack"
 }

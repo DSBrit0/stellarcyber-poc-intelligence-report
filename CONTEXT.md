@@ -207,10 +207,10 @@ The technical explanation that opens a Stage: how the technology works, what it 
 _Avoid_: Intro, slide
 
 **Engine Chamber**:
-A way into the Stack: the Presenter enters a Data Source or a Stage and everyone is taken inside its engine, where raw records cross it and come out as Interflow, field by field.
+Shown on screen as "Data ingestion". A way into the Stack: the Presenter enters a Data Source or a Stage and everyone is taken inside its engine, where raw records cross it and come out as Interflow, field by field.
 
 **Record Trace**:
-The other way into the Stack: one record leaves a Data Source and climbs the Stack engine by engine, its Interflow growing at each one, until it becomes part of a Case and triggers a response.
+Shown on screen as "Pipeline". The other way into the Stack: one record leaves a Data Source and flies down the same tunnel through one ring per engine, its Interflow growing at each one, until it becomes part of a Case and triggers a response.
 
 **Customer Question**:
 A question any participant writes during a Stage, kept with the Stellar Experience and seen by everyone. The Sales Engineer gives it a **Reply** in writing or marks it answered live; one left without either is pending follow-up.

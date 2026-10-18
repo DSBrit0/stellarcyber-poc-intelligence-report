@@ -6,3 +6,4 @@ The Normalization Stage shows a raw log turning into Interflow for the Customer'
 
 - The samples are real in shape but not in content, and can drift from the newest Interflow version; they are refreshed by capturing again.
 - A Data Source with no category of its own shows its category's sample.
+- The screen does not say which steps of a sample come from a real capture and which are illustrative (the user had the "real, anonymised" and "illustrative example" marks removed on 2026-10-17). The `real` flag stays in the samples for whoever maintains them.

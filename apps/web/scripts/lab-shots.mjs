@@ -20,6 +20,8 @@ const STATES = [
   ['08-executive', 'profile=executive&stage=correlation'],
   // Zoomed all the way out with the mouse wheel: the Stack must keep its colours.
   ['09-zoom-out', 'stage=detection', 5000, 'zoomout'],
+  // The Pipeline beside the wide Briefing, half way down the tunnel.
+  ['10-pipeline-briefing', 'stage=detection&model=trace&target=source:Network', 12000],
 ]
 
 const browser = await chromium.launch({ channel: 'chrome', headless: true, args: ['--use-angle=metal', '--enable-gpu', '--ignore-gpu-blocklist'] })

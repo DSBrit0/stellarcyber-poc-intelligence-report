@@ -124,9 +124,6 @@ const network: InterflowSample = {
   outcome: { caseId: 'CASE-1043', score: 74, alerts: 2, response: { action: 'reset_password', target: 'Database service account' } },
 }
 
-/** When the real records were captured (shown with them). */
-export const CAPTURED_ON = captured.capturedOn
-
 export const SAMPLES: Record<SampleFamily, InterflowSample> = { firewall, edr, network }
 
 /** The sample family of a Data Source, by its name. Real captures map by catalog category (ADR 0015). */

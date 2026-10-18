@@ -2,7 +2,7 @@ import type { SceneModel, SceneTarget, StageId } from '@poc-intel/shared'
 import { useEffect, useState } from 'react'
 import { useI18n } from '../../lib/i18n'
 import { useWords } from './content'
-import { CAPTURED_ON, fieldsUpTo, type FieldValue, type InterflowSample } from './content/interflow-samples'
+import { fieldsUpTo, type FieldValue, type InterflowSample } from './content/interflow-samples'
 import { Spot, useMirroredScroll } from './spotlight'
 
 const show = (v: FieldValue) => (Array.isArray(v) ? `[${v.map((x) => `"${x}"`).join(', ')}]` : typeof v === 'number' ? String(v) : `"${v}"`)
@@ -10,7 +10,7 @@ const show = (v: FieldValue) => (Array.isArray(v) ? `[${v.map((x) => `"${x}"`).j
 /**
  * What the Presenter's entered object shows, beside the 3D scene: in the chamber, the raw record
  * and what this engine turns it into; in the trace, the Interflow growing engine by engine.
- * Always marked as an illustrative example until real captures replace the samples (ADR 0015).
+ * The samples are real captures or illustrations (ADR 0015); the screen no longer labels which.
  */
 export function InterflowInspector({
   model,
@@ -41,26 +41,20 @@ export function InterflowInspector({
   const words = useWords()
   const stage = target.kind === 'stage' ? (target.key as StageId) : null
   const title = target.kind === 'source' ? target.key : words.stages[stage!].title
-  // Whether what is on screen now comes from the real capture or is an illustration.
-  const shownStep = model === 'trace' ? steps[traceIndex] : sample.steps.find((s) => s.stage === (stage && stage !== 'data_sources' && stage !== 'collection' ? stage : 'normalization'))
-  const real = Boolean(shownStep?.real)
   const mirrored = useMirroredScroll<HTMLDivElement>('inspector')
   return (
     <section
-      className={`pointer-events-auto mt-5 flex min-h-0 flex-col overflow-hidden rounded-2xl ${model === 'trace' ? 'max-h-[42dvh]' : 'max-h-[calc(100dvh-16rem)]'} border border-white/12 bg-[#060f17]/88 shadow-[0_30px_80px_-30px_rgba(0,0,0,0.7)] backdrop-blur-xl`}
+      // On the left, as tall as the screen allows so a record fits; the tunnel takes the space to its right.
+      className="pointer-events-auto mt-5 flex max-h-[calc(100dvh-15rem)] min-h-0 w-full max-w-[44rem] flex-col overflow-hidden rounded-2xl border border-white/12 bg-[#060f17]/88 shadow-[0_30px_80px_-30px_rgba(0,0,0,0.7)] backdrop-blur-xl"
     >
       <header className="flex flex-wrap items-center gap-2 border-b border-white/10 px-4 py-2.5">
         <p className="min-w-0 flex-1 truncate text-sm font-semibold">
           {t(model === 'chamber' ? 'exp.scene.chamber' : 'exp.scene.trace')}
           <span className="mx-2 text-sc-silver/30">/</span>
           {title}
-          {model === 'chamber' ? <span className="ml-2 font-normal text-sc-sky-light">{engine}</span> : null}
+          {/* The engine only when it adds something: a Stage named after its engine (Sandbox) would read twice. */}
+          {model === 'chamber' && engine && engine !== title ? <span className="ml-2 font-normal text-sc-sky-light">{engine}</span> : null}
         </p>
-        {real ? (
-          <span className="rounded bg-sc-sky-light/15 px-2 py-0.5 text-xs font-medium text-sc-sky-light">{t('exp.scene.real', { date: CAPTURED_ON })}</span>
-        ) : (
-          <span className="rounded bg-sc-solar/15 px-2 py-0.5 text-xs font-medium text-sc-solar">{t('exp.scene.illustrative')}</span>
-        )}
         {model === 'trace' && canLeave ? (
           <button type="button" className="rounded px-2 py-0.5 text-xs text-sc-silver/70 hover:bg-white/10 hover:text-sc-silver" onClick={onReplay}>
             {t('exp.scene.replay')}
@@ -72,7 +66,8 @@ export function InterflowInspector({
           </button>
         ) : null}
       </header>
-      <div {...mirrored} className="min-h-0 flex-1 overflow-y-auto px-4 py-3 font-mono text-[12.5px] leading-relaxed">
+      {/* The Pipeline a size smaller and tighter: by the last engine its record is some thirty fields, and they should fit with the Case. */}
+      <div {...mirrored} className={`min-h-0 flex-1 overflow-y-auto px-4 py-3 font-mono ${model === 'trace' ? 'text-[11.5px] leading-snug' : 'text-[12.5px] leading-relaxed'}`}>
         {model === 'chamber' ? <ChamberView sample={sample} stage={stage} reducedMotion={reducedMotion} /> : <TraceView sample={sample} steps={steps} index={traceIndex} />}
       </div>
     </section>
@@ -156,23 +151,20 @@ function TraceView({ sample, steps, index }: { sample: InterflowSample; steps: I
   const done = index >= steps.length - 1
   return (
     <div className="grid gap-4 lg:grid-cols-[minmax(0,14rem)_1fr]">
-      <ol className="space-y-1 font-roboto text-sm">
-        <li className="text-sc-silver/55">{sample.source}</li>
-        {steps.map((st, i) => (
-          <Spot as="li" key={st.stage} id={`if:step:${st.stage}`} className={`flex items-baseline gap-2 ${i === index ? 'text-sc-solar' : i < index ? 'text-sc-silver/85' : 'text-sc-silver/30'}`}>
-            <span aria-hidden>{i < index ? '✓' : i === index ? '▸' : '·'}</span>
-            <span>
-              {words.stages[st.stage].title}
-              <span className="block text-xs opacity-70">
-                {st.engine}
-                {st.real ? <span className="ml-1.5 text-sc-sky-light">● {t('exp.scene.realShort')}</span> : null}
-              </span>
-            </span>
-          </Spot>
-        ))}
-      </ol>
+      {/* The Case sits under the steps, the way the record ends, in view without scrolling the record. */}
       <div className="space-y-3">
-        <Json spot="if:field" rows={[...fields].map(([key, v]) => ({ key, ...v }))} />
+        <ol className="space-y-1 font-roboto text-sm">
+          <li className="text-sc-silver/55">{sample.source}</li>
+          {steps.map((st, i) => (
+            <Spot as="li" key={st.stage} id={`if:step:${st.stage}`} className={`flex items-baseline gap-2 ${i === index ? 'text-sc-solar' : i < index ? 'text-sc-silver/85' : 'text-sc-silver/30'}`}>
+              <span aria-hidden>{i < index ? '✓' : i === index ? '▸' : '·'}</span>
+              <span>
+                {words.stages[st.stage].title}
+                <span className="block text-xs opacity-70">{st.engine}</span>
+              </span>
+            </Spot>
+          ))}
+        </ol>
         {done ? (
           <Spot id="if:case" className="rounded-lg border border-sc-solar/40 bg-sc-solar/10 px-3 py-2 font-roboto text-sm">
             {t('exp.scene.case', { id: sample.outcome.caseId, score: sample.outcome.score, alerts: sample.outcome.alerts })}
@@ -182,6 +174,7 @@ function TraceView({ sample, steps, index }: { sample: InterflowSample; steps: I
           </Spot>
         ) : null}
       </div>
+      <Json spot="if:field" rows={[...fields].map(([key, v]) => ({ key, ...v }))} />
     </div>
   )
 }
