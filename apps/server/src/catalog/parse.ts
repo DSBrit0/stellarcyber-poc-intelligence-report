@@ -28,6 +28,16 @@ const clean = (s: string) =>
     .replace(/\s+/g, ' ')
     .trim()
 
+/**
+ * A name cell's name: its text without the text of its links, which point to the configuration guide
+ * ("See how to configure … log ingestion.") and change wording from one documentation build to the next.
+ * A cell whose only text is its link keeps it: there the link is the name.
+ */
+function nameOf(cell: ReturnType<CheerioAPI>): string {
+  const withoutLinks = clean(cell.clone().find('a').remove().end().text())
+  return withoutLinks || clean(cell.text())
+}
+
 /** A documentation link resolved against its page; anything but http(s) falls back to the page itself. */
 function docLink(href: string | undefined, pageUrl: string): string {
   if (!href) return pageUrl
@@ -71,7 +81,7 @@ export function parseParsers(html: string, pageUrl: string): CatalogEntry[] {
     for (const tr of table.find('tbody tr').toArray()) {
       const cells = $(tr).find('td').toArray()
       const text = (i: number) => (i >= 0 && cells[i] ? clean($(cells[i]).text()) : '')
-      const name = text(nameCol)
+      const name = cells[nameCol] ? nameOf($(cells[nameCol])) : ''
       const port = portOf(text(portCol))
       if (!name || !port) continue
       // The name identifies a parser; the rare name listed twice with other ports keeps both rows.
@@ -115,7 +125,7 @@ export function parseConnectors(html: string, pageUrl: string): CatalogEntry[] {
         category = clean(first.text())
         continue
       }
-      const name = clean(first.text())
+      const name = nameOf(first)
       if (!name) continue
       const key = entryKey(name)
       const functions = fns.filter(([, i]) => i >= 0 && cells[i] && $(cells[i]).find('.fa-check, i[class*="check"]').length > 0).map(([f]) => f)

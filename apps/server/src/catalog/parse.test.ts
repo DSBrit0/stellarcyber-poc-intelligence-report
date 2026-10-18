@@ -19,6 +19,16 @@ describe('Data Source Catalog readers', () => {
     expect(c[0]).toMatchObject({ name: 'Jamf Pro', category: 'Asset Management', detail: 'Collect' })
     expect(c.every((x) => x.docUrl.startsWith('https://docs.stellarcyber.ai/prod-docs/7.0.xs/'))).toBe(true)
   })
+  it('keeps the configuration link out of the name, whatever its wording', () => {
+    const row = (cell: string) => `<table><thead><tr><th>Parser Name</th><th>Port</th></tr></thead><tbody><tr><td>${cell}</td><td>5143</td></tr></tbody></table>`
+    const name = (cell: string) => parseParsers(row(cell), PARSERS)[0]!.name
+    expect(name('<p>CoreLight Sensor</p><p><a href="../LogParser/Corelight.htm">See how to configure CoreLight log ingestion.</a></p>')).toBe('CoreLight Sensor')
+    expect(name('Microsoft Exchange Server <img src="new.png" /><p><a href="x.htm">Learn how to configure log ingestion.</a></p>')).toBe('Microsoft Exchange Server')
+    // The link still gives the entry its documentation page.
+    expect(parseParsers(row('<p>SentinelOne (CEF2)</p><p><a href="../LogParser/S1.htm">See how…</a></p>'), PARSERS)[0]!.docUrl).toBe('https://docs.stellarcyber.ai/prod-docs/7.0.xs/Configure/LogParser/S1.htm')
+    // A name that is itself the link stays the name.
+    expect(name('<a href="cef.htm">CEF</a>')).toBe('CEF')
+  })
   it('never keeps a link that is not http(s)', () => {
     const html = '<table><thead><tr><th>Parser Name</th><th>Port</th></tr></thead><tbody><tr><td><a href="javascript:alert(1)">Evil</a></td><td>5143</td></tr></tbody></table>'
     expect(parseParsers(html, PARSERS)[0]!.docUrl).toBe(PARSERS)
