@@ -1,7 +1,7 @@
 import { CHAPTERS, stageById, type Chapter, type StageId } from '@poc-intel/shared'
 
 /** Scene units. The Stack climbs on +Y: Data Engine at the base, Agentic SOC on top. */
-export const SLAB = { size: 6, thickness: 0.2, gap: 0.62, chapterGap: 1.5 }
+export const SLAB = { size: 6, thickness: 0.34, gap: 0.68, chapterGap: 1.1 }
 
 /** The engines that orbit their slab as satellites (plan, Q30). */
 export const SATELLITE_STAGES: readonly StageId[] = ['threat_intel', 'ndr', 'sandbox', 'fim', 'itdr_ueba']

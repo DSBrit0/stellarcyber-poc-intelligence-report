@@ -743,6 +743,7 @@
   "exp.scene.case": "{id}: score {score}, {alerts} alertas",
   "exp.scene.response": "Resposta",
   "exp.scene.replay": "Repetir",
+  "exp.scene.controls": "Arrastar: girar · Botão direito ou Shift + arrastar: mover · Roda: zoom · Duplo clique: centralizar",
   "exp.panel.collapse": "Recolher painel",
   "exp.panel.expand": "Expandir painel",
   "exp.scene.real": "Interflow real, anonimizado ({date})",

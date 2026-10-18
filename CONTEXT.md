@@ -187,7 +187,7 @@ A live, guided 3D walk through the Stellar Cyber data pipeline that a Sales Engi
 _Avoid_: Architecture Tour, demo, presentation
 
 **Presenter**:
-The Sales Engineer leading a Stellar Experience. Every other participant's view follows the Presenter's screen: the current Stage, the Briefing topics, the scene, the side panel open or folded, the Record Trace replays and the Spotlight.
+The Sales Engineer leading a Stellar Experience. Every other participant's view follows the Presenter's screen: the current Stage, the Briefing topics, the scene, the side panel open or folded, the Record Trace replays, the Spotlight, the Stack layer under the Presenter's pointer and how far each panel is scrolled. Only the camera (turning, moving and zooming the Stack) stays each participant's own.
 _Avoid_: Host, driver
 
 **Spotlight**:

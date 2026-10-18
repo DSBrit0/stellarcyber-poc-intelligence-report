@@ -304,8 +304,8 @@ export const experiences = pgTable('experiences', {
   briefingOpen: jsonb('briefing_open').$type<BriefingSection[]>().notNull().default([]),
   /** The 3D interaction model and the object the Presenter entered. */
   scene: jsonb('scene').$type<SceneState>().notNull().default({ model: 'chamber', target: null }),
-  /** The panel, the Spotlight and the trace replays, as on the Presenter's screen (migration 0023). */
-  view: jsonb('view').$type<ExperienceView>().notNull().default({ panel: true, spot: null, replay: 0 }),
+  /** The Presenter's screen beyond the Stage (migration 0023); rows written before a field existed lack it: read through `viewOf`. */
+  view: jsonb('view').$type<Partial<ExperienceView>>().notNull().default({ panel: true, spot: null, replay: 0 }),
   createdBy: uuid('created_by'),
   createdAt: ts('created_at').notNull().defaultNow(),
   updatedAt: ts('updated_at').notNull().defaultNow(),

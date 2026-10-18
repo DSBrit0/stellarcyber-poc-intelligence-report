@@ -5,7 +5,7 @@ import { useI18n } from '../../lib/i18n'
 import { BRIEFING_DOCS, BRIEFING_REFS } from './content/briefing-refs'
 import { useWords } from './content'
 import { CollapseButton } from './CollapseButton'
-import { Spot } from './spotlight'
+import { Spot, useMirroredScroll } from './spotlight'
 
 /** The command each topic answers to: shell idiom, so it reads the same in every language. */
 const COMMANDS: Record<BriefingSection, string> = {
@@ -97,6 +97,7 @@ export function BriefingTerminal({
     },
   }
 
+  const mirrored = useMirroredScroll<HTMLDivElement>('briefing')
   return (
     <section className="pointer-events-auto flex min-h-0 flex-1 flex-col overflow-hidden rounded-2xl border border-white/12 bg-[#060f17]/90 shadow-[0_30px_80px_-30px_rgba(0,0,0,0.7)] backdrop-blur-xl">
       <header className="flex items-center gap-3 border-b border-white/10 px-4 py-2.5">
@@ -106,7 +107,7 @@ export function BriefingTerminal({
         </p>
         {onCollapse ? <CollapseButton onClick={onCollapse} /> : null}
       </header>
-      <div className="min-h-0 flex-1 space-y-2 overflow-y-auto px-3 py-3 font-mono text-[13px] leading-relaxed sm:px-4">
+      <div {...mirrored} className="min-h-0 flex-1 space-y-2 overflow-y-auto px-3 py-3 font-mono text-[13px] leading-relaxed sm:px-4">
         {BRIEFING_SECTIONS.map((s) => {
           const isOpen = open.includes(s)
           return (

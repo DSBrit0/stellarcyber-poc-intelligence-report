@@ -3,7 +3,7 @@ import { useEffect, useState } from 'react'
 import { useI18n } from '../../lib/i18n'
 import { useWords } from './content'
 import { CAPTURED_ON, fieldsUpTo, type FieldValue, type InterflowSample } from './content/interflow-samples'
-import { Spot } from './spotlight'
+import { Spot, useMirroredScroll } from './spotlight'
 
 const show = (v: FieldValue) => (Array.isArray(v) ? `[${v.map((x) => `"${x}"`).join(', ')}]` : typeof v === 'number' ? String(v) : `"${v}"`)
 
@@ -44,6 +44,7 @@ export function InterflowInspector({
   // Whether what is on screen now comes from the real capture or is an illustration.
   const shownStep = model === 'trace' ? steps[traceIndex] : sample.steps.find((s) => s.stage === (stage && stage !== 'data_sources' && stage !== 'collection' ? stage : 'normalization'))
   const real = Boolean(shownStep?.real)
+  const mirrored = useMirroredScroll<HTMLDivElement>('inspector')
   return (
     <section
       className={`pointer-events-auto mt-5 flex min-h-0 flex-col overflow-hidden rounded-2xl ${model === 'trace' ? 'max-h-[42dvh]' : 'max-h-[calc(100dvh-16rem)]'} border border-white/12 bg-[#060f17]/88 shadow-[0_30px_80px_-30px_rgba(0,0,0,0.7)] backdrop-blur-xl`}
@@ -71,7 +72,7 @@ export function InterflowInspector({
           </button>
         ) : null}
       </header>
-      <div className="min-h-0 flex-1 overflow-y-auto px-4 py-3 font-mono text-[12.5px] leading-relaxed">
+      <div {...mirrored} className="min-h-0 flex-1 overflow-y-auto px-4 py-3 font-mono text-[12.5px] leading-relaxed">
         {model === 'chamber' ? <ChamberView sample={sample} stage={stage} reducedMotion={reducedMotion} /> : <TraceView sample={sample} steps={steps} index={traceIndex} />}
       </div>
     </section>

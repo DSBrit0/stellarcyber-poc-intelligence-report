@@ -1,10 +1,11 @@
 import type { Chapter, SceneState, SceneTarget, StageId } from '@poc-intel/shared'
-import { Html, OrbitControls } from '@react-three/drei'
+import { Edges, Html, Line, OrbitControls } from '@react-three/drei'
 import { Canvas, useFrame, useThree, type ThreeEvent } from '@react-three/fiber'
 import { Bloom, ChromaticAberration, EffectComposer, Vignette } from '@react-three/postprocessing'
 import gsap from 'gsap'
 import type { ChromaticAberrationEffect } from 'postprocessing'
-import { useEffect, useMemo, useRef, type RefObject } from 'react'
+import type { Line2, LineGeometry } from 'three-stdlib'
+import { useEffect, useMemo, useRef, useState, type RefObject } from 'react'
 import * as THREE from 'three'
 import { Chamber, CHAMBER } from './Chamber'
 import { SATELLITE_STAGES, SLAB, stackLayout } from './layout'
@@ -21,6 +22,17 @@ const C = {
   solar: '#FF9B1D',
   burnt: '#F05B2A',
   silver: '#FAFAF4',
+}
+
+/**
+ * Each layer's colour, as the Multi-Layer AI v4 data sheet draws the Stack: the Data Engine in red,
+ * Open XDR in Solar Orange, the Autonomous SOC in blue, inside an AI Purple housing. `edge` lights
+ * the plate outlines and the label leaders; `mission` is the data sheet's name for what the layer delivers.
+ */
+const LAYER: Record<Chapter, { base: string; edge: string; mission: string }> = {
+  data_engine: { base: '#D8261C', edge: '#FF7A4D', mission: 'Data Transformation' },
+  open_xdr: { base: C.solar, edge: '#FFC870', mission: 'Detection Management' },
+  agentic_soc: { base: C.cube, edge: C.skyLight, mission: 'Remediation' },
 }
 
 /** What powers each layer, as the Multi-Layer AI v4 brief names it. */
@@ -64,12 +76,17 @@ export interface StackSceneProps {
   /** Whether this viewer may enter objects: the Presenter, or anyone in a replay. */
   canInteract: boolean
   onEnter: (target: SceneTarget) => void
+  /** The layer under the Presenter's pointer, for everyone who follows the Presenter. */
+  pointedLayer: StageId | null
+  /** The Presenter's own hovering, reported so the others see it. */
+  onLayerHover: (layer: StageId | null) => void
 }
 
 /**
- * The Multi-Layer AI™ Stack as the brand draws it: luminous frosted-glass plates, one per Stage,
- * grouped in three layers inside a translucent shell, over a Cube Blue to AI Purple volume.
- * The Presenter's Stage lifts and lights; data rises from the sources at the base up to it.
+ * The Multi-Layer AI™ Stack as the v4 data sheet draws it: one coloured glass plate per Stage, the
+ * three layers in their own colours (red, orange, blue) inside an AI Purple housing, each plate's
+ * name floating beside it on a soft leader line. The Presenter's Stage lifts and lights; data rises
+ * from the sources at the base up to it.
  */
 export default function StackScene(props: StackSceneProps) {
   const layout = useMemo(() => stackLayout(props.stages), [props.stages])
@@ -92,31 +109,73 @@ export default function StackScene(props: StackSceneProps) {
   const hover = (on: boolean) => () => {
     if (props.canInteract) document.body.style.cursor = on ? 'pointer' : ''
   }
+  // The layer under the pointer, on its plate or its floating label, lifts and lights. Whoever leads the
+  // view sees their own pointer; everyone else sees the Presenter's.
+  const [own, setOwn] = useState<StageId | null>(null)
+  const hovered = props.canInteract ? own : props.pointedLayer
+  const hoverLayer = (id: StageId) => (on: boolean) => () => {
+    if (props.canInteract) {
+      const next = on ? id : own === id ? null : own
+      setOwn(next)
+      props.onLayerHover(next)
+    }
+    hover(on)()
+  }
+  useEffect(() => () => void (document.body.style.cursor = ''), [])
+  const [recenter, setRecenter] = useState(0)
   return (
-    <Canvas dpr={[1, 2]} camera={{ fov: 30, position: [16, 9, 16], near: 0.1, far: 140 }} gl={{ antialias: true, powerPreference: 'high-performance' }} style={{ position: 'absolute', inset: 0 }}>
-      <fog attach="fog" args={[C.ground, 30, 70]} />
+    <Canvas
+      // A double click on empty space brings the camera back to the Stack.
+      onDoubleClick={() => setRecenter((n) => n + 1)}
+      dpr={[1, 2]} camera={{ fov: 30, position: [16, 9, 16], near: 0.1, far: 300 }} gl={{ antialias: true, powerPreference: 'high-performance' }} style={{ position: 'absolute', inset: 0 }}>
+      {/* Far enough that a zoomed-out Stack keeps its colours. */}
+      <fog attach="fog" args={[C.ground, 50, 120]} />
       <ambientLight intensity={0.45} />
       <directionalLight position={[6, 14, 8]} intensity={0.8} color={C.silver} />
       <Framing shift={props.shift} shiftDown={props.shiftDown} />
       <Backdrop />
-      <Shell bottom={bottom - 0.4} top={top + 0.4} />
-      {layout.slabs.map((s) => (
-        <Plate
-          key={s.id}
-          y={s.y}
-          label={props.stageTitles[s.id]}
-          state={s.id === props.current || (tracing && s.id === props.traceStage) ? 'lit' : props.settled.has(s.id) ? 'done' : 'idle'}
-          reducedMotion={props.reducedMotion}
-          onClick={enter({ kind: 'stage', key: s.id })}
-          onHover={hover}
-        />
-      ))}
-      {layout.chapters.map((c) => {
-        const active = c.from <= focus + 0.01 && focus <= c.to + 0.01
+      <Shell bottom={bottom - 0.5} top={top + 0.5} />
+      {layout.slabs.map((s) => {
+        const state = s.id === props.current || (tracing && s.id === props.traceStage) ? 'lit' : props.settled.has(s.id) ? 'done' : 'idle'
         return (
-          <Html key={c.chapter} position={[-SLAB.size / 2 - 0.6, (c.from + c.to) / 2, SLAB.size / 2 + 0.6]} zIndexRange={[5, 0]} className="pointer-events-none">
-            <div className={`-translate-x-full -translate-y-1/2 pr-3 text-right transition-opacity duration-500 ${active ? 'opacity-100' : 'opacity-45'}`}>
+          <group key={s.id}>
+            <Plate
+              y={s.y}
+              layer={LAYER[s.chapter]}
+              state={state}
+              hovered={hovered === s.id}
+              reducedMotion={props.reducedMotion}
+              onClick={enter({ kind: 'stage', key: s.id })}
+              onHover={hoverLayer(s.id)}
+            />
+            <LayerLabel
+              index={layout.slabs.indexOf(s)}
+              y={s.y}
+              label={props.stageTitles[s.id]}
+              layer={LAYER[s.chapter]}
+              state={state}
+              hovered={hovered === s.id}
+              canInteract={props.canInteract}
+              reducedMotion={props.reducedMotion}
+              onEnter={() => props.canInteract && props.onEnter({ kind: 'stage', key: s.id })}
+              onHover={hoverLayer(s.id)}
+            />
+          </group>
+        )
+      })}
+      {chapterLabelYs(layout.chapters).map(({ c, y }) => {
+        const active = c.from <= focus + 0.01 && focus <= c.to + 0.01
+        const layer = LAYER[c.chapter]
+        return (
+          <Html key={c.chapter} position={[-SLAB.size / 2 - 0.5, y, SLAB.size / 2 + 0.5]} zIndexRange={[5, 0]} className="pointer-events-none">
+            <div
+              className={`-translate-x-full -translate-y-1/2 border-r-2 pr-3 text-right transition-opacity duration-500 ${active ? 'opacity-100' : 'opacity-55'}`}
+              style={{ borderColor: layer.base }}
+            >
               <p className="text-sm font-semibold whitespace-nowrap text-sc-silver">{props.chapterTitles[c.chapter]}</p>
+              <p className="text-xs font-medium whitespace-nowrap" style={{ color: layer.edge }}>
+                {layer.mission}
+              </p>
               <p className="mt-1 flex justify-end gap-1">
                 {ENABLEMENT[c.chapter].map((e) => (
                   <span key={e} className="rounded border border-white/20 px-1.5 text-[10px] whitespace-nowrap text-sc-silver/70">
@@ -145,9 +204,37 @@ export default function StackScene(props: StackSceneProps) {
       <DataStream from={bottom - 2.5} to={focus} reducedMotion={props.reducedMotion} />
       {traceY != null ? <TracedRecord y={traceY} reducedMotion={props.reducedMotion} /> : null}
       {inChamber ? <Chamber stage={target.kind === 'stage' ? (target.key as StageId) : null} reducedMotion={props.reducedMotion} /> : null}
-      {/* Aim halfway between the Stack's middle and the lit plate: the whole Stack stays in frame. */}
-      <CameraRig focusY={((traceY ?? focus) + (top + bottom) / 2) / 2} distance={tracing ? 38 : props.wide ? 38 : 34} chamber={inChamber} reducedMotion={props.reducedMotion} aberration={ca} />
-      <OrbitControls makeDefault enabled={!inChamber} enablePan={false} enableDamping minDistance={14} maxDistance={44} minPolarAngle={0.55} maxPolarAngle={1.45} />
+      {/* Aim mostly at the Stack's middle, a little towards the lit plate: the whole Stack stays in frame. */}
+      <CameraRig
+        focusY={((traceY ?? focus) + 3 * ((top + bottom) / 2)) / 4}
+        distance={tracing ? 46 : props.wide ? 45 : 41}
+        chamber={inChamber}
+        recenter={recenter}
+        reducedMotion={props.reducedMotion}
+        aberration={ca}
+      />
+      {/* Left drag turns the Stack; right drag (or Shift + drag) moves it, never farther than a Stack's width; wheel zooms. */}
+      <OrbitControls
+        makeDefault
+        enabled={!inChamber}
+        enablePan
+        screenSpacePanning
+        enableDamping
+        minDistance={14}
+        maxDistance={56}
+        minPolarAngle={0.55}
+        maxPolarAngle={1.45}
+        onChange={(e) => {
+          // Pulls camera and target back together, so a pan past the limit stops instead of tilting the view.
+          const c = e?.target as unknown as { target: THREE.Vector3; object: THREE.Camera } | undefined
+          if (!c) return
+          const t = c.target
+          const back = new THREE.Vector3(THREE.MathUtils.clamp(t.x, -PAN, PAN), THREE.MathUtils.clamp(t.y, bottom - PAN, top + PAN), THREE.MathUtils.clamp(t.z, -PAN, PAN)).sub(t)
+          if (back.lengthSq() === 0) return
+          t.add(back)
+          c.object.position.add(back)
+        }}
+      />
       {/* MSAA keeps the plate edges and lines clean; bloom only catches what is truly bright. */}
       <EffectComposer multisampling={4}>
         <Bloom mipmapBlur intensity={0.5} luminanceThreshold={0.82} luminanceSmoothing={0.15} />
@@ -157,6 +244,17 @@ export default function StackScene(props: StackSceneProps) {
     </Canvas>
   )
 }
+
+/** Each layer's name sits level with its plates, pushed apart when a short layer would make two overlap. */
+function chapterLabelYs(chapters: { chapter: Chapter; from: number; to: number }[]) {
+  const MIN = 1.9
+  const out = chapters.map((c) => ({ c, y: (c.from + c.to) / 2 }))
+  for (let i = 1; i < out.length; i++) out[i]!.y = Math.max(out[i]!.y, out[i - 1]!.y + MIN)
+  return out
+}
+
+/** How far the Presenter can move the Stack aside by panning, in scene units. */
+const PAN = SLAB.size
 
 /** Shifts the projection so the Stack sits in the space the HUD leaves free. */
 function Framing({ shift, shiftDown }: { shift: number; shiftDown: number }) {
@@ -174,17 +272,20 @@ function Framing({ shift, shiftDown }: { shift: number; shiftDown: number }) {
   return null
 }
 
-/** On every Stage change the camera glides to the lit plate, with a brief chromatic aberration as it accelerates. */
+/** On every Stage change (or a double click) the camera glides back to the Stack, with a brief chromatic aberration as it accelerates. */
 function CameraRig({
   focusY,
   distance,
   chamber,
+  recenter,
   reducedMotion,
   aberration,
 }: {
   focusY: number
   distance: number
   chamber: boolean
+  /** Bumped by a double click: the camera glides back even when nothing else changed. */
+  recenter: number
   reducedMotion: boolean
   aberration: RefObject<ChromaticAberrationEffect | null>
 }) {
@@ -209,7 +310,7 @@ function CameraRig({
     return () => {
       tl.kill()
     }
-  }, [focusY, distance, chamber, controls, camera, reducedMotion, aberration])
+  }, [focusY, distance, chamber, recenter, controls, camera, reducedMotion, aberration])
   return null
 }
 
@@ -219,6 +320,8 @@ function CameraRig({
  * colour is atmosphere, never a veil over the plates.
  */
 function Backdrop() {
+  // Radius 100 with the camera at most 56 from the centre: the far side stays within the camera's far plane (300).
+  // Past it the sky was clipped and the gap showed as a greenish polygon behind the Stack.
   const material = useMemo(
     () =>
       new THREE.ShaderMaterial({
@@ -246,103 +349,212 @@ function Backdrop() {
   )
 }
 
-/** The Stack's translucent housing, with the peaked roof of the brand drawing. */
+/**
+ * The Stack's AI Purple housing, as in the data sheet: translucent walls around the layers, a faint
+ * outline, and the "Multi-Layer AI™" cap on top.
+ */
 function Shell({ bottom, top }: { bottom: number; top: number }) {
-  const geometry = useMemo(() => {
-    const h = SLAB.size / 2 + 0.35
-    const roof = top + 1.6
-    const c = (x: number, y: number, z: number) => new THREE.Vector3(x, y, z)
-    const corners = [c(h, 0, h), c(-h, 0, h), c(-h, 0, -h), c(h, 0, -h)]
-    const pts: THREE.Vector3[] = []
-    corners.forEach((p, i) => {
-      const q = corners[(i + 1) % 4]!
-      pts.push(c(p.x, bottom, p.z), c(q.x, bottom, q.z)) // base
-      pts.push(c(p.x, top, p.z), c(q.x, top, q.z)) // eaves
-      pts.push(c(p.x, bottom, p.z), c(p.x, top, p.z)) // pillars
-      pts.push(c(p.x, top, p.z), c(0, roof, 0)) // roof
-    })
-    return new THREE.BufferGeometry().setFromPoints(pts)
-  }, [bottom, top])
+  const w = SLAB.size + 0.9
+  const h = top - bottom
+  const box = useMemo(() => new THREE.BoxGeometry(w, h, w), [w, h])
   return (
-    <lineSegments geometry={geometry}>
-      <lineBasicMaterial color={C.silver} transparent opacity={0.09} />
-    </lineSegments>
+    <group>
+      <mesh geometry={box} position={[0, (top + bottom) / 2, 0]} renderOrder={-1}>
+        <meshBasicMaterial color={C.purple} transparent opacity={0.05} depthWrite={false} side={THREE.BackSide} />
+        <Edges color={C.purple} transparent opacity={0.55} worldUnits lineWidth={EDGE} />
+      </mesh>
+      <mesh position={[0, top + 0.55, 0]}>
+        <boxGeometry args={[w * 0.62, 0.42, w * 0.62]} />
+        <meshStandardMaterial color={C.purple} emissive={C.purple} emissiveIntensity={0.55} transparent opacity={0.85} roughness={0.4} depthWrite={false} />
+        <Edges color="#C77DFF" transparent opacity={0.8} worldUnits lineWidth={EDGE} />
+        <Html position={[0, 0.02, w * 0.31]} center zIndexRange={[5, 0]} className="pointer-events-none">
+          <p className="font-semibold whitespace-nowrap text-sc-silver drop-shadow">Multi-Layer AI™</p>
+        </Html>
+      </mesh>
+    </group>
   )
 }
+
+/**
+ * Outline width in scene units, not pixels: a pixel-wide outline stays as wide when the camera backs
+ * away, until the outlines of fifteen plates cover the shrunken Stack and blend into one colour.
+ */
+const EDGE = 0.02
 
 const plateBody = new THREE.BoxGeometry(SLAB.size, SLAB.thickness, SLAB.size)
 const plateTop = new THREE.PlaneGeometry(SLAB.size * 1.08, SLAB.size * 1.08)
 
-/** A plate's top: frosted glass whose light fades towards the edges, as in the brand's stack drawings. */
-function plateMaterial() {
+/** A plate's top: coloured glass, lighter in the middle and fading at the rim, as in the data sheet. */
+function plateMaterial(color: string) {
   return new THREE.ShaderMaterial({
     transparent: true,
     depthWrite: false,
     side: THREE.DoubleSide,
-    uniforms: { uColor: { value: new THREE.Color(C.silver) }, uOpacity: { value: 0.12 }, uTint: { value: new THREE.Color(C.skyLight) }, uLit: { value: 0 } },
+    uniforms: { uColor: { value: new THREE.Color(color) }, uHighlight: { value: new THREE.Color(C.silver) }, uOpacity: { value: 0.3 }, uLit: { value: 0 } },
     vertexShader: 'varying vec2 vUv; void main(){ vUv = uv; gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0); }',
     fragmentShader: `
-      uniform vec3 uColor; uniform vec3 uTint; uniform float uOpacity; uniform float uLit; varying vec2 vUv;
+      uniform vec3 uColor; uniform vec3 uHighlight; uniform float uOpacity; uniform float uLit; varying vec2 vUv;
       void main(){
         vec2 d = abs(vUv - 0.5) * 2.0;
         float edge = max(d.x, d.y);
-        float body = 1.0 - smoothstep(0.62, 0.98, edge);
-        float rim = smoothstep(0.84, 0.92, edge) * (1.0 - smoothstep(0.92, 0.99, edge));
-        float centre = 1.0 - length(vUv - 0.5) * 0.9;
-        vec3 c = mix(uColor * 0.82, uTint, uLit * 0.45) * (0.7 + 0.3 * centre);
-        gl_FragColor = vec4(c, (body * 0.7 + rim * 0.5) * uOpacity);
+        float centre = 1.0 - smoothstep(0.0, 0.95, length(vUv - 0.5) * 1.6);
+        vec3 c = mix(uColor, uHighlight, 0.18 + 0.32 * centre * (0.4 + 0.6 * uLit));
+        float a = (0.75 + 0.25 * centre) * (1.0 - smoothstep(0.96, 1.0, edge));
+        gl_FragColor = vec4(c, a * uOpacity);
       }`,
   })
 }
 
-/** One Stage: lifted and lit when it is the Presenter's, brighter once settled, named on its right corner. */
+type PlateState = 'lit' | 'done' | 'idle'
+interface Layer {
+  base: string
+  edge: string
+  mission: string
+}
+
+/** One Stage: a slab in its layer's colour, outlined; it lifts and lights when it is the Presenter's or under the pointer. */
 function Plate({
   y,
-  label,
+  layer,
   state,
+  hovered,
   reducedMotion,
   onClick,
   onHover,
 }: {
   y: number
-  label: string
-  state: 'lit' | 'done' | 'idle'
+  layer: Layer
+  state: PlateState
+  hovered: boolean
   reducedMotion: boolean
   onClick: (e: ThreeEvent<MouseEvent>) => void
   onHover: (on: boolean) => () => void
 }) {
   const group = useRef<THREE.Group>(null)
-  const top = useMemo(plateMaterial, [])
+  const top = useMemo(() => plateMaterial(layer.base), [layer.base])
   const body = useRef<THREE.MeshStandardMaterial>(null)
+  const up = state === 'lit' || hovered
   const goal = {
-    y: y + (state === 'lit' ? 0.24 : 0),
-    opacity: state === 'lit' ? 0.62 : state === 'done' ? 0.3 : 0.13,
-    lit: state === 'lit' ? 1 : 0,
-    body: state === 'lit' ? 0.2 : state === 'done' ? 0.1 : 0.05,
+    y: y + (state === 'lit' ? 0.22 : hovered ? 0.14 : 0),
+    opacity: state === 'lit' ? 0.9 : hovered ? 0.8 : state === 'done' ? 0.6 : 0.42,
+    lit: up ? 1 : 0,
+    body: state === 'lit' ? 0.72 : hovered ? 0.66 : state === 'done' ? 0.55 : 0.45,
+    glow: state === 'lit' ? 0.85 : hovered ? 0.65 : state === 'done' ? 0.35 : 0.18,
   }
   useFrame((_, dt) => {
-    const k = reducedMotion ? 1 : 1 - Math.exp(-dt * 5)
+    const k = reducedMotion ? 1 : 1 - Math.exp(-dt * 6)
     if (group.current) group.current.position.y += (goal.y - group.current.position.y) * k
     const u = top.uniforms
     u.uOpacity!.value += (goal.opacity - u.uOpacity!.value) * k
     u.uLit!.value += (goal.lit - u.uLit!.value) * k
-    if (body.current) body.current.opacity += (goal.body - body.current.opacity) * k
+    if (body.current) {
+      body.current.opacity += (goal.body - body.current.opacity) * k
+      body.current.emissiveIntensity += (goal.glow - body.current.emissiveIntensity) * k
+    }
   })
   return (
     <group ref={group} position={[0, y, 0]}>
       <mesh geometry={plateBody} onClick={onClick} onPointerOver={onHover(true)} onPointerOut={onHover(false)}>
-        <meshStandardMaterial ref={body} color={C.silver} emissive={C.cube} emissiveIntensity={0.08} transparent opacity={0.05} roughness={0.1} metalness={0} depthWrite={false} />
+        <meshStandardMaterial ref={body} color={layer.base} emissive={layer.base} emissiveIntensity={0.18} transparent opacity={0.3} roughness={0.35} metalness={0} depthWrite={false} />
+        {/* The outline is what tells one layer from the next. */}
+        <Edges color={up ? C.silver : layer.edge} transparent opacity={up ? 0.95 : 0.5} worldUnits lineWidth={up ? EDGE * 1.8 : EDGE} />
       </mesh>
       <mesh geometry={plateTop} material={top} rotation={[-Math.PI / 2, 0, 0]} position={[0, SLAB.thickness / 2 + 0.002, 0]} />
-      <Html position={[SLAB.size / 2 + 0.25, 0, -SLAB.size / 2 + 0.6]} zIndexRange={[5, 0]} className="pointer-events-none">
-        <p
-          className={`-translate-y-1/2 text-[13px] whitespace-nowrap transition-all duration-500 ${state === 'lit' ? 'text-sm font-semibold text-sc-silver' : state === 'done' ? 'text-sc-silver/75' : 'text-sc-silver/50'}`}
-        >
-          {label}
-        </p>
-      </Html>
     </group>
   )
+}
+
+/**
+ * A Stage's name, floating in space off the Stack's right side, tied to its plate by a soft, thin
+ * curve. Each name drifts gently in its own rhythm and the curve follows it. Hovering the name lights
+ * the plate; clicking it enters the plate, as clicking the plate does.
+ */
+function LayerLabel({
+  index,
+  y,
+  label,
+  layer,
+  state,
+  hovered,
+  canInteract,
+  reducedMotion,
+  onEnter,
+  onHover,
+}: {
+  index: number
+  y: number
+  label: string
+  layer: Layer
+  state: PlateState
+  hovered: boolean
+  canInteract: boolean
+  reducedMotion: boolean
+  onEnter: () => void
+  onHover: (on: boolean) => () => void
+}) {
+  const h = SLAB.size / 2
+  const up = state === 'lit' || hovered
+  // Out in the space beside the Stack; every other name a little farther, so they read as scattered, not ruled.
+  const out = 3.1 + (index % 2) * 0.5
+  const line = useRef<Line2>(null)
+  const curve = useMemo(() => new THREE.CubicBezierCurve3(new THREE.Vector3(), new THREE.Vector3(), new THREE.Vector3(), new THREE.Vector3()), [])
+  const initial = useMemo(() => leader(curve, h, y, out, y), [curve, h, y, out])
+  const tag = useRef<THREE.Group>(null)
+  // The name stays level with its plate's resting height: lifting it with a lit plate pushed it onto the next name.
+  useFrame(({ clock }) => {
+    const t = clock.elapsedTime
+    const drift = reducedMotion ? 0 : Math.sin(t * 0.55 + index * 1.7) * 0.06
+    const sway = reducedMotion ? 0 : Math.cos(t * 0.4 + index * 2.3) * 0.16
+    const py = y
+    const ex = h + out + sway
+    const ez = -h - out - sway
+    const ey = py + drift
+    tag.current?.position.set(ex, ey, ez)
+    if (line.current) (line.current.geometry as LineGeometry).setPositions(leader(curve, h, py, out, ey, sway))
+  })
+  return (
+    <group>
+      <Line
+        ref={line}
+        points={initial}
+        color={up ? C.silver : layer.edge}
+        lineWidth={up ? 1.4 : 0.8}
+        transparent
+        opacity={up ? 0.8 : state === 'done' ? 0.38 : 0.24}
+      />
+      <group ref={tag} position={[h + out, y, -h - out]}>
+        <Html zIndexRange={[6, 0]}>
+          <button
+            type="button"
+            tabIndex={-1}
+            onPointerEnter={onHover(true)}
+            onPointerLeave={onHover(false)}
+            onClick={onEnter}
+            title={label}
+            className={`flex -translate-y-1/2 items-center gap-2 rounded-full border py-0.5 pr-2.5 pl-1.5 text-xs whitespace-nowrap backdrop-blur-md transition-all duration-300 ${
+              up ? 'bg-sc-midnight/85 font-semibold text-sc-silver' : state === 'done' ? 'border-white/10 bg-sc-midnight/45 text-sc-silver/85' : 'border-white/[0.07] bg-sc-midnight/30 text-sc-silver/65'
+            } ${canInteract ? 'cursor-pointer' : 'cursor-default'}`}
+            style={up ? { borderColor: layer.edge, boxShadow: `0 0 22px ${layer.base}55` } : undefined}
+          >
+            <span className="size-2 shrink-0 rounded-full" style={{ background: layer.base, boxShadow: `0 0 ${up ? 10 : 5}px ${layer.edge}` }} />
+            <span className="max-w-[12rem] truncate">{label}</span>
+          </button>
+        </Html>
+      </group>
+    </group>
+  )
+}
+
+/**
+ * The leader from a plate's corner to its floating name: it leaves the plate level, then eases out
+ * and up to the name, an S with long, gentle bends. Flat xyz positions, for LineGeometry.
+ */
+function leader(curve: THREE.CubicBezierCurve3, h: number, plateY: number, out: number, tagY: number, sway = 0) {
+  curve.v0.set(h, plateY, -h)
+  curve.v1.set(h + out * 0.55, plateY, -h - out * 0.05)
+  curve.v2.set(h + out * 0.45, tagY, -h - out * 0.95)
+  curve.v3.set(h + out + sway, tagY, -h - out - sway)
+  return curve.getPoints(40).flatMap((p) => [p.x, p.y, p.z])
 }
 
 /** An engine orbiting its plate; it brightens and names itself when its Stage is on. */
@@ -400,8 +612,9 @@ function SourceTiles({
   const tile = useMemo(() => new THREE.BoxGeometry(cell * 0.82, 0.12, cell * 0.62), [cell])
   return (
     <group position={[0, y, 0]}>
-      <mesh geometry={plateBody} scale={[1.05, 0.5, 1.05]}>
-        <meshStandardMaterial color={C.silver} emissive={C.cube} emissiveIntensity={0.1} transparent opacity={0.05} depthWrite={false} />
+      <mesh geometry={plateBody} scale={[1.05, 0.4, 1.05]}>
+        <meshStandardMaterial color={LAYER.data_engine.base} emissive={LAYER.data_engine.base} emissiveIntensity={0.12} transparent opacity={0.18} depthWrite={false} />
+        <Edges color={LAYER.data_engine.edge} transparent opacity={0.4} worldUnits lineWidth={EDGE} />
       </mesh>
       {names.map((n, i) => {
         const x = -SLAB.size / 2 + cell * ((i % cols) + 0.5)
@@ -410,11 +623,11 @@ function SourceTiles({
           <group key={`${n}-${i}`} position={[x, 0.12, z]}>
             <mesh geometry={tile} onClick={onPick(n)} onPointerOver={onHover(true)} onPointerOut={onHover(false)}>
               <meshStandardMaterial
-                color={n === selected ? C.solar : C.silver}
-                emissive={n === selected ? C.solar : C.skyLight}
-                emissiveIntensity={n === selected ? 0.9 : faint ? 0.1 : lit ? 0.55 : 0.25}
+                color={n === selected ? C.solar : LAYER.data_engine.base}
+                emissive={n === selected ? C.solar : LAYER.data_engine.base}
+                emissiveIntensity={n === selected ? 0.9 : faint ? 0.15 : lit ? 0.6 : 0.3}
                 transparent
-                opacity={faint && n !== selected ? 0.25 : 0.6}
+                opacity={faint && n !== selected ? 0.35 : 0.7}
                 depthWrite={false}
               />
             </mesh>

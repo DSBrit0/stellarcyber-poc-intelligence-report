@@ -743,6 +743,7 @@
   "exp.scene.case": "{id}: score {score}, {alerts} alerts",
   "exp.scene.response": "Response",
   "exp.scene.replay": "Replay",
+  "exp.scene.controls": "Drag: rotate · Right-drag or Shift + drag: move · Wheel: zoom · Double-click: recenter",
   "exp.panel.collapse": "Hide panel",
   "exp.panel.expand": "Show panel",
   "exp.scene.real": "Real Interflow, anonymised ({date})",

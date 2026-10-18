@@ -1,4 +1,4 @@
-import { applyView, DEFAULT_VIEW, SCENE_MODELS, STAGE_IDS, StageId, stagesForProfile, type AudienceProfile, type BriefingSection, type ExperienceView, type SceneState, type StagePhase } from '@poc-intel/shared'
+import { applyView, clearFocus, DEFAULT_VIEW, SCENE_MODELS, STAGE_IDS, StageId, stagesForProfile, type AudienceProfile, type BriefingSection, type ExperienceView, type SceneState, type StagePhase } from '@poc-intel/shared'
 
 /**
  * The visual lab's server: an in-memory stand-in for the Experience API, installed over `fetch`
@@ -83,12 +83,12 @@ export function installFakeServer(state: LabState): () => void {
       state.currentPhase = 'briefing'
       state.briefingOpen = []
       state.scene = { model: state.scene.model, target: null }
-      state.view = { ...state.view, spot: null }
+      state.view = clearFocus(state.view)
       return json({ ok: true })
     }
-    if (path === `${base}/phase`) return (state.currentPhase = body.phase), (state.view = { ...state.view, spot: null }), json({ ok: true })
+    if (path === `${base}/phase`) return (state.currentPhase = body.phase), (state.view = clearFocus(state.view)), json({ ok: true })
     if (path === `${base}/briefing`) return (state.briefingOpen = body.open), (state.view = { ...state.view, spot: body.open.at(-1) ? `brief:${body.open.at(-1)}` : null }), json({ ok: true })
-    if (path === `${base}/scene`) return (state.scene = body), (state.view = { ...state.view, spot: null }), json({ ok: true })
+    if (path === `${base}/scene`) return (state.scene = body), (state.view = clearFocus(state.view)), json({ ok: true })
     if (path === `${base}/view`) return (state.view = applyView(state.view, body)), json({ ok: true })
     const stageAction = path.match(new RegExp(`^${base}/stages/([a-z_]+)/(skip|approve)$`))
     if (stageAction && (STAGE_IDS as readonly string[]).includes(stageAction[1]!)) return state.settled.add(stageAction[1] as StageId), json({ ok: true })

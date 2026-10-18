@@ -1,4 +1,5 @@
-import { createContext, createElement, useContext, useEffect, useRef, type KeyboardEvent, type MouseEvent, type ReactNode } from 'react'
+import type { ScrollArea } from '@poc-intel/shared'
+import { createContext, createElement, useContext, useEffect, useRef, type KeyboardEvent, type MouseEvent, type ReactNode, type UIEvent } from 'react'
 
 /**
  * The Spotlight: the item the Presenter points at (an Interflow field, a trace step, a Briefing topic,
@@ -10,9 +11,13 @@ interface Spotlight {
   /** The Presenter while live; the viewer alone in a replay. */
   canPoint: boolean
   point: (id: string | null) => void
+  /** How far the Presenter scrolled each area, 0 top to 1 bottom. */
+  scroll: Partial<Record<ScrollArea, number>>
+  /** Set only for the live Presenter, whose scrolling the others follow. */
+  onScroll?: (area: ScrollArea, ratio: number) => void
 }
 
-const SpotlightContext = createContext<Spotlight>({ spot: null, canPoint: false, point: () => {} })
+const SpotlightContext = createContext<Spotlight>({ spot: null, canPoint: false, point: () => {}, scroll: {} })
 export const SpotlightProvider = SpotlightContext.Provider
 export const useSpotlight = () => useContext(SpotlightContext)
 
@@ -59,4 +64,30 @@ export function Spot({ id, as = 'div', className = '', pointable = true, childre
     },
     children,
   )
+}
+
+/**
+ * A scrolling area that follows the Presenter's: the Presenter's scrolling is reported, as a share of
+ * the area's height (the screens differ in size), and everyone else's area glides to the same share.
+ */
+export function useMirroredScroll<T extends HTMLElement>(area: ScrollArea) {
+  const { scroll, onScroll } = useSpotlight()
+  const ref = useRef<T>(null)
+  const share = scroll[area] ?? 0
+  const leading = onScroll != null
+  useEffect(() => {
+    const el = ref.current
+    if (!el || leading) return
+    el.scrollTo({ top: share * Math.max(0, el.scrollHeight - el.clientHeight), behavior: 'smooth' })
+  }, [share, leading])
+  return {
+    ref,
+    onScroll: onScroll
+      ? (e: UIEvent<T>) => {
+          const el = e.currentTarget
+          const max = el.scrollHeight - el.clientHeight
+          onScroll(area, max > 0 ? Math.min(1, el.scrollTop / max) : 0)
+        }
+      : undefined,
+  }
 }

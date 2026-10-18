@@ -201,22 +201,45 @@ export type SceneState = z.infer<typeof SceneState>
 
 /**
  * The rest of the Presenter's screen, mirrored on every participant's: the side panel open or folded,
- * the Spotlight (the item the Presenter points at, by its spot id, such as `if:field:src_ip`) and
- * how many times the Record Trace was replayed.
+ * the Spotlight (the item the Presenter points at, by its spot id, such as `if:field:src_ip`), how many
+ * times the Record Trace was replayed, the Stack layer under the Presenter's pointer, and how far the
+ * Presenter scrolled each scrolling area (0 top, 1 bottom). The camera (turn, move, zoom) stays each viewer's own.
  */
-export const ExperienceView = z.object({ panel: z.boolean(), spot: Text(200).min(1).nullable(), replay: z.number().int().min(0) })
+export const SCROLL_AREAS = ['briefing', 'inspector', 'panel', 'questions'] as const
+export const ScrollArea = z.enum(SCROLL_AREAS)
+export type ScrollArea = z.infer<typeof ScrollArea>
+const Ratio = z.number().min(0).max(1)
+export const ExperienceView = z.object({
+  panel: z.boolean(),
+  spot: Text(200).min(1).nullable(),
+  replay: z.number().int().min(0),
+  layer: StageId.nullable(),
+  scroll: z.partialRecord(ScrollArea, Ratio),
+})
 export type ExperienceView = z.infer<typeof ExperienceView>
-export const DEFAULT_VIEW: ExperienceView = { panel: true, spot: null, replay: 0 }
+export const DEFAULT_VIEW: ExperienceView = { panel: true, spot: null, replay: 0, layer: null, scroll: {} }
+/** A view stored before a field existed reads that field's default. */
+export const viewOf = (stored: Partial<ExperienceView> | null | undefined): ExperienceView => ({ ...DEFAULT_VIEW, ...stored })
 export const ViewInput = z
-  .object({ panel: z.boolean().optional(), spot: Text(200).min(1).nullable().optional(), replay: z.literal(true).optional() })
-  .refine((v) => v.panel !== undefined || v.spot !== undefined || v.replay !== undefined, { message: 'empty' })
+  .object({
+    panel: z.boolean().optional(),
+    spot: Text(200).min(1).nullable().optional(),
+    replay: z.literal(true).optional(),
+    layer: StageId.nullable().optional(),
+    scroll: z.object({ area: ScrollArea, ratio: Ratio }).optional(),
+  })
+  .refine((v) => Object.values(v).some((x) => x !== undefined), { message: 'empty' })
 export type ViewInput = z.infer<typeof ViewInput>
 /** The view after a Presenter's change: what the change leaves out stays; a replay counts one more. */
 export const applyView = (view: ExperienceView, input: ViewInput): ExperienceView => ({
   panel: input.panel ?? view.panel,
   spot: input.spot === undefined ? view.spot : input.spot,
   replay: view.replay + (input.replay ? 1 : 0),
+  layer: input.layer === undefined ? view.layer : input.layer,
+  scroll: input.scroll ? { ...view.scroll, [input.scroll.area]: input.scroll.ratio } : view.scroll,
 })
+/** New content on screen (another Stage, phase or scene): nothing pointed at, every area back at its top. */
+export const clearFocus = (view: ExperienceView): ExperienceView => ({ ...view, spot: null, scroll: {} })
 
 export const CustomerQuestionInput = z.object({ text: Text(1000).min(1) })
 /** The Sales Engineer's follow-up: a written Reply (null clears it) or "answered live". */

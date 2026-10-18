@@ -4,7 +4,7 @@ import { api } from '../../lib/api'
 import { errorKey } from '../../lib/errors'
 import { useI18n } from '../../lib/i18n'
 import { useWords } from './content'
-import { Spot } from './spotlight'
+import { Spot, useMirroredScroll } from './spotlight'
 
 export interface QuestionRow {
   id: string
@@ -24,6 +24,7 @@ export function CustomerQuestions({ base, stage, questions, canAsk, canReply, on
   const { t } = useI18n()
   const words = useWords()
   const [text, setText] = useState('')
+  const mirrored = useMirroredScroll<HTMLUListElement>('questions')
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const ask = async () => {
@@ -44,7 +45,7 @@ export function CustomerQuestions({ base, stage, questions, canAsk, canReply, on
     <section className="pointer-events-auto flex max-h-[45%] shrink-0 flex-col gap-3 rounded-2xl border border-white/12 bg-white/[0.05] p-4 backdrop-blur-xl">
       <h3 className="text-sm font-semibold">{t('exp.cq.title')}</h3>
       {questions.length === 0 ? <p className="text-sm text-sc-silver/50">{t('exp.cq.empty')}</p> : null}
-      <ul className="min-h-0 space-y-2 overflow-y-auto">
+      <ul {...mirrored} className="min-h-0 space-y-2 overflow-y-auto">
         {questions.map((q) => (
           <QuestionItem key={q.id} base={base} q={q} canReply={canReply} onChanged={onChanged} />
         ))}

@@ -743,6 +743,7 @@
   "exp.scene.case": "{id}: puntuación {score}, {alerts} alertas",
   "exp.scene.response": "Respuesta",
   "exp.scene.replay": "Repetir",
+  "exp.scene.controls": "Arrastrar: girar · Botón derecho o Shift + arrastrar: mover · Rueda: zoom · Doble clic: centrar",
   "exp.panel.collapse": "Ocultar panel",
   "exp.panel.expand": "Mostrar panel",
   "exp.scene.real": "Interflow real, anonimizado ({date})",

@@ -18,17 +18,24 @@ const STATES = [
   ['06-trace-start', 'stage=detection&phase=question&model=trace&target=source:Network', 4000],
   ['07-trace-end', 'stage=detection&phase=question&model=trace&target=source:Network', 24000],
   ['08-executive', 'profile=executive&stage=correlation'],
+  // Zoomed all the way out with the mouse wheel: the Stack must keep its colours.
+  ['09-zoom-out', 'stage=detection', 5000, 'zoomout'],
 ]
 
 const browser = await chromium.launch({ channel: 'chrome', headless: true, args: ['--use-angle=metal', '--enable-gpu', '--ignore-gpu-blocklist'] })
 const errors = []
-for (const [name, query, wait = 5000] of STATES) {
+for (const [name, query, wait = 5000, action] of STATES) {
   const ctx = await browser.newContext({ viewport: { width: 1600, height: 900 }, locale: 'pt-BR' })
   const page = await ctx.newPage()
   page.on('pageerror', (e) => errors.push(`${name}: ${e.message}`))
   await page.addInitScript(() => localStorage.setItem('locale', 'pt-BR'))
   await page.goto(`${base}/lab/experience?${query}`)
   await page.waitForTimeout(wait)
+  if (action === 'zoomout') {
+    await page.mouse.move(500, 520)
+    for (let i = 0; i < 20; i++) await page.mouse.wheel(0, 400)
+    await page.waitForTimeout(2500)
+  }
   await page.screenshot({ path: `${out}${name}.png` })
   console.log('saved', name)
   await ctx.close()

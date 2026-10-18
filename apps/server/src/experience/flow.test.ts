@@ -1,4 +1,4 @@
-import { DEFAULT_VIEW, STAGE_IDS, ViewInput, answerSchema, applyView, mergeAnswers, stageById, stagesForProfile, type StageId } from '@poc-intel/shared'
+import { DEFAULT_VIEW, STAGE_IDS, ViewInput, answerSchema, applyView, clearFocus, viewOf, mergeAnswers, stageById, stagesForProfile, type StageId } from '@poc-intel/shared'
 import { describe, expect, it } from 'vitest'
 import { canGoTo, canTransition, stageAfterSelection } from './flow.js'
 
@@ -28,13 +28,26 @@ describe('Stellar Experience flow', () => {
 
   it("mirrors the Presenter's panel, Spotlight and trace replays", () => {
     const folded = applyView(DEFAULT_VIEW, { panel: false })
-    expect(folded).toEqual({ panel: false, spot: null, replay: 0 })
+    expect(folded).toEqual({ ...DEFAULT_VIEW, panel: false })
     const pointed = applyView(folded, { spot: 'if:field:src_ip' })
-    expect(pointed).toEqual({ panel: false, spot: 'if:field:src_ip', replay: 0 })
-    expect(applyView(pointed, { replay: true })).toEqual({ panel: false, spot: 'if:field:src_ip', replay: 1 })
+    expect(pointed.spot).toBe('if:field:src_ip')
+    expect(applyView(pointed, { replay: true }).replay).toBe(1)
     expect(applyView(pointed, { spot: null }).spot).toBeNull()
     expect(ViewInput.safeParse({}).success).toBe(false)
     expect(ViewInput.safeParse({ replay: false }).success).toBe(false)
+  })
+
+  it("mirrors the Presenter's hovered layer and scrolling, and clears both focus and scroll on new content", () => {
+    const hovered = applyView(DEFAULT_VIEW, { layer: 'detection' })
+    expect(hovered.layer).toBe('detection')
+    const scrolled = applyView(applyView(hovered, { scroll: { area: 'briefing', ratio: 0.4 } }), { scroll: { area: 'panel', ratio: 1 } })
+    expect(scrolled.scroll).toEqual({ briefing: 0.4, panel: 1 })
+    expect(ViewInput.safeParse({ scroll: { area: 'briefing', ratio: 1.5 } }).success).toBe(false)
+    expect(ViewInput.safeParse({ layer: 'not_a_stage' }).success).toBe(false)
+    const cleared = clearFocus({ ...scrolled, spot: 'brief:how' })
+    expect(cleared).toMatchObject({ spot: null, scroll: {}, layer: 'detection' })
+    // A view stored before hover and scroll existed reads their defaults.
+    expect(viewOf({ panel: false, spot: null, replay: 2 })).toEqual({ panel: false, spot: null, replay: 2, layer: null, scroll: {} })
   })
 
   it('the Executive profile pre-selects five Stages in pipeline order', () => {

@@ -1,9 +1,9 @@
-import { applyView, CHAPTERS, DEFAULT_VIEW, isListQuestion, stageById, type AnswerValue, type AudienceProfile, type DataSourcesValue, type BriefingSection, type ExperienceStatus, type ExperienceView, type SceneState, type ViewInput, type StageId, type StagePhase } from '@poc-intel/shared'
+import { applyView, CHAPTERS, DEFAULT_VIEW, viewOf, isListQuestion, stageById, type AnswerValue, type AudienceProfile, type DataSourcesValue, type BriefingSection, type ExperienceStatus, type ExperienceView, type SceneState, type ViewInput, type StageId, type StagePhase } from '@poc-intel/shared'
 import '@fontsource/roboto/latin-400.css'
 import '@fontsource/roboto/latin-500.css'
 import '@fontsource/roboto/latin-700.css'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
-import { lazy, Suspense, useEffect, useState, useSyncExternalStore } from 'react'
+import { lazy, Suspense, useEffect, useRef, useState, useSyncExternalStore } from 'react'
 import { Link, useParams } from 'react-router'
 import logoDark from '../../assets/stellar-cyber-logo-dark.svg'
 import { api } from '../../lib/api'
@@ -16,7 +16,7 @@ import { CustomerQuestions, type QuestionRow } from './CustomerQuestions'
 import { familyOf, SAMPLES } from './content/interflow-samples'
 import { InterflowInspector } from './InterflowInspector'
 import { useWords } from './content'
-import { Spot, SpotlightProvider, useSpotlight } from './spotlight'
+import { Spot, SpotlightProvider, useMirroredScroll, useSpotlight } from './spotlight'
 import { StackPreview } from './StackPreview'
 
 // three.js and its effects load only where the 3D scene can run.
@@ -106,7 +106,7 @@ export function ExperiencePage() {
   const result = data?.results.find((r) => r.stageId === stage)
   const presenting = Boolean(data?.canRun && live)
   // The Presenter's panel, Spotlight and trace replays: mirrored on every screen; in a replay, the viewer's own.
-  const view: ExperienceView = exp ? (live ? (exp.view ?? DEFAULT_VIEW) : replayView) : DEFAULT_VIEW
+  const view: ExperienceView = exp ? (live ? viewOf(exp.view) : replayView) : DEFAULT_VIEW
   const leading = presenting || !live
   const patchLive = (patch: Partial<Live['experience']>) => qc.setQueryData<Live>(key, (d) => (d ? { ...d, experience: { ...d.experience, ...patch } } : d))
   const setView = async (patch: ViewInput) => {
@@ -124,6 +124,18 @@ export function ExperiencePage() {
   const panelOpen = view.panel
   const togglePanel = () => void setView({ panel: !panelOpen })
   const point = (spot: string | null) => void setView({ spot })
+  // Hover and scroll fire many times a second: the Presenter's last one in each quarter second is sent,
+  // without touching the local view (the Presenter already sees their own).
+  const pending = useRef(new Map<string, number>())
+  useEffect(() => () => pending.current.forEach((t) => window.clearTimeout(t)), [])
+  const mirror = (key: string, patch: ViewInput) => {
+    if (!exp || !presenting) return
+    window.clearTimeout(pending.current.get(key))
+    pending.current.set(
+      key,
+      window.setTimeout(() => void api(`/pocs/${id}/experiences/${exp.id}/view`, { method: 'POST', body: patch }).catch(() => undefined), 250),
+    )
+  }
   // Each Stage opens on its Briefing; the Presenter then opens its question.
   const phase: StagePhase = exp ? (live ? exp.currentPhase : replayPhase) : 'briefing'
 
@@ -250,7 +262,9 @@ export function ExperiencePage() {
   const stageWords = words.stages[stage]
 
   return (
-    <SpotlightProvider value={{ spot: view.spot, canPoint: leading, point }}>
+    <SpotlightProvider
+      value={{ spot: view.spot, canPoint: leading, point, scroll: view.scroll, onScroll: presenting ? (area, ratio) => mirror(`scroll:${area}`, { scroll: { area, ratio } }) : undefined }}
+    >
     <Screen blades={!with3D}>
       {with3D ? (
         <>
@@ -265,13 +279,15 @@ export function ExperiencePage() {
             chapterTitles={{ data_engine: words.chapters.data_engine.title, open_xdr: words.chapters.open_xdr.title, agentic_soc: words.chapters.agentic_soc.title }}
             stageTitles={Object.fromEntries(Object.entries(words.stages).map(([k, v]) => [k, v.title])) as Record<StageId, string>}
             reducedMotion={reducedMotion}
-            shift={lg && panelOpen ? (phase === 'briefing' ? 0.2 : 0.14) : 0}
+            shift={lg && panelOpen ? (phase === 'briefing' ? 0.24 : 0.2) : 0}
             shiftDown={scene.target && scene.model === 'trace' ? 0.2 : 0.1}
             wide={panelOpen && phase === 'briefing'}
             scene={scene}
             traceStage={sampleSteps[traceIndex]?.stage ?? null}
             canInteract={presenting || !live}
             onEnter={(target) => void setScene({ model: scene.model, target })}
+            pointedLayer={live ? view.layer : null}
+            onLayerHover={(layer) => mirror('layer', { layer })}
           />
         </Suspense>
         </>
@@ -385,6 +401,10 @@ export function ExperiencePage() {
         )}
       </main>
 
+      {with3D ? (
+        // How to handle the 3D view; each viewer's camera is their own.
+        <p className="pointer-events-none absolute right-4 bottom-[4.4rem] z-10 hidden text-[10px] text-sc-silver/40 lg:block sm:right-8">{t('exp.scene.controls')}</p>
+      ) : null}
       <footer className="relative z-10 flex flex-wrap items-center gap-3 border-t border-white/10 px-4 py-3 sm:px-8">
         {presenting || !live ? (
           <>
@@ -530,6 +550,7 @@ function StagePanel({
     }
   }
   const { spot, canPoint, point } = useSpotlight()
+  const mirrored = useMirroredScroll<HTMLElement>('panel')
   // The Presenter's pick goes in the Spotlight, so everyone sees which Answer is about to be approved.
   const togglePick = (answerId: string) => {
     const dropping = list && picked.includes(answerId)
@@ -538,7 +559,7 @@ function StagePanel({
   }
 
   return (
-    <aside className="pointer-events-auto flex min-h-0 shrink flex-col gap-5 self-start overflow-y-auto rounded-2xl border border-white/12 bg-white/[0.06] p-5 shadow-[0_30px_80px_-30px_rgba(0,0,0,0.6)] backdrop-blur-xl sm:p-6">
+    <aside {...mirrored} className="pointer-events-auto flex min-h-0 shrink flex-col gap-5 self-start overflow-y-auto rounded-2xl border border-white/12 bg-white/[0.06] p-5 shadow-[0_30px_80px_-30px_rgba(0,0,0,0.6)] backdrop-blur-xl sm:p-6">
       <div className="relative pr-24">
         {onCollapse ? <CollapseButton onClick={onCollapse} className="absolute top-0 right-0" /> : null}
         <h2 className="text-xl leading-snug font-semibold text-balance">{words.stages[stage].question}</h2>
