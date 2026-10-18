@@ -460,8 +460,10 @@ function SourceRow({ pocId, r, canFill }: { pocId: string; r: DataSource; canFil
         )}
       </td>
       <td className="px-2 py-1">
+        {/* A fixed width, as in the Process: the Notes column takes the table's slack, and a select
+            that may shrink (its label truncates) was squeezed down to its arrow. */}
         <Select
-          className={`rounded border-0 px-2 py-1 text-xs ${row.status ? SOURCE_STYLE[row.status] : 'bg-slate-100 text-slate-500 dark:bg-slate-800'}`}
+          className={`w-36 shrink-0 rounded border-0 px-2 py-1 text-xs ${row.status ? SOURCE_STYLE[row.status] : 'bg-slate-100 text-slate-500 dark:bg-slate-800'}`}
           aria-label={t('nb.status')}
           disabled={!canFill}
           value={row.status ?? ''}
