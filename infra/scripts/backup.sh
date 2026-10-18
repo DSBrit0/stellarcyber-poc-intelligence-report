@@ -14,5 +14,12 @@ docker compose exec -T postgres sh -c 'pg_dump -U "$POSTGRES_USER" -d "$POSTGRES
 mv "$dest/pocintel-$stamp.dump.partial" "$dest/pocintel-$stamp.dump"
 chmod 600 "$dest/pocintel-$stamp.dump"
 
+# The Audit "System health" block reads when the last backup finished and its size.
+bytes=$(stat -c %s "$dest/pocintel-$stamp.dump")
+docker compose exec -T postgres sh -c 'psql -q -v ON_ERROR_STOP=1 -U "$POSTGRES_USER" -d "$POSTGRES_DB"' <<SQL
+insert into settings (key, value) values ('last_backup', jsonb_build_object('at', now(), 'bytes', $bytes))
+on conflict (key) do update set value = excluded.value, updated_at = now();
+SQL
+
 ls -1t "$dest"/pocintel-*.dump | tail -n +"$((keep + 1))" | xargs -r rm --
 echo "backup: $dest/pocintel-$stamp.dump"

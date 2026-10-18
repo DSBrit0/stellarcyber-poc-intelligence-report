@@ -26,6 +26,53 @@ interface Summary {
   recentFailures: { at: string; ip: string | null; email: string | null; meta: { email?: string } | null }[]
   recentErrors: { id: number; at: string; source: string; category: string; message: string }[]
   topUsers: { id: string; email: string; name: string; role: string; events: number; lastAt: string }[]
+  health: Health
+}
+
+type Tone = 'good' | 'warn' | 'bad'
+interface Health {
+  worker: { lastBeatAt: string | null; startedAt: string | null; tone: Tone }
+  backup: { at: string | null; bytes: number | null; tone: Tone }
+  syncsFailed24h: number
+  disk: { totalBytes: number; freeBytes: number; tone: Tone } | null
+  dbBytes: number
+}
+
+/** Worker, backup, failed Syncs and disk: the four things that need an operator before a user notices. */
+function HealthBlock({ h, go }: { h: Health; go: Go }) {
+  const { t } = useI18n()
+  const f = useFormat()
+  const used = h.disk && h.disk.totalBytes ? 1 - h.disk.freeBytes / h.disk.totalBytes : null
+  return (
+    <section aria-labelledby="health-title">
+      <h2 id="health-title" className="mb-2 text-sm font-semibold">
+        {t('audit.health.title')}
+      </h2>
+      <div className="grid grid-cols-2 gap-3 md:grid-cols-4">
+        <Kpi
+          label={t('audit.health.worker')}
+          value={h.worker.tone === 'good' ? t('audit.health.up') : t('audit.health.down')}
+          hint={h.worker.lastBeatAt ? t('audit.health.lastBeat', { time: f.dateTime(h.worker.lastBeatAt) }) : t('audit.health.never')}
+          tone={h.worker.tone}
+        />
+        <Kpi
+          label={t('audit.health.backup')}
+          value={h.backup.at ? f.dateTime(h.backup.at) : t('audit.health.never')}
+          hint={h.backup.bytes == null ? undefined : f.bytes(h.backup.bytes)}
+          tone={h.backup.tone}
+        />
+        <button type="button" className="text-left" onClick={() => go('syncs')}>
+          <Kpi label={t('audit.health.syncsFailed')} value={f.num(h.syncsFailed24h)} hint={t('audit.health.syncsHint')} tone={h.syncsFailed24h ? 'warn' : 'good'} />
+        </button>
+        <Kpi
+          label={t('audit.health.disk')}
+          value={used == null ? '—' : `${Math.round(used * 100)}%`}
+          hint={h.disk ? t('audit.health.diskHint', { free: f.bytes(h.disk.freeBytes), total: f.bytes(h.disk.totalBytes), db: f.bytes(h.dbBytes) }) : undefined}
+          tone={h.disk?.tone ?? 'default'}
+        />
+      </div>
+    </section>
+  )
 }
 
 export function OverviewTab({ go }: { go: Go }) {
@@ -33,11 +80,12 @@ export function OverviewTab({ go }: { go: Go }) {
   const f = useFormat()
   const q = useQuery({ queryKey: ['audit', 'summary'], queryFn: () => api<Summary>('/admin/audit/summary'), refetchInterval: 30_000 })
   if (!q.data) return <Empty loading={q.isLoading} />
-  const { counts: c, hourly, recentFailures, recentErrors, topUsers } = q.data
+  const { counts: c, hourly, recentFailures, recentErrors, topUsers, health } = q.data
   const errorRate = c.apiCalls24h ? (c.apiErrors24h / c.apiCalls24h) * 100 : 0
 
   return (
     <div className="space-y-5">
+      <HealthBlock h={health} go={go} />
       <div className="grid grid-cols-2 gap-3 md:grid-cols-4">
         <Kpi label={t('audit.kpi.logins')} value={f.num(c.logins24h)} hint={t('audit.last24h')} />
         <Kpi label={t('audit.kpi.failedLogins')} value={f.num(c.failedLogins24h)} hint={t('audit.kpi.failed7d', { n: c.failedLogins7d })} tone={c.failedLogins24h ? 'warn' : 'default'} />

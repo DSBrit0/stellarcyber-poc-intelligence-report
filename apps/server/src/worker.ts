@@ -17,6 +17,7 @@ import { runSync } from './syncs/run-sync.js'
 import { detailsForReport } from './report/poc-details.js'
 import { scheduledCatalogRefresh } from './catalog/refresh.js'
 import { appLog, flush, setLogSource } from './lib/log-sink.js'
+import { beat, HEARTBEAT_MS } from './health.js'
 
 const cfg = config()
 const log = pino({ level: cfg.LOG_LEVEL, base: { proc: 'worker' } })
@@ -90,11 +91,18 @@ await boss.work(QUEUES.catalog, async () => {
 })
 await boss.schedule(QUEUES.catalog, '0 6 * * 1', null, { tz: 'America/Sao_Paulo' })
 
+// The heartbeat: the Audit panel shows when the worker last beat, and Docker marks it unhealthy when beats stop.
+const startedAt = new Date().toISOString()
+const heartbeat = () => beat(startedAt).catch((err) => log.warn({ err: (err as Error).message }, 'heartbeat failed'))
+await heartbeat()
+const beating = setInterval(heartbeat, HEARTBEAT_MS)
+
 log.info('worker ready')
 appLog('info', 'system', 'Worker started')
 
 for (const signal of ['SIGTERM', 'SIGINT'] as const) {
   process.once(signal, async () => {
+    clearInterval(beating)
     await boss.stop({ graceful: true })
     await flush()
     await closeBrowser()

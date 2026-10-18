@@ -3,7 +3,9 @@ import type { Fragment } from 'postgres'
 import { SyncStatus } from '@poc-intel/shared'
 import { z } from 'zod'
 import { requireRole } from '../auth/guards.js'
+import { config } from '../config.js'
 import { sql } from '../db/client.js'
+import { systemHealth } from '../health.js'
 import { notFound, parse } from '../lib/http.js'
 
 // The Admin's Audit page: User activity (audit_log), communication with the Instances (api_calls),
@@ -180,7 +182,8 @@ export async function auditRoutes(app: FastifyInstance): Promise<void> {
       select u.id, u.email, u.name, u.role, count(*)::int as events, max(a.at) as "lastAt"
       from audit_log a join users u on u.id = a.user_id
       where a.at > now() - interval '7 days' group by u.id order by events desc limit 8`
-    return { counts, hourly, recentFailures, recentErrors, topUsers }
+    const health = await systemHealth(config().DATA_DIR)
+    return { counts, hourly, recentFailures, recentErrors, topUsers, health }
   })
 
   app.get('/events', async (req) => page(await queryEvents(parse(EventsQuery, req.query))))
