@@ -148,6 +148,18 @@ try {
   const pdf = await call(`/report-data/${report.id}/pdf?template=insight&locale=en`)
   check('PDF render', pdf.status === 200 && pdf.type === 'application/pdf' && pdf.data.subarray(0, 4).toString() === '%PDF', `${pdf.data.length} bytes`)
 
+  // PoC lifecycle (ADR 0016): an Active PoC's Reports never expire; Closed takes no Sync; Reopen undoes it.
+  check('Active PoC: Reports kept', withReports.data.closedAt === null && w.expiresAt === null && withReports.data.purgeAt === null)
+  const closed = await call(`/pocs/${poc.data.id}/close`, { method: 'POST', body: { dealResult: 'won' } })
+  const afterClose = await call(`/pocs/${poc.data.id}`)
+  check('close PoC', closed.status === 200 && afterClose.data.dealResult === 'won' && afterClose.data.purgeAt && afterClose.data.reports[0].expiresAt === afterClose.data.purgeAt)
+  const syncClosed = await call(`/pocs/${poc.data.id}/syncs`, { method: 'POST', body: { credential: { method: 'apiKey', apiKey: 'smoke-key-0000' } } })
+  check('Closed PoC refuses a Sync', syncClosed.status === 409 && syncClosed.data.error === 'poc_closed', String(syncClosed.status))
+  const listed = await call('/pocs')
+  check('PoC list carries the closing', listed.data.some((p) => p.id === poc.data.id && p.closedAt && p.dealResult === 'won'))
+  const reopened = await call(`/pocs/${poc.data.id}/reopen`, { method: 'POST', body: {} })
+  check('reopen PoC', reopened.status === 200 && (await call(`/pocs/${poc.data.id}`)).data.closedAt === null)
+
   // Full PoC form round trip: API → PostgreSQL → read back → rendered Report.
   const form = {
     customerName: 'Smoke Customer', department: 'SOC', customerEmail: 'soc@smoke.test', analysts: ['Ana Smoke', 'Bruno Smoke'],
@@ -252,6 +264,8 @@ const custPocs = await call('/pocs', { jar: 'customer' })
   await new Promise((r) => setTimeout(r, 1500))
   const summary = await call('/admin/audit/summary')
   check('audit summary', summary.status === 200 && typeof summary.data.counts?.logins24h === 'number' && summary.data.hourly?.length === 24)
+  const h = summary.data.health
+  check('system health: worker beating, disk read', h?.worker?.tone === 'good' && h?.disk?.totalBytes > 0 && h?.dbBytes > 0, JSON.stringify(h))
   const events = await call(`/admin/audit/events?userId=${user.id}&action=auth.`)
   check('audit events list this User\'s sign-in', events.data.rows?.some((e) => e.action === 'auth.login' && e.email === EMAIL))
   const logs = await call(`/admin/audit/logs?level=debug&category=http&q=${encodeURIComponent('/api/pocs')}`)
