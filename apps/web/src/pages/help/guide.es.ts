@@ -403,7 +403,7 @@ export const guideEs = (ui: Ui): HelpGuide => ({
         { kind: 'p', text: `${ui('report.pdf')} genera el mismo contenido de la página, en el diseño y el idioma elegidos.` },
         {
           kind: 'warn',
-          text: 'Los datos de cada Reporte se guardan durante el Período de Retención (90 días por defecto) y luego se eliminan para siempre. Descargue el PDF de todo lo que necesite conservar.',
+          text: 'Una PoC y sus Reportes se conservan mientras está Activa. Cuando la PoC termine, use Cerrar PoC y elija el resultado (Ganada, Perdida, Sin decisión): deja de aceptar Syncs y, pasado el Período de Retención (90 días por defecto), se elimina para siempre con todo lo que contiene. Puede reabrirla hasta entonces. Descargue el PDF de todo lo que necesite conservar.',
         },
         { kind: 'p', text: `El dueño de la PoC puede eliminar un Reporte con la papelera de la tarjeta (${ui('report.delete')}). Los datos, PDFs y comentarios de ese Reporte dejan de existir.` },
         { kind: 'tip', text: `Si aparece ${ui('report.outdated')}, los datos fueron recopilados por una versión antigua de la herramienta: ejecute un nuevo Sync.` },
@@ -518,7 +518,7 @@ export const guideEs = (ui: Ui): HelpGuide => ({
         {
           kind: 'list',
           items: [
-            `${ui('admin.retentionDays')}: cuánto tiempo se guardan los datos de los Reportes (90 por defecto).`,
+            `${ui('admin.retentionDays')}: cuánto tiempo se conserva una PoC cerrada antes de eliminarse, contado desde su cierre (90 por defecto).`,
             `${ui('admin.allowedDomains')}: restringe quién puede solicitar acceso, por ejemplo \`stellarcyber.ai, revendedor.com\`.`,
           ],
         },
@@ -587,7 +587,7 @@ export const guideEs = (ui: Ui): HelpGuide => ({
             ['Alerta', 'Una detección dentro de un Case, marcada con tácticas y técnicas MITRE ATT&CK o de la XDR Kill Chain.'],
             ['Auto Triage', 'El veredicto de IA de Stellar Cyber sobre un Case. Requiere una licencia adicional.'],
             ['Volumen de licenciamiento', 'GB por día almacenados tras el enriquecimiento y la compresión. Es la cifra usada en el cumplimiento de licencia.'],
-            ['Período de Retención', 'Cuánto tiempo se guardan los datos de los Reportes antes de eliminarse.'],
+            ['Período de Retención', 'Cuánto tiempo se conserva una PoC cerrada, desde su cierre, antes de eliminarse con todo lo que contiene. Las PoC activas nunca se eliminan por él.'],
             ['Veredicto', 'El resultado de la PoC: aprobada, aprobada con condiciones o no aprobada.'],
           ],
         },

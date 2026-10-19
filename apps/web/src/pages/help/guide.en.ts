@@ -403,7 +403,7 @@ export const guideEn = (ui: Ui): HelpGuide => ({
         { kind: 'p', text: `${ui('report.pdf')} produces the same content as the page, in the chosen layout and language.` },
         {
           kind: 'warn',
-          text: 'Each Report’s data is kept for the Retention Period (90 days by default) and then deleted for good. Download the PDF of anything you need to keep.',
+          text: 'A PoC and its Reports are kept while it is Active. When the PoC ends, use Close PoC and pick the deal result (Won, Lost, No decision): it stops taking Syncs and, once the Retention Period (90 days by default) has passed, it is deleted for good with everything it holds. You can reopen it until then. Download the PDF of anything you need to keep.',
         },
         { kind: 'p', text: `The PoC’s owner can delete a Report with the card’s trash icon (${ui('report.delete')}). That Report’s data, PDFs and comments cease to exist.` },
         { kind: 'tip', text: `If you see ${ui('report.outdated')}, the data was collected by an older version of the tool: run a new Sync.` },
@@ -518,7 +518,7 @@ export const guideEn = (ui: Ui): HelpGuide => ({
         {
           kind: 'list',
           items: [
-            `${ui('admin.retentionDays')}: how long Report data is kept (default 90).`,
+            `${ui('admin.retentionDays')}: how long a Closed PoC is kept before it is deleted, counted from its closing (default 90).`,
             `${ui('admin.allowedDomains')}: restricts who can request access, for example \`stellarcyber.ai, reseller.com\`.`,
           ],
         },
@@ -587,7 +587,7 @@ export const guideEn = (ui: Ui): HelpGuide => ({
             ['Alert', 'A single detection inside a Case, tagged with MITRE ATT&CK or XDR Kill Chain tactics and techniques.'],
             ['Auto Triage', 'Stellar Cyber’s AI verdict on a Case. It requires an add-on license.'],
             ['Licensing Volume', 'GB per day stored after enrichment and compression. It is the figure used for license compliance.'],
-            ['Retention Period', 'How long Report data is kept before it is deleted.'],
+            ['Retention Period', 'How long a Closed PoC is kept, from its closing, before it is deleted with everything it holds. Active PoCs are never deleted by it.'],
             ['Verdict', 'The PoC outcome: approved, approved with conditions or not approved.'],
           ],
         },

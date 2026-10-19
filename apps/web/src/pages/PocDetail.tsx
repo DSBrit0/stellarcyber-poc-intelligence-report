@@ -241,9 +241,7 @@ function ReportItem({ poc, r }: { poc: PocView; r: ReportRow }) {
         <a className="btn" href={url('html')} target="_blank" rel="noopener">
           {t('report.open')}
         </a>
-        <a className="btn-ghost" href={url('pdf')}>
-          {t('report.pdf')}
-        </a>
+        <PdfButton url={url('pdf')} />
         <button className="btn-ghost" onClick={() => setComments(!comments)}>
           {t('report.comments')}
         </button>
@@ -662,6 +660,51 @@ function ClosePocButton({ poc, syncing }: { poc: PocView; syncing: boolean }) {
           </div>
         </form>
       </dialog>
+    </>
+  )
+}
+
+/**
+ * Downloads the PDF in place: the button says it is generating, the file is saved when ready, and a
+ * failure shows next to the button instead of an error page.
+ */
+function PdfButton({ url }: { url: string }) {
+  const { t } = useI18n()
+  const [busy, setBusy] = useState(false)
+  const [error, setError] = useState<string | null>(null)
+  const download = async () => {
+    setBusy(true)
+    setError(null)
+    try {
+      const res = await fetch(url, { credentials: 'same-origin' })
+      if (!res.ok) {
+        const body = (await res.json().catch(() => ({}))) as { error?: string }
+        throw new ApiError(res.status, body.error ?? 'unknown')
+      }
+      const name = /filename\*=UTF-8''([^;]+)/.exec(res.headers.get('content-disposition') ?? '')?.[1]
+      const href = URL.createObjectURL(await res.blob())
+      const a = document.createElement('a')
+      a.href = href
+      a.download = name ? decodeURIComponent(name) : 'report.pdf'
+      a.click()
+      setTimeout(() => URL.revokeObjectURL(href), 10_000)
+    } catch (err) {
+      setError(t(errorKey(err)))
+    } finally {
+      setBusy(false)
+    }
+  }
+  return (
+    <>
+      <button type="button" className="btn-ghost inline-flex items-center gap-2" disabled={busy} aria-busy={busy} onClick={() => void download()}>
+        {busy ? <span className="h-3.5 w-3.5 animate-spin rounded-full border-2 border-current border-t-transparent motion-reduce:animate-none" aria-hidden="true" /> : null}
+        {busy ? t('report.pdfGenerating') : t('report.pdf')}
+      </button>
+      {error ? (
+        <span role="alert" className="basis-full text-sm text-red-600 dark:text-red-400">
+          {error}
+        </span>
+      ) : null}
     </>
   )
 }

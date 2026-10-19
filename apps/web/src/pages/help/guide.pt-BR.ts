@@ -412,7 +412,7 @@ export const guidePtBR = (ui: Ui): HelpGuide => ({
         { kind: 'p', text: `${ui('report.pdf')} gera o mesmo conteúdo da página, no layout e no idioma escolhidos.` },
         {
           kind: 'warn',
-          text: 'Os dados de cada Relatório ficam disponíveis pelo Período de Retenção (90 dias por padrão). Depois disso são apagados para sempre. Baixe o PDF de tudo o que precisar guardar.',
+          text: 'Uma PoC e seus Relatórios ficam guardados enquanto ela está Ativa. Quando a PoC terminar, use Encerrar PoC e escolha o resultado (Ganha, Perdida, Sem decisão): ela deixa de aceitar Syncs e, passado o Período de Retenção (90 dias por padrão), é apagada para sempre com tudo o que contém. Você pode reabri-la até lá. Baixe o PDF de tudo o que precisar guardar.',
         },
         {
           kind: 'p',
@@ -533,7 +533,7 @@ export const guidePtBR = (ui: Ui): HelpGuide => ({
         {
           kind: 'list',
           items: [
-            `${ui('admin.retentionDays')}: por quanto tempo os dados dos Relatórios ficam guardados (padrão 90).`,
+            `${ui('admin.retentionDays')}: por quanto tempo uma PoC encerrada fica guardada antes de ser apagada, contado do encerramento (padrão 90).`,
             `${ui('admin.allowedDomains')}: restringe quem pode pedir acesso, por exemplo \`stellarcyber.ai, revenda.com\`.`,
           ],
         },
@@ -602,7 +602,7 @@ export const guidePtBR = (ui: Ui): HelpGuide => ({
             ['Alerta', 'Uma detecção dentro de um Case, marcada com táticas e técnicas MITRE ATT&CK ou da XDR Kill Chain.'],
             ['Auto Triage', 'O veredito de IA da Stellar Cyber sobre um Case. Exige licença adicional.'],
             ['Volume de licenciamento', 'GB por dia armazenados após enriquecimento e compressão. É o número usado na conformidade de licença.'],
-            ['Período de Retenção', 'Por quanto tempo os dados dos Relatórios ficam guardados antes de serem apagados.'],
+            ['Período de Retenção', 'Por quanto tempo uma PoC encerrada fica guardada, a partir do encerramento, antes de ser apagada com tudo o que contém. PoCs ativas nunca são apagadas por ele.'],
             ['Veredito', 'O resultado da PoC: aprovada, aprovada com condições ou não aprovada.'],
           ],
         },
