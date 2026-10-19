@@ -9,7 +9,8 @@
     "build": "tsup",
     "typecheck": "tsc --noEmit",
     "test": "vitest run",
-    "admin:create": "tsx --env-file-if-exists=../../.env src/cli/create-admin.ts"
+    "admin:create": "tsx --env-file-if-exists=../../.env src/cli/create-admin.ts",
+    "seed:dev": "tsx --env-file-if-exists=../../.env src/cli/seed-dev.ts"
   },
   "dependencies": {
     "@fastify/cookie": "^11.1.2",

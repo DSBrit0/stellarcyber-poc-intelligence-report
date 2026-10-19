@@ -53,6 +53,25 @@ services:
       start_period: 60s
       retries: 3
 
+  # Local development only (`docker compose --profile dev up -d dev-db`): never started on the server,
+  # whose deploy names its services. DATABASE_URL=postgres://pocintel:pocintel@localhost:5433/pocintel
+  dev-db:
+    profiles: [dev]
+    image: postgres:17-alpine
+    environment:
+      POSTGRES_USER: pocintel
+      POSTGRES_PASSWORD: pocintel
+      POSTGRES_DB: pocintel
+      TZ: UTC
+    ports:
+      - "127.0.0.1:5433:5432"
+    volumes:
+      - dev-db:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U pocintel -d pocintel"]
+      interval: 5s
+      retries: 10
+
   web:
     build: { context: ., target: web }
     image: poc-intel/web
@@ -69,3 +88,6 @@ services:
     depends_on:
       api:
         condition: service_healthy
+
+volumes:
+  dev-db:

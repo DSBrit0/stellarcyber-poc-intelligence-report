@@ -45,13 +45,14 @@ Requires Node 24+ and Docker (to run PostgreSQL locally).
 
 ```bash
 npm install
-docker run -d --name poc-pg -e POSTGRES_USER=pocintel -e POSTGRES_PASSWORD=dev -e POSTGRES_DB=pocintel -p 5432:5432 postgres:17-alpine
+docker compose --profile dev up -d dev-db   # PostgreSQL on 127.0.0.1:5433 (never started on the server)
 cp .env.example .env    # then set:
 #   APP_ORIGIN=http://localhost:5173
-#   DATABASE_URL=postgres://pocintel:dev@localhost:5432/pocintel
+#   DATABASE_URL=postgres://pocintel:pocintel@localhost:5433/pocintel
 #   ENCRYPTION_KEY=$(openssl rand -base64 32)
 # The API creates the Root Administrator (administrator@stellarcyber.ai) at start-up; set ROOT_PASSWORD in .env
 npm run admin:create -w @poc-intel/server -- you@stellarcyber.ai "Your Name"
+npm run seed:dev -w @poc-intel/server   # sample Users, Companies and PoCs; password Stellarcyber@
 npm run dev:api      # :3000
 npm run dev:worker
 npm run dev:web      # :5173, proxies /api to :3000
