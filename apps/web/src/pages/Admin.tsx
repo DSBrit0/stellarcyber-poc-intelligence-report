@@ -102,7 +102,7 @@ export function AdminPage() {
                 <th className="font-medium">{t('admin.role')}</th>
                 <th className="font-medium">{t('admin.status')}</th>
                 <th className="text-right font-medium">{t('nav.customers')}</th>
-                <th className="text-right font-medium">PoCs</th>
+                <th className="text-right font-medium">PoVs</th>
                 <th />
               </tr>
             </thead>

@@ -95,8 +95,8 @@ export async function reportRoutes(app: FastifyInstance): Promise<void> {
       }
     }
     await audit({ action: 'report.rendered', userId: auth.user.id, target: report.id, ip: req.ip, meta: { template: q.template, locale } })
-    const safeName = poc.details.customerName.replace(/[^\p{L}\p{N}_-]+/gu, '_').slice(0, 60) || 'PoC'
-    const filename = `StellarCyber_PoC_${q.template}_${safeName}_v${versioning?.version ?? '1.0'}_${report.createdAt.toISOString().slice(0, 10)}.pdf`
+    const safeName = poc.details.customerName.replace(/[^\p{L}\p{N}_-]+/gu, '_').slice(0, 60) || 'PoV'
+    const filename = `StellarCyber_PoV_${q.template}_${safeName}_v${versioning?.version ?? '1.0'}_${report.createdAt.toISOString().slice(0, 10)}.pdf`
     return reply
       .type('application/pdf')
       .header('content-disposition', `attachment; filename="${filename}"; filename*=UTF-8''${encodeURIComponent(filename)}`)

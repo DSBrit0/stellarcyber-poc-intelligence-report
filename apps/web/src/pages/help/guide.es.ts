@@ -6,18 +6,18 @@ export const guideEs = (ui: Ui): HelpGuide => ({
       id: 'overview',
       title: 'Visión general',
       roles: 'all',
-      summary: 'Qué hace la herramienta, quién la usa y el camino de una PoC desde el inicio hasta el Reporte.',
+      summary: 'Qué hace la herramienta, quién la usa y el camino de una PoV desde el inicio hasta el Reporte.',
       blocks: [
         {
           kind: 'p',
-          text: 'PoC Intelligence Report acompaña la evaluación (PoC) que un cliente hace de Stellar Cyber. Organiza el trabajo con el cliente en el PoC Notebook, recopila la evidencia de la Instancia Stellar Cyber por la API y produce el Reporte Final de la PoC: una página HTML adaptable que también se descarga en PDF, en pt-BR, en o es.',
+          text: 'POV Intelligence Portal acompaña la evaluación (PoV) que un cliente hace de Stellar Cyber. Organiza el trabajo con el cliente en el PoV Notebook, recopila la evidencia de la Instancia Stellar Cyber por la API y produce el Reporte Final de la PoV: una página HTML adaptable que también se descarga en PDF, en pt-BR, en o es.',
         },
-        { kind: 'h3', text: 'El camino de una PoC' },
+        { kind: 'h3', text: 'El camino de una PoV' },
         {
           kind: 'steps',
           items: [
             'El Sales Engineer registra la **Empresa** del cliente y entrega la clave de acceso en la primera reunión.',
-            'Inicia un **PoC Notebook**: criterios de éxito, fuentes de datos, actas de reunión, proceso y cronograma, completados junto con el cliente.',
+            'Inicia un **PoV Notebook**: criterios de éxito, fuentes de datos, actas de reunión, proceso y cronograma, completados junto con el cliente.',
             'Al final del período conecta la Instancia Stellar Cyber, elige el Tenant y el período y ejecuta un **Sync**, que recopila los datos.',
             'El Reporte queda listo en tres diseños (Technical, Executive e Insight). Se puede presentar en pantalla, descargar en PDF y el cliente puede comentarlo.',
           ],
@@ -27,10 +27,10 @@ export const guideEs = (ui: Ui): HelpGuide => ({
           kind: 'table',
           head: ['Perfil', 'Quién es', 'Qué hace'],
           rows: [
-            [ui('role.admin'), 'Administrador de la herramienta', 'Aprueba registros, gestiona usuarios y configuraciones, ve todas las PoCs y la Auditoría.'],
-            [ui('role.sales_engineer'), 'Sales Engineer de Stellar Cyber', 'Registra Empresas, conduce PoCs y sigue las PoCs de los revendedores que registró.'],
-            [ui('role.partner'), 'Persona de un revendedor', 'Conduce sus propias PoCs y registra sus propios clientes.'],
-            [ui('role.customer'), 'Persona del cliente en evaluación', 'Ve, descarga y comenta los Reportes de las PoCs de su empresa y completa el PoC Notebook.'],
+            [ui('role.admin'), 'Administrador de la herramienta', 'Aprueba registros, gestiona usuarios y configuraciones, ve todas las PoVs y la Auditoría.'],
+            [ui('role.sales_engineer'), 'Sales Engineer de Stellar Cyber', 'Registra Empresas, conduce PoVs y sigue las PoVs de los revendedores que registró.'],
+            [ui('role.partner'), 'Persona de un revendedor', 'Conduce sus propias PoVs y registra sus propios clientes.'],
+            [ui('role.customer'), 'Persona del cliente en evaluación', 'Ve, descarga y comenta los Reportes de las PoVs de su empresa y completa el PoV Notebook.'],
           ],
         },
         { kind: 'tip', text: `Esta página muestra primero los temas de su perfil. Use ${ui('guide.allTopics')} arriba para ver la guía completa.` },
@@ -42,7 +42,7 @@ export const guideEs = (ui: Ui): HelpGuide => ({
       roles: STAFF,
       summary: 'Un paso a paso real, con la empresa ficticia Nébula Logística, del registro al Reporte comentado.',
       blocks: [
-        { kind: 'p', text: 'Siga este guion en su primera PoC. Los nombres son de ejemplo: use la empresa y las personas reales.' },
+        { kind: 'p', text: 'Siga este guion en su primera PoV. Los nombres son de ejemplo: use la empresa y las personas reales.' },
         { kind: 'h3', text: '1. Antes de la primera reunión' },
         {
           kind: 'steps',
@@ -61,18 +61,18 @@ export const guideEs = (ui: Ui): HelpGuide => ({
             `Vuelva a ${ui('nav.customers')}: los registros aparecen como ${ui('customers.pending')} dentro de la empresa. Haga clic en ${ui('admin.approve')}.`,
           ],
         },
-        { kind: 'h3', text: '3. Planificar la PoC en el Notebook' },
+        { kind: 'h3', text: '3. Planificar la PoV en el Notebook' },
         {
           kind: 'steps',
           items: [
-            `En la lista de PoCs, haga clic en ${ui('poc.create')} y elija ${ui('newpoc.notebook')}.`,
+            `En la lista de PoVs, haga clic en ${ui('poc.create')} y elija ${ui('newpoc.notebook')}.`,
             `Elija la empresa en ${ui('newpoc.chooseCustomer')}, informe la ${ui('newpoc.startDate')} y haga clic en ${ui('newpoc.start')}.`,
-            `En ${ui('nb.overview')}, complete el dimensionamiento (GB/día), la URL de la PoC y los contactos de negocio y técnico.`,
+            `En ${ui('nb.overview')}, complete el dimensionamiento (GB/día), la URL de la PoV y los contactos de negocio y técnico.`,
             `En ${ui('nb.criteria')}, registre lo que el cliente necesita ver para aprobar, por ejemplo \`Detectar movimiento lateral\` y \`Reducir el ruido de alertas en un 80%\`. Use ${ui('nb.suggestions')} para empezar más rápido.`,
             `En ${ui('nb.sources')}, busque los productos del cliente (por ejemplo \`fortigate\`, \`office 365\`, \`crowdstrike\`) y agregue cada uno.`,
           ],
         },
-        { kind: 'h3', text: '4. Durante la PoC' },
+        { kind: 'h3', text: '4. Durante la PoV' },
         {
           kind: 'list',
           items: [
@@ -86,7 +86,7 @@ export const guideEs = (ui: Ui): HelpGuide => ({
         {
           kind: 'steps',
           items: [
-            `En la PoC, haga clic en ${ui('nb.createReport')}.`,
+            `En la PoV, haga clic en ${ui('nb.createReport')}.`,
             'Informe la URL de la Instancia y la Scoped API Key, elija el Tenant de Nébula y el período (hasta 30 días, terminando como máximo ayer).',
             `Haga clic en ${ui('wiz.runSync')} y siga las cinco fases de la recopilación. Mientras tanto, complete ${ui('wiz.detailsTitle')}: veredicto, comentarios y premisas de esfuerzo.`,
             `Cuando termine, abra la pestaña ${ui('tab.report')}, elija el diseño **Executive** y haga clic en ${ui('report.open')} para presentar.`,
@@ -144,27 +144,27 @@ export const guideEs = (ui: Ui): HelpGuide => ({
     },
     {
       id: 'pocs',
-      title: 'La lista de PoCs',
+      title: 'La lista de PoVs',
       roles: 'all',
-      summary: 'La pantalla inicial: una tarjeta por PoC, con etiquetas que muestran en qué punto está.',
+      summary: 'La pantalla inicial: una tarjeta por PoV, con etiquetas que muestran en qué punto está.',
       blocks: [
-        { kind: 'p', text: 'La pantalla inicial lista las PoCs que usted puede ver. Haga clic en una tarjeta para abrir la PoC.' },
+        { kind: 'p', text: 'La pantalla inicial lista las PoVs que usted puede ver. Haga clic en una tarjeta para abrir la PoV.' },
         {
           kind: 'table',
           head: ['Etiqueta', 'Significado'],
           rows: [
-            [ui('poc.phase.notebook'), 'La PoC está en el PoC Notebook y aún no tiene Reporte.'],
+            [ui('poc.phase.notebook'), 'La PoV está en el PoV Notebook y aún no tiene Reporte.'],
             [ui('poc.phase.report'), 'Empezó como Notebook y ya tiene al menos un Reporte.'],
             [ui('poc.draft'), 'Se inició un Sync, pero los detalles nunca se guardaron. Ábrala para continuar o elimínela.'],
-            [ui('poc.syncing'), 'Hay una recopilación en curso. La PoC no se puede eliminar hasta que termine o se cancele.'],
+            [ui('poc.syncing'), 'Hay una recopilación en curso. La PoV no se puede eliminar hasta que termine o se cancele.'],
           ],
         },
         {
           kind: 'list',
           items: [
-            'El Sales Engineer ve sus PoCs y las de los revendedores que registró. El Partner ve solo las suyas. El Cliente ve las PoCs de su empresa.',
+            'El Sales Engineer ve sus PoVs y las de los revendedores que registró. El Partner ve solo las suyas. El Cliente ve las PoVs de su empresa.',
             `Los Administradores ven todas y pueden filtrar por dueño en el selector junto al título (${ui('poc.mine')} o una persona).`,
-            'El icono de papelera en la esquina de la tarjeta elimina la PoC para siempre, con Reportes, Notebook, Syncs y comentarios. Solo el dueño o un Administrador lo ve.',
+            'El icono de papelera en la esquina de la tarjeta elimina la PoV para siempre, con Reportes, Notebook, Syncs y comentarios. Solo el dueño o un Administrador lo ve.',
           ],
         },
       ],
@@ -180,8 +180,8 @@ export const guideEs = (ui: Ui): HelpGuide => ({
           kind: 'table',
           head: ['Perfil', 'Las personas de la empresa…'],
           rows: [
-            [ui('customers.profile.customer'), 'siguen las PoCs vinculadas a la empresa: ven, descargan y comentan los Reportes y completan el Notebook.'],
-            [ui('customers.profile.partner'), 'pasan a ser Partners: conducen sus propias PoCs. Quien registró al revendedor sigue esas PoCs.'],
+            [ui('customers.profile.customer'), 'siguen las PoVs vinculadas a la empresa: ven, descargan y comentan los Reportes y completan el Notebook.'],
+            [ui('customers.profile.partner'), 'pasan a ser Partners: conducen sus propias PoVs. Quien registró al revendedor sigue esas PoVs.'],
           ],
         },
         { kind: 'h3', text: 'Registrar una empresa' },
@@ -204,15 +204,15 @@ export const guideEs = (ui: Ui): HelpGuide => ({
           kind: 'list',
           items: [
             `${ui('customers.rotate')} invalida la clave anterior. Quienes ya entraron conservan el acceso.`,
-            'Cambiar el perfil cambia el perfil de todas las personas de la empresa, que deben ingresar de nuevo. Un revendedor cuyas personas ya tienen PoCs o empresas no puede volver a ser Cliente.',
-            `${ui('del.companyTitle')} elimina la empresa y todo lo que depende de ella (personas, PoCs, Reportes). Para confirmar, escriba el nombre de la empresa. No se puede deshacer.`,
+            'Cambiar el perfil cambia el perfil de todas las personas de la empresa, que deben ingresar de nuevo. Un revendedor cuyas personas ya tienen PoVs o empresas no puede volver a ser Cliente.',
+            `${ui('del.companyTitle')} elimina la empresa y todo lo que depende de ella (personas, PoVs, Reportes). Para confirmar, escriba el nombre de la empresa. No se puede deshacer.`,
           ],
         },
       ],
     },
     {
       id: 'new-poc',
-      title: 'Crear una PoC',
+      title: 'Crear una PoV',
       roles: STAFF,
       summary: 'Tres caminos: empezar por el Notebook, empezar con una Stellar Experience o ir directo al Reporte Final.',
       blocks: [
@@ -222,11 +222,11 @@ export const guideEs = (ui: Ui): HelpGuide => ({
           head: ['Camino', 'Cuándo usarlo'],
           rows: [
             [ui('newpoc.experience'), 'Va a presentar la plataforma al cliente en vivo. Crea el Notebook junto con la primera Stellar Experience y abre la pestaña Experience. Solo Sales Engineers y Admins. Exige una empresa con perfil Cliente.'],
-            [ui('newpoc.notebook'), 'La PoC está empezando. Quiere planificarla y seguirla con el cliente. El Reporte Final se crea después, desde el Notebook. Exige una empresa con perfil Cliente.'],
-            [ui('newpoc.report'), 'La PoC ya ocurrió y solo necesita el Reporte. Vincular un cliente es opcional.'],
+            [ui('newpoc.notebook'), 'La PoV está empezando. Quiere planificarla y seguirla con el cliente. El Reporte Final se crea después, desde el Notebook. Exige una empresa con perfil Cliente.'],
+            [ui('newpoc.report'), 'La PoV ya ocurrió y solo necesita el Reporte. Vincular un cliente es opcional.'],
           ],
         },
-        { kind: 'h3', text: 'Iniciar un PoC Notebook' },
+        { kind: 'h3', text: 'Iniciar un PoV Notebook' },
         {
           kind: 'steps',
           items: [
@@ -241,7 +241,7 @@ export const guideEs = (ui: Ui): HelpGuide => ({
           items: [
             `Elija la empresa y la ${ui('newpoc.startDate')}, como en el Notebook.`,
             `Dé un ${ui('exp.name')} a la Experience y elija el ${ui('exp.profile')}: ${ui('exp.profile.technical')} o ${ui('exp.profile.executive')}.`,
-            `Haga clic en ${ui('newpoc.experienceStart')}. La PoC se abre en la pestaña Experience, lista para empezar la sesión.`,
+            `Haga clic en ${ui('newpoc.experienceStart')}. La PoV se abre en la pestaña Experience, lista para empezar la sesión.`,
           ],
         },
         { kind: 'h3', text: 'Crear el Reporte Final directamente' },
@@ -250,24 +250,24 @@ export const guideEs = (ui: Ui): HelpGuide => ({
     },
     {
       id: 'notebook',
-      title: 'PoC Notebook',
+      title: 'PoV Notebook',
       roles: 'all',
-      summary: 'El registro de trabajo de la PoC, compartido con el cliente y guardado automáticamente.',
+      summary: 'El registro de trabajo de la PoV, compartido con el cliente y guardado automáticamente.',
       blocks: [
         {
           kind: 'p',
-          text: `La pestaña ${ui('tab.notebook')} reúne todo lo que ocurre en la PoC. Cada campo se guarda solo unos segundos después del cambio: el indicador arriba muestra ${ui('nb.saving')} y luego ${ui('nb.savedAt', { time: '14:32' })}. Use ${ui('nb.expandAll')} y ${ui('nb.collapseAll')} para abrir o cerrar las secciones.`,
+          text: `La pestaña ${ui('tab.notebook')} reúne todo lo que ocurre en la PoV. Cada campo se guarda solo unos segundos después del cambio: el indicador arriba muestra ${ui('nb.saving')} y luego ${ui('nb.savedAt', { time: '14:32' })}. Use ${ui('nb.expandAll')} y ${ui('nb.collapseAll')} para abrir o cerrar las secciones.`,
         },
         {
           kind: 'table',
           head: ['Sección', 'Qué registrar'],
           rows: [
-            [ui('nb.overview'), 'Cliente, departamento, analistas, contactos de negocio y técnico, Sales Engineer, revendedor, dimensionamiento en GB/día, URL de la PoC y requisitos de negocio. También enlaza a la documentación de Stellar Cyber (requisitos del sensor, puertos de firewall, conectores).'],
-            [ui('nb.sources'), 'Las fuentes de log (parsers, con su puerto) y los conectores de la PoC, elegidos del Catálogo de Fuentes de Datos. Cada uno tiene estado y notas.'],
+            [ui('nb.overview'), 'Cliente, departamento, analistas, contactos de negocio y técnico, Sales Engineer, revendedor, dimensionamiento en GB/día, URL de la PoV y requisitos de negocio. También enlaza a la documentación de Stellar Cyber (requisitos del sensor, puertos de firewall, conectores).'],
+            [ui('nb.sources'), 'Las fuentes de log (parsers, con su puerto) y los conectores de la PoV, elegidos del Catálogo de Fuentes de Datos. Cada uno tiene estado y notas.'],
             [ui('nb.criteria'), 'Lo que el cliente necesita ver para aprobar. Cada criterio tiene estado, notas de evaluación y un peso de 1 a 5 (el peso no va al Reporte).'],
             [ui('nb.meetings'), 'Una fila por reunión: fecha, enlace y contraseña de la grabación, notas y próximos pasos.'],
-            [ui('nb.process'), 'El checklist de la PoC, por fases. Cada ítem está en curso, completado o N/A, y la barra muestra el progreso.'],
-            [ui('nb.schedule'), 'Los hitos de la PoC en el calendario (vea "Cronograma de la PoC").'],
+            [ui('nb.process'), 'El checklist de la PoV, por fases. Cada ítem está en curso, completado o N/A, y la barra muestra el progreso.'],
+            [ui('nb.schedule'), 'Los hitos de la PoV en el calendario (vea "Cronograma de la PoV").'],
           ],
         },
         { kind: 'h3', text: 'Fuentes de datos' },
@@ -276,14 +276,14 @@ export const guideEs = (ui: Ui): HelpGuide => ({
           items: [
             'Busque por producto, categoría o puerto, por ejemplo `fortigate`, `firewall` o `5143`.',
             `Si el producto no está en el catálogo, use ${ui('nb.addOutside', { name: '…' })}. La fila queda marcada como ${ui('nb.outsideCatalog')}.`,
-            `Una entrada que salió de la documentación oficial sigue en la PoC, marcada como ${ui('nb.removedFromDocs')}.`,
+            `Una entrada que salió de la documentación oficial sigue en la PoV, marcada como ${ui('nb.removedFromDocs')}.`,
           ],
         },
         { kind: 'h3', text: 'Quién puede hacer qué' },
         {
           kind: 'list',
           items: [
-            'El Sales Engineer, el dueño de la PoC y los Administradores completan todo y además dan forma al Notebook: ocultan, eliminan y agregan ítems del proceso e hitos.',
+            'El Sales Engineer, el dueño de la PoV y los Administradores completan todo y además dan forma al Notebook: ocultan, eliminan y agregan ítems del proceso e hitos.',
             'El Partner y las personas del cliente completan campos, estados y notas.',
             `Ocultar un ítem (${ui('nb.hide')}) afecta solo a este Notebook. Para cambiar lo que copian todos los Notebooks nuevos, un Administrador edita la ${ui('tpl.title')}.`,
           ],
@@ -296,13 +296,13 @@ export const guideEs = (ui: Ui): HelpGuide => ({
     },
     {
       id: 'schedule',
-      title: 'Cronograma de la PoC',
+      title: 'Cronograma de la PoV',
       roles: 'all',
       summary: 'Hitos calculados a partir de la fecha de inicio y ligados a las fases del proceso.',
       blocks: [
         {
           kind: 'p',
-          text: 'El cronograma va del día de inicio a la conclusión de la PoC. Las fechas se sugieren a partir de la fecha de inicio, siempre un lunes, miércoles o viernes. Cada hito después del inicio representa una fase del proceso y queda completado cuando todos los ítems de esa fase están completados o N/A.',
+          text: 'El cronograma va del día de inicio a la conclusión de la PoV. Las fechas se sugieren a partir de la fecha de inicio, siempre un lunes, miércoles o viernes. Cada hito después del inicio representa una fase del proceso y queda completado cuando todos los ítems de esa fase están completados o N/A.',
         },
         {
           kind: 'table',
@@ -344,7 +344,7 @@ export const guideEs = (ui: Ui): HelpGuide => ({
             `${ui('wiz.customerTitle')}: vincule la empresa cliente si quiere que sus personas vean el Reporte.`,
             `${ui('wiz.instanceTitle')}: informe la URL (https://…) y la credencial: una Scoped API Key, o usuario y token. Marque ${ui('wiz.remember')} para no escribirla de nuevo.`,
             `${ui('wiz.tenantTitle')}: la lista se carga sola. Use ${ui('wiz.searchTenant')} cuando haya muchos.`,
-            `${ui('wiz.autoTriageTitle')}: marque solo si el Auto Triage se probó en la PoC. Debe escribir la frase de confirmación.`,
+            `${ui('wiz.autoTriageTitle')}: marque solo si el Auto Triage se probó en la PoV. Debe escribir la frase de confirmación.`,
             `${ui('wiz.periodTitle')}: hasta 30 días, terminando como máximo ayer. Haga clic en ${ui('wiz.runSync')}.`,
             `${ui('wiz.detailsTitle')}: complete los detalles mientras corre la recopilación y haga clic en ${ui('common.save')}.`,
           ],
@@ -363,8 +363,8 @@ export const guideEs = (ui: Ui): HelpGuide => ({
         {
           kind: 'list',
           items: [
-            `En la PoC, ${ui('sync.new')} recopila de nuevo y crea un Reporte con la siguiente versión principal (2.0, 3.0…). Los anteriores siguen disponibles.`,
-            `Por defecto usa el período de la PoC. Cambie las fechas para generar el Reporte de un período específico: solo este Sync lo usa. ${ui('sync.periodReset')} deshace el cambio.`,
+            `En la PoV, ${ui('sync.new')} recopila de nuevo y crea un Reporte con la siguiente versión principal (2.0, 3.0…). Los anteriores siguen disponibles.`,
+            `Por defecto usa el período de la PoV. Cambie las fechas para generar el Reporte de un período específico: solo este Sync lo usa. ${ui('sync.periodReset')} deshace el cambio.`,
             'Los activos y el volumen de licenciamiento solo existen para los días más recientes de la Instancia. Si el período empieza antes, la herramienta avisa que el Reporte tendrá esas cifras incompletas.',
           ],
         },
@@ -403,9 +403,9 @@ export const guideEs = (ui: Ui): HelpGuide => ({
         { kind: 'p', text: `${ui('report.pdf')} genera el mismo contenido de la página, en el diseño y el idioma elegidos.` },
         {
           kind: 'warn',
-          text: 'Una PoC y sus Reportes se conservan mientras está Activa. Cuando la PoC termine, use Cerrar PoC y elija el resultado (Ganada, Perdida, Sin decisión): deja de aceptar Syncs y, pasado el Período de Retención (90 días por defecto), se elimina para siempre con todo lo que contiene. Puede reabrirla hasta entonces. Descargue el PDF de todo lo que necesite conservar.',
+          text: 'Una PoV y sus Reportes se conservan mientras está Activa. Cuando la PoV termine, use Cerrar PoV y elija el resultado (Ganada, Perdida, Sin decisión): deja de aceptar Syncs y, pasado el Período de Retención (90 días por defecto), se elimina para siempre con todo lo que contiene. Puede reabrirla hasta entonces. Descargue el PDF de todo lo que necesite conservar.',
         },
-        { kind: 'p', text: `El dueño de la PoC puede eliminar un Reporte con la papelera de la tarjeta (${ui('report.delete')}). Los datos, PDFs y comentarios de ese Reporte dejan de existir.` },
+        { kind: 'p', text: `El dueño de la PoV puede eliminar un Reporte con la papelera de la tarjeta (${ui('report.delete')}). Los datos, PDFs y comentarios de ese Reporte dejan de existir.` },
         { kind: 'tip', text: `Si aparece ${ui('report.outdated')}, los datos fueron recopilados por una versión antigua de la herramienta: ejecute un nuevo Sync.` },
       ],
     },
@@ -429,7 +429,7 @@ export const guideEs = (ui: Ui): HelpGuide => ({
         {
           kind: 'list',
           items: [
-            'El número antes del punto cuenta los Reportes (recopilaciones) de la PoC: 1.0, 2.0, 3.0…',
+            'El número antes del punto cuenta los Reportes (recopilaciones) de la PoV: 1.0, 2.0, 3.0…',
             'El número después del punto cuenta los comentarios de Reporte de esa recopilación: 1.1, 1.2…',
             'Ejemplo: el segundo Sync, con un comentario de Reporte, es la versión 2.1.',
           ],
@@ -438,26 +438,26 @@ export const guideEs = (ui: Ui): HelpGuide => ({
     },
     {
       id: 'details',
-      title: 'Detalles de la PoC: veredicto, comentarios y premisas',
+      title: 'Detalles de la PoV: veredicto, comentarios y premisas',
       roles: STAFF,
       summary: 'Los campos que se imprimen en el Reporte y se pueden cambiar en cualquier momento.',
       blocks: [
         {
           kind: 'p',
-          text: `Haga clic en ${ui('poc.editDetails')}. Los cambios valen para todos los Reportes de la PoC la próxima vez que se abran, sin nuevo Sync: las cifras quedan congeladas, los detalles no.`,
+          text: `Haga clic en ${ui('poc.editDetails')}. Los cambios valen para todos los Reportes de la PoV la próxima vez que se abran, sin nuevo Sync: las cifras quedan congeladas, los detalles no.`,
         },
         {
           kind: 'table',
           head: ['Bloque', 'Para qué sirve'],
           rows: [
-            [ui('form.sectionCustomer'), 'Nombre de la empresa, departamento, correo, analistas y criterios de éxito (en una PoC con Notebook, los criterios están en el Notebook).'],
+            [ui('form.sectionCustomer'), 'Nombre de la empresa, departamento, correo, analistas y criterios de éxito (en una PoV con Notebook, los criterios están en el Notebook).'],
             [ui('form.sectionGeneral'), 'Versión de la plataforma, región de la Instancia y cliente vinculado.'],
             [`${ui('form.sectionSe')} / ${ui('form.sectionPartner')}`, 'Contactos que aparecen en la portada.'],
             [ui('form.verdict'), `${ui('form.verdict.approved')}, ${ui('form.verdict.conditional')}, ${ui('form.verdict.rejected')} o ${ui('form.verdictNone')}. El "?" al lado abre la guía de veredicto.`],
             [ui('form.comments'), 'Su evaluación: puntos fuertes, limitaciones, pendientes y próximos pasos. Se imprime en el Reporte tal como se escribió.'],
             [ui('form.sectionEffort'), 'Minutos de triaje e investigación usados para estimar el trabajo que la correlación evitó (Reporte Executive).'],
             [ui('form.sectionAutoTriage'), 'Si se probó el Auto Triage. El cambio vale a partir del próximo Sync.'],
-            [ui('form.sectionArch'), 'Una imagen PNG o JPEG de la arquitectura de la PoC, para el Reporte Technical.'],
+            [ui('form.sectionArch'), 'Una imagen PNG o JPEG de la arquitectura de la PoV, para el Reporte Technical.'],
           ],
         },
         { kind: 'tip', text: 'Los campos con error quedan en rojo, y Guardar solo funciona después de corregirlos.' },
@@ -469,16 +469,16 @@ export const guideEs = (ui: Ui): HelpGuide => ({
       roles: ['customer'],
       summary: 'Lo que usted, cliente en evaluación, puede hacer en la herramienta.',
       blocks: [
-        { kind: 'p', text: 'Su Sales Engineer le dio el nombre de su empresa y una clave de acceso. Cuando apruebe su registro, verá las PoCs de su empresa.' },
+        { kind: 'p', text: 'Su Sales Engineer le dio el nombre de su empresa y una clave de acceso. Cuando apruebe su registro, verá las PoVs de su empresa.' },
         {
           kind: 'list',
           items: [
-            `En la pestaña ${ui('tab.notebook')}, siga y complete la PoC: criterios de éxito, estado de las fuentes de datos, actas de reunión y checklist. Todo se guarda automáticamente.`,
+            `En la pestaña ${ui('tab.notebook')}, siga y complete la PoV: criterios de éxito, estado de las fuentes de datos, actas de reunión y checklist. Todo se guarda automáticamente.`,
             `En la pestaña ${ui('tab.report')}, abra el Reporte (${ui('report.open')}) o descargue el PDF, en el idioma que prefiera.`,
             `Deje ${ui('report.comments')} con dudas o ajustes. El Sales Engineer responde en la propia herramienta.`,
           ],
         },
-        { kind: 'p', text: 'Usted no crea PoCs, no ejecuta recopilaciones ni ve datos de otras empresas.' },
+        { kind: 'p', text: 'Usted no crea PoVs, no ejecuta recopilaciones ni ve datos de otras empresas.' },
       ],
     },
     {
@@ -493,10 +493,10 @@ export const guideEs = (ui: Ui): HelpGuide => ({
         {
           kind: 'list',
           items: [
-            'Cambie el perfil en el selector de la fila. La columna PoCs abre la lista de PoCs de esa persona.',
+            'Cambie el perfil en el selector de la fila. La columna PoVs abre la lista de PoVs de esa persona.',
             `${ui('admin.mfaExempt')} exime a la cuenta del 2FA. Úselo solo cuando esté justificado.`,
             `${ui('admin.resetMfa')} hace que la persona configure el 2FA de nuevo. ${ui('admin.passwordLink')} genera un enlace para crear una contraseña nueva: cópielo y envíelo a la persona.`,
-            `${ui('del.userTitle')}: si la cuenta tiene PoCs o empresas, elija quién las recibe antes de eliminar.`,
+            `${ui('del.userTitle')}: si la cuenta tiene PoVs o empresas, elija quién las recibe antes de eliminar.`,
             `La cuenta **Root** (administrator@stellarcyber.ai) viene con la instalación. No cambia de perfil, no se desactiva ni se elimina, y es la única que cambia su propia contraseña en pantalla, con ${ui('root.changePassword')} en el menú del usuario.`,
           ],
         },
@@ -518,7 +518,7 @@ export const guideEs = (ui: Ui): HelpGuide => ({
         {
           kind: 'list',
           items: [
-            `${ui('admin.retentionDays')}: cuánto tiempo se conserva una PoC cerrada antes de eliminarse, contado desde su cierre (90 por defecto).`,
+            `${ui('admin.retentionDays')}: cuánto tiempo se conserva una PoV cerrada antes de eliminarse, contado desde su cierre (90 por defecto).`,
             `${ui('admin.allowedDomains')}: restringe quién puede solicitar acceso, por ejemplo \`stellarcyber.ai, revendedor.com\`.`,
           ],
         },
@@ -535,7 +535,7 @@ export const guideEs = (ui: Ui): HelpGuide => ({
           head: ['Pestaña', 'Qué muestra'],
           rows: [
             [ui('audit.tab.overview'), 'Indicadores de 24 horas y 7 días: ingresos, fallos, usuarios activos, Syncs, llamadas de API, latencia y errores.'],
-            [ui('audit.tab.activity'), 'Cada acción relevante: ingresos, aprobaciones, PoCs creadas, Reportes generados, eliminaciones.'],
+            [ui('audit.tab.activity'), 'Cada acción relevante: ingresos, aprobaciones, PoVs creadas, Reportes generados, eliminaciones.'],
             [ui('audit.tab.api'), 'Cada llamada a la API de las Instancias, con resultado, latencia y volumen, por Instancia y endpoint.'],
             [ui('audit.tab.syncs'), 'Cada recopilación: duración, tiempo por fase, resultado y las llamadas que hizo.'],
             [ui('audit.tab.logs'), 'El log técnico de la aplicación, filtrable por nivel, origen y categoría.'],
@@ -578,8 +578,8 @@ export const guideEs = (ui: Ui): HelpGuide => ({
           kind: 'table',
           head: ['Término', 'Significado'],
           rows: [
-            ['PoC', 'La evaluación de Stellar Cyber por un cliente.'],
-            ['PoC Notebook', 'El registro de trabajo de la PoC, de la planificación al cierre, compartido con el cliente.'],
+            ['PoV', 'La evaluación de Stellar Cyber por un cliente.'],
+            ['PoV Notebook', 'El registro de trabajo de la PoV, de la planificación al cierre, compartido con el cliente.'],
             ['Instancia', 'Una instalación de Stellar Cyber, identificada por su URL.'],
             ['Tenant', 'Una partición de datos dentro de la Instancia. Cada recopilación lee un único Tenant.'],
             ['Sync', 'Una recopilación de los datos del período en la Instancia.'],
@@ -587,8 +587,8 @@ export const guideEs = (ui: Ui): HelpGuide => ({
             ['Alerta', 'Una detección dentro de un Case, marcada con tácticas y técnicas MITRE ATT&CK o de la XDR Kill Chain.'],
             ['Auto Triage', 'El veredicto de IA de Stellar Cyber sobre un Case. Requiere una licencia adicional.'],
             ['Volumen de licenciamiento', 'GB por día almacenados tras el enriquecimiento y la compresión. Es la cifra usada en el cumplimiento de licencia.'],
-            ['Período de Retención', 'Cuánto tiempo se conserva una PoC cerrada, desde su cierre, antes de eliminarse con todo lo que contiene. Las PoC activas nunca se eliminan por él.'],
-            ['Veredicto', 'El resultado de la PoC: aprobada, aprobada con condiciones o no aprobada.'],
+            ['Período de Retención', 'Cuánto tiempo se conserva una PoV cerrada, desde su cierre, antes de eliminarse con todo lo que contiene. Las PoV activas nunca se eliminan por él.'],
+            ['Veredicto', 'El resultado de la PoV: aprobada, aprobada con condiciones o no aprobada.'],
           ],
         },
       ],

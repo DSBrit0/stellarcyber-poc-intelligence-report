@@ -1,4 +1,4 @@
-# Stellar Cyber PoC Intelligence Report
+# Stellar Cyber POV Intelligence Portal
 
 Internal tool for Stellar Cyber Sales Engineers and Partners: it connects to a customer's Stellar Cyber platform through its API, collects evidence from a PoC period and produces the final PoC Report.
 
@@ -126,7 +126,7 @@ The assessment of Asset Count or Licensing Volume against the licensed amount un
 ### PoC and reporting
 
 **PoC**:
-One customer's evaluation of Stellar Cyber, owned by a User. It starts either as a PoC Notebook, with no Tenant yet, or straight in the Report flow; a Report always covers one Tenant over a period of up to 30 days. It holds the customer details, contacts, success criteria and Verdict. A PoC is Active until its Owner or an Admin closes it with a Deal Result; a Closed PoC can be reopened.
+Shown to people as **PoV** (Proof of Value) since 2026-10-28; the code, URLs and database keep PoC (ADR 0017). One customer's evaluation of Stellar Cyber, owned by a User. It starts either as a PoC Notebook, with no Tenant yet, or straight in the Report flow; a Report always covers one Tenant over a period of up to 30 days. It holds the customer details, contacts, success criteria and Verdict. A PoC is Active until its Owner or an Admin closes it with a Deal Result; a Closed PoC can be reopened.
 _Avoid_: Project, trial, evaluation
 
 **Closed PoC**:

@@ -205,7 +205,7 @@ describe('Executive and Technical layout', () => {
       const html = renderReportHtml(withCases, details, template, 'pt-BR')
       expect(html).toContain(`<main class="report ${template}">`)
       expect(html).toContain('@page report{')
-      expect(html).toContain('@top-center{content:"Relatório de Prova de Conceito"')
+      expect(html).toContain('@top-center{content:"Relatório de Prova de Valor"')
     }
     expect(renderReportHtml(withCases, details, 'insight', 'pt-BR')).not.toContain('@page report{')
   })

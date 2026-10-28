@@ -433,7 +433,7 @@ const GLOSSARY = [
   ['MITRE', 'gMITRE'],
   ['MTTD', 'gMTTD'],
   ['MTTR', 'gMTTR'],
-  ['PoC', 'gPoC'],
+  ['PoV', 'gPoC'],
   ['SE', 'gSE'],
   ['IOC', 'gIOC'],
   ['TTP', 'gTTP'],

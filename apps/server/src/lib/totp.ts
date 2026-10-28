@@ -1,7 +1,7 @@
 import { generateSecret, generateURI, verify } from 'otplib'
 import QRCode from 'qrcode'
 
-const ISSUER = 'Stellar Cyber PoC Intelligence'
+const ISSUER = 'Stellar Cyber POV Intelligence Portal'
 
 export function newTotpSecret(): string {
   return generateSecret()

@@ -131,7 +131,7 @@ export function PocDetailPage() {
       {poc.closedAt ? <ClosedBanner poc={poc} /> : null}
       {withExperience ? <LiveExperienceBanner pocId={poc.id} /> : null}
       {poc.notebook ? (
-        <nav className="flex gap-1 border-b border-slate-200 dark:border-slate-800" aria-label="PoC">
+        <nav className="flex gap-1 border-b border-slate-200 dark:border-slate-800" aria-label="PoV">
           {tabs.map((k) => (
             <button
               key={k}

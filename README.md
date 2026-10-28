@@ -1,6 +1,8 @@
-# Stellar Cyber PoC Intelligence Report
+# Stellar Cyber POV Intelligence Portal
 
 An internal tool for Stellar Cyber Sales Engineers and Partners. It connects to a customer's Stellar Cyber Instance through the Open API, collects the evidence from a PoC period, and produces the final PoC Report: a responsive HTML page that can also be exported to PDF, in pt-BR, en or es.
+
+Users see PoV (Proof of Value) where the code and database say PoC: see [ADR 0017](docs/adr/0017-pov-is-the-name-users-see.md).
 
 It is the successor to [stellarcyber-poc-report](https://github.com/DSBrit0/stellarcyber-poc-report). The domain and decisions behind the redesign are documented in:
 - [`CONTEXT.md`](CONTEXT.md): the domain glossary. Use these terms in code and conversation.
