@@ -6,6 +6,7 @@ import Fastify, { type FastifyInstance } from 'fastify'
 import type { Dispatcher } from 'undici'
 import { adminRoutes } from './admin/routes.js'
 import { auditRoutes } from './admin/audit-routes.js'
+import { backupRoutes } from './backup/routes.js'
 import { authRoutes } from './auth/routes.js'
 import { SESSION_COOKIE, loadSession } from './auth/session.js'
 import { config } from './config.js'
@@ -60,7 +61,7 @@ export async function buildApp(deps: AppDeps): Promise<FastifyInstance> {
   const app = Fastify({
     logger: {
       level: cfg.LOG_LEVEL,
-      redact: { paths: ['req.headers.cookie', 'req.headers.authorization', 'res.headers["set-cookie"]'], remove: true },
+      redact: { paths: ['req.headers.cookie', 'req.headers.authorization', 'req.headers["x-backup-password"]', 'res.headers["set-cookie"]'], remove: true },
     },
     // Only Caddy reaches the API (internal Docker network), so its X-Forwarded-For is trusted.
     trustProxy: true,
@@ -126,6 +127,7 @@ export async function buildApp(deps: AppDeps): Promise<FastifyInstance> {
   await app.register(authRoutes, { prefix: '/api/auth' })
   await app.register(adminRoutes, { prefix: '/api/admin' })
   await app.register(auditRoutes, { prefix: '/api/admin/audit' })
+  await app.register(backupRoutes, { prefix: '/api/admin' })
   await app.register(pocRoutes, { prefix: '/api', dispatcher: deps.dispatcher })
   await app.register(reportRoutes, { prefix: '/api' })
   await app.register(customerRoutes, { prefix: '/api' })

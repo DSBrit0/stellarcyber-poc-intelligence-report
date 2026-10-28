@@ -10,7 +10,6 @@ fi
 echo "deploying $(git log -1 --format='%h %s')"
 
 mkdir -p "${DATA_ROOT:-/opt/poc-intel/data}"/{postgres,files,caddy}
-mkdir -p "${BACKUP_DIR:-/opt/poc-intel/backups}"
 docker compose build --pull
 # The app services are always recreated: on deploys that changed only some of them, compose left the
 # others running their previous, now untagged, images. Postgres is named as a dependency only, so it

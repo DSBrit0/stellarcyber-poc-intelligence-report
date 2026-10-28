@@ -9,7 +9,9 @@ What to do when production breaks, and how far back a recovery goes. Access to t
 | RPO (data that can be lost) | 24 h | One logical dump a day at 02:30 (`backup.sh`, cron). Work done after the last dump is lost if the database is. |
 | RTO (time to be back) | 1 h on the same server; half a day on a new one | Restoring a dump takes minutes at the current size. A new server also needs Docker, the checkout and the `.env`. |
 | Copies kept | 2 dumps, on the server only | Decided 2026-10-18: no offsite copy. A lost disk loses the database and both dumps. |
-| Copy off the server | By hand | An Admin downloads the newest dump from Audit → Overview → System health (**Download** on the Last backup card). Each download is in the audit log as `admin.backup_downloaded`. Keep it somewhere safe: it holds every User and PoC. |
+| Copy off the server | By hand | Admin → **Backup**: an Admin types a password and downloads one AES-256 ZIP made at that moment (`admin.backup_downloaded` in the audit log). Keep the ZIP off the server and its password in the password manager. |
+
+The Admin ZIP (`poc-intel-backup-<date>.zip`) holds `pocintel.dump` (the database, without the pg-boss queue) and `manifest.json` (date, applied migrations and the `ENCRYPTION_KEY`), so a restore on a new server keeps every MFA enrolment even with a new `.env`. It opens with the password in 7-Zip or Keka; macOS Archive Utility cannot open AES ZIPs.
 
 The dump holds the whole database: Users, PoCs, Notebooks, Report Data, Experiences, audit and logs. It does not hold:
 
@@ -116,8 +118,11 @@ Then open the app, sign in, open a PoC and its Report, and check Audit → Syste
 ### Restore on a new server
 
 1. Install Ubuntu 24.04 with Docker and the compose plugin, and the firewall rules in server-access.md.
-2. Clone the repository into `/opt/poc-intel/app` and put back the `.env` from the password manager.
-3. `infra/scripts/deploy.sh` builds and starts an empty stack; the API applies the migrations.
-4. Copy the dump over and restore it as above.
-5. `infra/scripts/install-cron.sh` to schedule the backups again.
+2. Clone the repository into `/opt/poc-intel/app`. Put back the `.env` from the password manager, or create a new one with `infra/scripts/init-env.sh` (the Admin ZIP carries the old `ENCRYPTION_KEY`).
+3. `infra/scripts/deploy.sh` builds and starts an empty stack; the API applies the migrations and creates the Root Administrator.
+4. Sign in as the Root Administrator, open Admin → **Backup** → Restore, choose the ZIP and type its password. The restore runs in one transaction, applies the migrations newer than the backup, re-seals the MFA secrets with the new key and signs everyone out. Sign in again with an account from the backup.
+   From a cron dump instead of the ZIP: copy it over and restore it as in the previous section.
+5. `infra/scripts/install-cron.sh` to schedule the daily backups again.
 6. Point the users to the new address if it changed (`SITE_ADDRESS` in the `.env`).
+
+The restore refuses a backup taken by a newer version of the app (deploy the latest code first) and refuses to run while a Sync is queued or running. Before replacing anything it dumps the current database to `/opt/poc-intel/data/files/restore/pre-restore.dump`.

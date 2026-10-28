@@ -26,3 +26,6 @@ export async function checkTotp(secret: string, code: string, afterTimeStep?: nu
   // The result type also covers HOTP; a TOTP match always carries timeStep.
   return result.valid && 'timeStep' in result ? result.timeStep : null
 }
+
+/** Additional data binding a sealed TOTP secret to its User (users.mfa_secret_enc). */
+export const mfaAad = (userId: string) => `mfa:${userId}`

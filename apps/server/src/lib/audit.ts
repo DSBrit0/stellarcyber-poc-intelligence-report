@@ -17,6 +17,7 @@ export type AuditAction =
   | 'admin.password_reset_issued'
   | 'admin.settings_updated'
   | 'admin.backup_downloaded'
+  | 'admin.backup_restored'
   | 'poc.created'
   | 'poc.updated'
   | 'poc.deleted'

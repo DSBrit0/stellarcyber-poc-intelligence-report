@@ -32,7 +32,7 @@ interface Summary {
 type Tone = 'good' | 'warn' | 'bad'
 interface Health {
   worker: { lastBeatAt: string | null; startedAt: string | null; tone: Tone }
-  backup: { at: string | null; bytes: number | null; tone: Tone; downloadable: boolean }
+  backup: { at: string | null; bytes: number | null; tone: Tone }
   syncsFailed24h: number
   disk: { totalBytes: number; freeBytes: number; tone: Tone } | null
   dbBytes: number
@@ -55,20 +55,12 @@ function HealthBlock({ h, go }: { h: Health; go: Go }) {
           hint={h.worker.lastBeatAt ? t('audit.health.lastBeat', { time: f.dateTime(h.worker.lastBeatAt) }) : t('audit.health.never')}
           tone={h.worker.tone}
         />
-        <div className="relative">
-          <Kpi
-            label={t('audit.health.backup')}
-            value={h.backup.at ? f.dateTime(h.backup.at) : t('audit.health.never')}
-            hint={h.backup.bytes == null ? undefined : f.bytes(h.backup.bytes)}
-            tone={h.backup.tone}
-          />
-          {/* A plain link, like the audit exports: the session cookie applies and the server names the file. */}
-          {h.backup.downloadable ? (
-            <a className="btn-ghost absolute top-2 right-2 text-xs" href="/api/admin/audit/backup" title={t('audit.health.downloadTitle')}>
-              ⭳ {t('audit.health.download')}
-            </a>
-          ) : null}
-        </div>
+        <Kpi
+          label={t('audit.health.backup')}
+          value={h.backup.at ? f.dateTime(h.backup.at) : t('audit.health.never')}
+          hint={h.backup.bytes == null ? undefined : f.bytes(h.backup.bytes)}
+          tone={h.backup.tone}
+        />
         <button type="button" className="text-left" onClick={() => go('syncs')}>
           <Kpi label={t('audit.health.syncsFailed')} value={f.num(h.syncsFailed24h)} hint={t('audit.health.syncsHint')} tone={h.syncsFailed24h ? 'warn' : 'good'} />
         </button>

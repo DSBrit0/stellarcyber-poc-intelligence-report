@@ -20,7 +20,7 @@ import { open, safeEqual, seal, sha256 } from '../lib/crypto.js'
 import { normalizeAccessKey } from '../customers/access-key.js'
 import { HttpError, parse } from '../lib/http.js'
 import { hashPassword, verifyAgainstDummy, verifyPassword } from '../lib/password.js'
-import { checkTotp, newTotpSecret, totpEnrolment } from '../lib/totp.js'
+import { checkTotp, mfaAad, newTotpSecret, totpEnrolment } from '../lib/totp.js'
 import { getSettings } from '../settings.js'
 import { requireAuth, requirePartialAuth } from './guards.js'
 import { createSession, destroySession, revokeUserSessions } from './session.js'
@@ -45,7 +45,6 @@ export function toMe(user: User): Me {
   }
 }
 
-const mfaAad = (userId: string) => `mfa:${userId}`
 
 export async function authRoutes(app: FastifyInstance): Promise<void> {
   app.post('/register', { config: AUTH_RATE_LIMIT }, async (req, reply) => {

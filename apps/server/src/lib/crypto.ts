@@ -9,17 +9,26 @@ function key(): Buffer {
 }
 
 export function seal(plaintext: string, aad = ''): string {
+  return sealWith(key(), plaintext, aad)
+}
+
+export function open(envelope: string, aad = ''): string {
+  return openWith(key(), envelope, aad)
+}
+
+/** seal/open with an explicit key: a restored backup re-seals what another installation's key sealed. */
+export function sealWith(key: Buffer, plaintext: string, aad = ''): string {
   const iv = randomBytes(12)
-  const cipher = createCipheriv('aes-256-gcm', key(), iv)
+  const cipher = createCipheriv('aes-256-gcm', key, iv)
   cipher.setAAD(Buffer.from(aad))
   const ct = Buffer.concat([cipher.update(plaintext, 'utf8'), cipher.final()])
   return [VERSION, iv, cipher.getAuthTag(), ct].map((p) => (typeof p === 'string' ? p : p.toString('base64url'))).join('.')
 }
 
-export function open(envelope: string, aad = ''): string {
+export function openWith(key: Buffer, envelope: string, aad = ''): string {
   const [version, iv, tag, ct] = envelope.split('.')
   if (version !== VERSION || !iv || !tag || !ct) throw new Error('Unsupported ciphertext envelope')
-  const decipher = createDecipheriv('aes-256-gcm', key(), Buffer.from(iv, 'base64url'))
+  const decipher = createDecipheriv('aes-256-gcm', key, Buffer.from(iv, 'base64url'))
   decipher.setAAD(Buffer.from(aad))
   decipher.setAuthTag(Buffer.from(tag, 'base64url'))
   return Buffer.concat([decipher.update(Buffer.from(ct, 'base64url')), decipher.final()]).toString('utf8')

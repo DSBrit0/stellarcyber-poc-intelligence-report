@@ -4,6 +4,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { useState } from 'react'
 import { Link } from 'react-router'
 import { api } from '../lib/api'
+import { BackupCard } from './admin/BackupCard'
 import { CatalogCard } from './admin/CatalogCard'
 import { DeleteUserButton } from '../lib/DeleteAccount'
 import { useMe } from '../lib/auth'
@@ -188,6 +189,8 @@ export function AdminPage() {
           {t('tpl.open')}
         </Link>
       </section>
+
+      <BackupCard />
 
       {settings.data ? <SettingsForm initial={settings.data} onSave={(s) => saveSettings.mutate(s)} saving={saveSettings.isPending} /> : null}
     </div>

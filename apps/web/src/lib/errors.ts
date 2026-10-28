@@ -49,6 +49,11 @@ const KNOWN: Record<string, MessageKey> = {
   stage_not_settled: 'err.stage_not_settled',
   approval_not_allowed: 'err.approval_not_allowed',
   question_not_open: 'err.question_not_open',
+  backup_busy: 'err.backup_busy',
+  backup_invalid: 'err.backup_invalid',
+  backup_bad_password: 'err.backup_bad_password',
+  backup_newer_version: 'err.backup_newer_version',
+  root_only: 'err.root_only',
 }
 
 /**
