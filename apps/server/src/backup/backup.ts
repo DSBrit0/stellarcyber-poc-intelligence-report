@@ -1,5 +1,5 @@
 import { spawn } from 'node:child_process'
-import { mkdir, mkdtemp, readdir, readFile, rm, writeFile } from 'node:fs/promises'
+import { chmod, mkdir, mkdtemp, readdir, readFile, rm, writeFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { PassThrough } from 'node:stream'
@@ -56,6 +56,8 @@ function run(tool: string, args: string[], stdin?: NodeJS.ReadableStream | strin
 
 async function dumpTo(file: string): Promise<void> {
   await run('pg_dump', ['--dbname', config().DATABASE_URL, '--format=custom', '--no-owner', '--no-privileges', '--exclude-schema=pgboss', '--file', file])
+  // Every User and PoC is in it: readable by the app's user only, like backup.sh's dumps.
+  await chmod(file, 0o600)
 }
 
 const stamp = (d = new Date()) => d.toISOString().replace(/\D/g, '').slice(0, 14).replace(/^(\d{8})/, '$1-')
