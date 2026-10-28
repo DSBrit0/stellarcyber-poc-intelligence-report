@@ -72,7 +72,7 @@ infra/scripts/init-env.sh        # first time only: .env with random secrets (ba
 infra/scripts/deploy.sh          # git pull, build and (re)start
 # first start: the Root Administrator administrator@stellarcyber.ai is created with ROOT_PASSWORD (ADR 0013)
 docker compose exec api node dist/cli/create-admin.js admin@stellarcyber.ai "Full Name"   # optional: more Admins
-infra/scripts/install-cron.sh    # daily backup at 02:30, keeps 14 dumps
+infra/scripts/install-cron.sh    # daily backup at 02:30, keeps 2 dumps (Admins download the newest one in Audit)
 ```
 
 Review the PDFs exactly as production renders them:

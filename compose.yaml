@@ -8,8 +8,11 @@ x-app: &app
   environment:
     NODE_ENV: production
     DATA_DIR: /data
+    BACKUP_DIR: /backups
   volumes:
     - ${DATA_ROOT:-/opt/poc-intel/data}/files:/data
+    # Read-only: the Admins download the newest dump from Audit → System health.
+    - ${BACKUP_DIR:-/opt/poc-intel/backups}:/backups:ro
   restart: unless-stopped
   depends_on:
     postgres:

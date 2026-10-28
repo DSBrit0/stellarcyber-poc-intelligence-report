@@ -9,6 +9,7 @@ What to do when production breaks, and how far back a recovery goes. Access to t
 | RPO (data that can be lost) | 24 h | One logical dump a day at 02:30 (`backup.sh`, cron). Work done after the last dump is lost if the database is. |
 | RTO (time to be back) | 1 h on the same server; half a day on a new one | Restoring a dump takes minutes at the current size. A new server also needs Docker, the checkout and the `.env`. |
 | Copies kept | 2 dumps, on the server only | Decided 2026-10-18: no offsite copy. A lost disk loses the database and both dumps. |
+| Copy off the server | By hand | An Admin downloads the newest dump from Audit → Overview → System health (**Download** on the Last backup card). Each download is in the audit log as `admin.backup_downloaded`. Keep it somewhere safe: it holds every User and PoC. |
 
 The dump holds the whole database: Users, PoCs, Notebooks, Report Data, Experiences, audit and logs. It does not hold:
 

@@ -12,6 +12,8 @@ const Env = z.object({
   SESSION_TTL_HOURS: z.coerce.number().positive().default(12),
   SESSION_IDLE_MINUTES: z.coerce.number().positive().default(30),
   DATA_DIR: z.string().default('./data'),
+  /** Where backup.sh writes its dumps, mounted read-only into the API for the Admin download. */
+  BACKUP_DIR: z.string().default('./backups'),
   STELLAR_ALLOWED_PRIVATE_CIDRS: z
     .string()
     .default('')

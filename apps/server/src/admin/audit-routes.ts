@@ -1,3 +1,4 @@
+import { createReadStream } from 'node:fs'
 import type { FastifyInstance, FastifyReply } from 'fastify'
 import type { Fragment } from 'postgres'
 import { SyncStatus } from '@poc-intel/shared'
@@ -5,7 +6,8 @@ import { z } from 'zod'
 import { requireRole } from '../auth/guards.js'
 import { config } from '../config.js'
 import { sql } from '../db/client.js'
-import { systemHealth } from '../health.js'
+import { latestBackup, systemHealth } from '../health.js'
+import { audit } from '../lib/audit.js'
 import { notFound, parse } from '../lib/http.js'
 
 // The Admin's Audit page: User activity (audit_log), communication with the Instances (api_calls),
@@ -182,7 +184,7 @@ export async function auditRoutes(app: FastifyInstance): Promise<void> {
       select u.id, u.email, u.name, u.role, count(*)::int as events, max(a.at) as "lastAt"
       from audit_log a join users u on u.id = a.user_id
       where a.at > now() - interval '7 days' group by u.id order by events desc limit 8`
-    const health = await systemHealth(config().DATA_DIR)
+    const health = await systemHealth(config().DATA_DIR, config().BACKUP_DIR)
     return { counts, hourly, recentFailures, recentErrors, topUsers, health }
   })
 
@@ -265,6 +267,19 @@ export async function auditRoutes(app: FastifyInstance): Promise<void> {
     const levels = await sql`select l.level, count(*)::int as n from app_logs l where ${logsWhere(f, false)} group by l.level`
     const categories = await sql`select distinct category from app_logs where at > now() - interval '30 days' order by category`
     return { ...page(rows), levels: Object.fromEntries(levels.map((l) => [l.level, l.n])), categories: categories.map((c) => c.category as string) }
+  })
+
+  // The newest database dump, for an Admin to keep a copy off the server. It holds every User and PoC,
+  // so each download is audited.
+  app.get('/backup', async (req, reply) => {
+    const file = await latestBackup(config().BACKUP_DIR)
+    if (!file) throw notFound()
+    await audit({ action: 'admin.backup_downloaded', userId: req.auth!.user.id, target: file.name, ip: req.ip, meta: { bytes: file.bytes } })
+    reply.header('content-type', 'application/octet-stream')
+    reply.header('content-length', file.bytes)
+    reply.header('content-disposition', `attachment; filename="${file.name}"`)
+    reply.header('cache-control', 'no-store')
+    return reply.send(createReadStream(file.path))
   })
 
   app.get('/export', async (req, reply) => {
