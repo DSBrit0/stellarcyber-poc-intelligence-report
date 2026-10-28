@@ -4,6 +4,7 @@ import type { MessageKey } from '@poc-intel/shared/i18n'
 import { useI18n } from '../../lib/i18n'
 import { BRIEFING_DOCS, BRIEFING_REFS } from './content/briefing-refs'
 import { useWords } from './content'
+import { frameworkName, techniqueName } from './content/ref-names'
 import { CollapseButton } from './CollapseButton'
 import { Spot, useMirroredScroll } from './spotlight'
 
@@ -47,7 +48,7 @@ export function BriefingTerminal({
   /** Only for whoever leads the view (the Presenter, or the viewer of a replay). */
   onCollapse?: () => void
 }) {
-  const { t } = useI18n()
+  const { t, locale } = useI18n()
   const words = useWords()
   const brief = words.briefings[stage]
   const refs = BRIEFING_REFS[stage]
@@ -70,7 +71,7 @@ export function BriefingTerminal({
       <p key={`${f.framework}-${f.ref}`} className="grid grid-cols-[minmax(0,9.5rem)_5.5rem_1fr] gap-x-3 pl-4">
         <span className="truncate text-sc-silver/55">{f.framework}</span>
         <span className="text-sc-solar">{f.ref}</span>
-        <span className="text-sc-silver/85">{f.name}</span>
+        <span className="text-sc-silver/85">{frameworkName(locale, f)}</span>
       </p>
     )),
     techniques: [
@@ -82,7 +83,7 @@ export function BriefingTerminal({
           <a className="text-sc-burnt underline-offset-2 hover:underline" href={`https://attack.mitre.org/techniques/${tq.id.replace('.', '/')}/`} target="_blank" rel="noreferrer">
             {tq.id}
           </a>
-          <span className="text-sc-silver/85">{tq.name}</span>
+          <span className="text-sc-silver/85">{techniqueName(locale, tq)}</span>
         </p>
       )),
     ],

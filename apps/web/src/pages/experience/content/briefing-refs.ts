@@ -2,7 +2,7 @@ import type { StageId } from '@poc-intel/shared'
 
 /**
  * The references each Briefing cites, kept out of the locale files so an ID never differs between
- * languages. Names are the frameworks' own (English), as analysts search for them.
+ * languages. Names here are the frameworks' own (English); ref-names.<locale>.ts translates them.
  * Every entry is to be reviewed by the product owner before a customer sees it (plan, Q5).
  */
 export type Framework = 'MITRE ATT&CK' | 'MITRE D3FEND' | 'NIST CSF 2.0' | 'CIS Controls v8' | 'PCI DSS v4.0' | 'ISO/IEC 27001:2022' | 'LGPD'

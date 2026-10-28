@@ -27,12 +27,12 @@ const C = {
 /**
  * Each layer's colour, as the Multi-Layer AI v4 data sheet draws the Stack: the Data Engine in red,
  * Open XDR in Solar Orange, the Autonomous SOC in blue, inside an AI Purple housing. `edge` lights
- * the plate outlines and the label leaders; `mission` is the data sheet's name for what the layer delivers.
+ * the plate outlines and the label leaders. Each layer's mission (the data sheet's name for what it delivers) comes in `missions`.
  */
-const LAYER: Record<StackChapter, { base: string; edge: string; mission: string }> = {
-  data_engine: { base: '#D8261C', edge: '#FF7A4D', mission: 'Data Transformation' },
-  open_xdr: { base: C.solar, edge: '#FFC870', mission: 'Detection Management' },
-  agentic_soc: { base: C.cube, edge: C.skyLight, mission: 'Remediation' },
+const LAYER: Record<StackChapter, { base: string; edge: string }> = {
+  data_engine: { base: '#D8261C', edge: '#FF7A4D' },
+  open_xdr: { base: C.solar, edge: '#FFC870' },
+  agentic_soc: { base: C.cube, edge: C.skyLight },
 }
 
 /** What powers each layer, as the Multi-Layer AI v4 brief names it. */
@@ -51,9 +51,6 @@ const SATELLITE_COLOR: Partial<Record<StageId, string>> = {
   itdr_ueba: C.purple,
 }
 
-/** The brand's six source families at the Stack's base, until the Customer's own Data Sources are approved. */
-const DEFAULT_SOURCES = ['Identity', 'Network', 'Logs', 'SaaS / Cloud', 'Apps', 'Any EDR']
-
 export interface StackSceneProps {
   stages: StageId[]
   current: StageId
@@ -61,6 +58,10 @@ export interface StackSceneProps {
   /** The approved Data Sources: they take the place of the brand's source families at the base. */
   sources: string[]
   chapterTitles: Record<StackChapter, string>
+  /** Each layer's mission, in the viewer's language. */
+  missions: Record<StackChapter, string>
+  /** The brand's six source families at the Stack's base, until the Customer's own Data Sources are approved. */
+  defaultSources: string[]
   stageTitles: Record<StageId, string>
   reducedMotion: boolean
   /** Fraction of the width the HUD covers on the right: the Stack is framed in what is left. */
@@ -96,7 +97,7 @@ export default function StackScene(props: StackSceneProps) {
   const top = layout.slabs[layout.slabs.length - 1]?.y ?? 0
   const ca = useRef<ChromaticAberrationEffect>(null)
   const offset = useMemo(() => new THREE.Vector2(0.0003, 0.00015), [])
-  const sources = props.sources.length > 0 ? props.sources.slice(0, 12) : DEFAULT_SOURCES
+  const sources = props.sources.length > 0 ? props.sources.slice(0, 12) : props.defaultSources
   const target = props.scene.target
   // Entering an object, either way, takes everyone into the tunnel: one ring in Data ingestion, one per engine in the Pipeline.
   const tracing = props.scene.model === 'trace' && target != null
@@ -178,7 +179,7 @@ export default function StackScene(props: StackSceneProps) {
             >
               <p className="text-sm font-semibold whitespace-nowrap text-sc-silver">{props.chapterTitles[c.chapter]}</p>
               <p className="text-xs font-medium whitespace-nowrap" style={{ color: layer.edge }}>
-                {layer.mission}
+                {props.missions[c.chapter]}
               </p>
               <p className="mt-1 flex justify-end gap-1">
                 {ENABLEMENT[c.chapter].map((e) => (
@@ -414,7 +415,6 @@ type PlateState = 'lit' | 'done' | 'idle'
 interface Layer {
   base: string
   edge: string
-  mission: string
 }
 
 /** One Stage: a slab in its layer's colour, outlined; it lifts and lights when it is the Presenter's or under the pointer. */

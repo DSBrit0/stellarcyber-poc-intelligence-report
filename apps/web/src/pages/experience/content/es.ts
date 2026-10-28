@@ -8,6 +8,10 @@ export const wordsEs: ExperienceWords = {
     agentic_soc: { title: 'Autonomous SOC', summary: 'La IA investiga y clasifica cada Case, y las respuestas vuelven a sus propias herramientas.' },
     closing: { title: 'Cierre', summary: 'Cómo la plataforma entra en su entorno, y dónde pueden probarla.' },
   },
+  scene: {
+    missions: { data_engine: 'Transformación de datos', open_xdr: 'Gestión de detecciones', agentic_soc: 'Remediación' },
+    defaultSources: ['Identidad', 'Red', 'Logs', 'SaaS / Nube', 'Aplicaciones', 'Cualquier EDR'],
+  },
   stages: {
     data_sources: {
       title: 'Fuentes de datos',
@@ -37,7 +41,7 @@ export const wordsEs: ExperienceWords = {
       question: '¿Cuántas herramientas distintas abre el equipo durante una investigación?',
     },
     threat_intel: {
-      title: 'Threat intelligence',
+      title: 'Inteligencia de amenazas',
       lead: 'Los indicadores de los feeds de threat intelligence se comparan con cada registro al llegar: una IP o un dominio malicioso conocido queda marcado antes de que alguien lo busque.',
       question: '¿Qué feeds de threat intelligence usan?',
       options: {
@@ -149,6 +153,7 @@ export const wordsEs: ExperienceWords = {
       response: 'Acciones de respuesta',
       nodes: { firewall: 'Firewall', switch: 'Switch de red', virtual: 'Switch virtual y VMs', servers: 'Servidores', pc: 'PCs', mac: 'Macs' },
       links: { spanPort: 'span port', syslog: 'syslog', serverSensor: 'Server Sensor', connector: 'Connector en el sensor' },
+      apis: { identity: 'Identidad', edr: 'EDR', paas: 'PaaS', vulnerability: 'Gestión de vulnerabilidades', firewalls: 'Firewalls', saas: 'Aplicaciones SaaS' },
     },
     lab: {
       network: 'Red del laboratorio',

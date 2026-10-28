@@ -8,6 +8,10 @@ export const wordsEn: ExperienceWords = {
     agentic_soc: { title: 'Autonomous SOC', summary: 'AI investigates and triages each Case, and responses run back on your own tools.' },
     closing: { title: 'Wrap-up', summary: 'How the platform fits into your environment, and where you can try it yourselves.' },
   },
+  scene: {
+    missions: { data_engine: 'Data Transformation', open_xdr: 'Detection Management', agentic_soc: 'Remediation' },
+    defaultSources: ['Identity', 'Network', 'Logs', 'SaaS / Cloud', 'Apps', 'Any EDR'],
+  },
   stages: {
     data_sources: {
       title: 'Data sources',
@@ -149,6 +153,7 @@ export const wordsEn: ExperienceWords = {
       response: 'Response actions',
       nodes: { firewall: 'Firewall', switch: 'Network switch', virtual: 'Virtual switch and VMs', servers: 'Servers', pc: 'PCs', mac: 'Macs' },
       links: { spanPort: 'span port', syslog: 'syslog', serverSensor: 'Server Sensor', connector: 'Connector on the sensor' },
+      apis: { identity: 'Identity', edr: 'EDR', paas: 'PaaS', vulnerability: 'Vulnerability Mgmt.', firewalls: 'Firewalls', saas: 'SaaS Apps' },
     },
     lab: {
       network: 'Lab network',

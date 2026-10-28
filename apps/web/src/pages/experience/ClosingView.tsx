@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import { useWords } from './content'
+import type { ExperienceWords } from './content/types'
 import { Spot } from './spotlight'
 
 /**
@@ -201,13 +202,14 @@ const T: Record<string, XY> = {
   platform: [820, 395],
 }
 /** Cloud and SaaS tools reach the platform; on-premises ones (scanners, firewalls) go through a Connector on the sensor. */
-const APIS: { name: string; viaSensor: boolean }[] = [
-  { name: 'Identity', viaSensor: false },
-  { name: 'EDR', viaSensor: false },
-  { name: 'PaaS', viaSensor: false },
-  { name: 'Vulnerability Mgmt.', viaSensor: true },
-  { name: 'Firewalls', viaSensor: true },
-  { name: 'SaaS Apps', viaSensor: false },
+// `name` is the tile's stable id (spotlight and layout); its label comes from the locale words by `key`.
+const APIS: { name: string; key: keyof ExperienceWords['closing']['topology']['apis']; viaSensor: boolean }[] = [
+  { name: 'Identity', key: 'identity', viaSensor: false },
+  { name: 'EDR', key: 'edr', viaSensor: false },
+  { name: 'PaaS', key: 'paas', viaSensor: false },
+  { name: 'Vulnerability Mgmt.', key: 'vulnerability', viaSensor: true },
+  { name: 'Firewalls', key: 'firewalls', viaSensor: true },
+  { name: 'SaaS Apps', key: 'saas', viaSensor: false },
 ]
 APIS.forEach((a, i) => (T[`api:${a.name}`] = [650 + (i % 3) * 130, 60 + Math.floor(i / 3) * 105]))
 
@@ -268,7 +270,7 @@ function TopologyView() {
       <Device spot="topo:servers" at={T.servers!} kind="servers" label={n.servers} note={w.links.serverSensor} tone={BLUE} />
       <Device spot="topo:sensor" at={T.sensor!} kind="sensor" label={w.sensor} note={w.sensorNote} tone={RED} size={64} />
       {APIS.map((a) => (
-        <Device key={a.name} spot={`topo:api:${a.name}`} at={T[`api:${a.name}`]!} kind="cloud" label={a.name} tone={ORANGE} size={44} />
+        <Device key={a.name} spot={`topo:api:${a.name}`} at={T[`api:${a.name}`]!} kind="cloud" label={w.apis[a.key]} tone={ORANGE} size={44} />
       ))}
       <Platform spot="topo:platform" at={T.platform!} label={w.platform} />
     </div>

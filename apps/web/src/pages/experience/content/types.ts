@@ -1,4 +1,4 @@
-import type { Chapter, FILTER_ACTIONS, MttdPhase, STAGES, StageId } from '@poc-intel/shared'
+import type { Chapter, FILTER_ACTIONS, MttdPhase, STAGES, StackChapter, StageId } from '@poc-intel/shared'
 
 /**
  * The words of a Stellar Experience, one file per locale (like the User Guide). Option labels are
@@ -30,6 +30,8 @@ export interface ClosingWords {
     response: string
     nodes: { firewall: string; switch: string; virtual: string; servers: string; pc: string; mac: string }
     links: { spanPort: string; syslog: string; serverSensor: string; connector: string }
+    /** The API-integrated tool families (cloud tiles). */
+    apis: { identity: string; edr: string; paas: string; vulnerability: string; firewalls: string; saas: string }
   }
   lab: {
     network: string
@@ -61,8 +63,15 @@ export interface ClosingWords {
   }
 }
 
+/** The Stack scene's own labels: each layer's mission (data sheet) and the source families shown before any Data Source is approved. */
+export interface SceneWords {
+  missions: Record<StackChapter, string>
+  defaultSources: [string, string, string, string, string, string]
+}
+
 export interface ExperienceWords {
   chapters: Record<Chapter, { title: string; summary: string }>
+  scene: SceneWords
   stages: StagesWords
   closing: ClosingWords
   mttdPhases: Record<MttdPhase, string>

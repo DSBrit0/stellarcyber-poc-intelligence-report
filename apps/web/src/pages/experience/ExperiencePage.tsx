@@ -290,6 +290,8 @@ export function ExperiencePage() {
             settled={settled}
             sources={approvedSources}
             chapterTitles={{ data_engine: words.chapters.data_engine.title, open_xdr: words.chapters.open_xdr.title, agentic_soc: words.chapters.agentic_soc.title }}
+            missions={words.scene.missions}
+            defaultSources={words.scene.defaultSources}
             stageTitles={Object.fromEntries(Object.entries(words.stages).map(([k, v]) => [k, v.title])) as Record<StageId, string>}
             reducedMotion={reducedMotion}
             // The Stack sits left of the panel; inside the tunnel, the tunnel sits right of the text box on the left.
