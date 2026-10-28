@@ -238,7 +238,7 @@ Anyone in an Active Stellar Experience session, seen through their live-state po
 The Customer's own figure for their mean time to detect, given in a Stellar Experience together with the time each manual phase takes them today. The detection gain shown is the time of the phases Stellar Cyber automates, from the Customer's own figures; the Experience never shows a reference figure of its own.
 
 **Chapter**:
-One of the three layers of Stellar Cyber's Multi-Layer AI™ Stack that group the Stages, named as in the Multi-Layer AI v4 brief (June 2026): AI-Native Data Engine, Open XDR Platform and Autonomous SOC.
+One of the three layers of Stellar Cyber's Multi-Layer AI™ Stack that group the Stages, named as in the Multi-Layer AI v4 brief (June 2026): AI-Native Data Engine, ISOC Platform (named Open XDR Platform in the brief; renamed 2026-10-28) and Autonomous SOC. The Presenter clicks a Chapter's name on the Stack to select its whole layer for everyone; the other layers turn grey.
 
 **Audience Profile**:
 Technical or Executive, chosen when a Stellar Experience is created. It only pre-selects the Stages; the questions are the same.

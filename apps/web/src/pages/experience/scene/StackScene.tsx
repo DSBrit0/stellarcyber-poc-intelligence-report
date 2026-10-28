@@ -35,6 +35,9 @@ const LAYER: Record<StackChapter, { base: string; edge: string }> = {
   agentic_soc: { base: C.cube, edge: C.skyLight },
 }
 
+/** A layer left out of the selection: light grey, so the selected one reads at once. */
+const MUTED = '#9aa3ad'
+
 /** What powers each layer, as the Multi-Layer AI v4 brief names it. */
 const ENABLEMENT: Record<StackChapter, string[]> = {
   data_engine: ['Machine Learning'],
@@ -82,6 +85,10 @@ export interface StackSceneProps {
   pointedLayer: StageId | null
   /** The Presenter's own hovering, reported so the others see it. */
   onLayerHover: (layer: StageId | null) => void
+  /** The layer selected by its name: its plates stand out, the rest turn light grey. */
+  selectedChapter: StackChapter | null
+  /** Clicking a layer's name selects it; clicking it again lets go. */
+  onChapter: (chapter: StackChapter | null) => void
 }
 
 /**
@@ -142,6 +149,7 @@ export default function StackScene(props: StackSceneProps) {
       <Shell bottom={bottom - 0.5} top={top + 0.5} />
       {layout.slabs.map((s) => {
         const state = s.id === props.current ? 'lit' : props.settled.has(s.id) ? 'done' : 'idle'
+        const tone = props.selectedChapter == null ? null : s.chapter === props.selectedChapter ? 'focus' : 'muted'
         return (
           <group key={s.id}>
             <Plate
@@ -149,6 +157,7 @@ export default function StackScene(props: StackSceneProps) {
               layer={LAYER[s.chapter]}
               state={state}
               hovered={hovered === s.id}
+              tone={tone}
               reducedMotion={props.reducedMotion}
               onClick={enter({ kind: 'stage', key: s.id })}
               onHover={hoverLayer(s.id)}
@@ -160,6 +169,7 @@ export default function StackScene(props: StackSceneProps) {
               layer={LAYER[s.chapter]}
               state={state}
               hovered={hovered === s.id}
+              tone={tone}
               canInteract={props.canInteract}
               reducedMotion={props.reducedMotion}
               onEnter={() => props.canInteract && props.onEnter({ kind: 'stage', key: s.id })}
@@ -169,13 +179,24 @@ export default function StackScene(props: StackSceneProps) {
         )
       })}
       {chapterLabelYs(layout.chapters).map(({ c, y }) => {
-        const active = c.from <= focus + 0.01 && focus <= c.to + 0.01
+        const selected = props.selectedChapter === c.chapter
+        // With a layer selected, its name is the bright one; otherwise the name of the Presenter's layer.
+        const active = props.selectedChapter ? selected : c.from <= focus + 0.01 && focus <= c.to + 0.01
         const layer = LAYER[c.chapter]
         return (
           <Html key={c.chapter} position={[-SLAB.size / 2 - 0.5, y, SLAB.size / 2 + 0.5]} zIndexRange={[5, 0]} className="pointer-events-none">
-            <div
-              className={`-translate-x-full -translate-y-1/2 border-r-2 pr-3 text-right transition-opacity duration-500 ${active ? 'opacity-100' : 'opacity-55'}`}
-              style={{ borderColor: layer.base }}
+            <button
+              type="button"
+              tabIndex={-1}
+              aria-pressed={selected}
+              disabled={!props.canInteract}
+              onClick={() => props.onChapter(selected ? null : c.chapter)}
+              onPointerEnter={hover(true)}
+              onPointerLeave={hover(false)}
+              className={`block -translate-x-full -translate-y-1/2 rounded-r border-r-2 pr-3 text-right transition-[opacity,filter] duration-500 ${
+                props.canInteract ? 'pointer-events-auto cursor-pointer' : 'cursor-default'
+              } ${active ? 'opacity-100' : props.selectedChapter ? 'opacity-40 grayscale' : 'opacity-55'}`}
+              style={{ borderColor: props.selectedChapter && !selected ? MUTED : layer.base, boxShadow: selected ? `8px 0 18px -10px ${layer.edge}` : undefined }}
             >
               <p className="text-sm font-semibold whitespace-nowrap text-sc-silver">{props.chapterTitles[c.chapter]}</p>
               <p className="text-xs font-medium whitespace-nowrap" style={{ color: layer.edge }}>
@@ -188,7 +209,7 @@ export default function StackScene(props: StackSceneProps) {
                   </span>
                 ))}
               </p>
-            </div>
+            </button>
           </Html>
         )
       })}
@@ -423,6 +444,7 @@ function Plate({
   layer,
   state,
   hovered,
+  tone,
   reducedMotion,
   onClick,
   onHover,
@@ -431,6 +453,8 @@ function Plate({
   layer: Layer
   state: PlateState
   hovered: boolean
+  /** Inside the selected layer ('focus') or out of it ('muted', light grey); null with no layer selected. */
+  tone: 'focus' | 'muted' | null
   reducedMotion: boolean
   onClick: (e: ThreeEvent<MouseEvent>) => void
   onHover: (on: boolean) => () => void
@@ -438,23 +462,32 @@ function Plate({
   const group = useRef<THREE.Group>(null)
   const top = useMemo(() => plateMaterial(layer.base), [layer.base])
   const body = useRef<THREE.MeshStandardMaterial>(null)
-  const up = state === 'lit' || hovered
-  const goal = {
-    y: y + (state === 'lit' ? 0.22 : hovered ? 0.14 : 0),
-    opacity: state === 'lit' ? 0.9 : hovered ? 0.8 : state === 'done' ? 0.6 : 0.42,
-    lit: up ? 1 : 0,
-    body: state === 'lit' ? 0.72 : hovered ? 0.66 : state === 'done' ? 0.55 : 0.45,
-    glow: state === 'lit' ? 0.85 : hovered ? 0.65 : state === 'done' ? 0.35 : 0.18,
-  }
+  const muted = tone === 'muted'
+  // A selected layer stands out as a whole: every plate lifts and lights as if under the pointer.
+  const raised = !muted && (hovered || tone === 'focus')
+  const up = !muted && (state === 'lit' || raised)
+  const colour = useMemo(() => new THREE.Color(muted ? MUTED : layer.base), [muted, layer.base])
+  const goal = muted
+    ? { y, opacity: 0.22, lit: 0, body: 0.26, glow: 0.04 }
+    : {
+        y: y + (state === 'lit' ? 0.22 : raised ? 0.14 : 0),
+        opacity: state === 'lit' ? 0.9 : raised ? 0.8 : state === 'done' ? 0.6 : 0.42,
+        lit: up ? 1 : 0,
+        body: state === 'lit' ? 0.72 : raised ? 0.66 : state === 'done' ? 0.55 : 0.45,
+        glow: state === 'lit' ? 0.85 : raised ? 0.65 : state === 'done' ? 0.35 : 0.18,
+      }
   useFrame((_, dt) => {
     const k = reducedMotion ? 1 : 1 - Math.exp(-dt * 6)
     if (group.current) group.current.position.y += (goal.y - group.current.position.y) * k
     const u = top.uniforms
     u.uOpacity!.value += (goal.opacity - u.uOpacity!.value) * k
     u.uLit!.value += (goal.lit - u.uLit!.value) * k
+    ;(u.uColor!.value as THREE.Color).lerp(colour, k)
     if (body.current) {
       body.current.opacity += (goal.body - body.current.opacity) * k
       body.current.emissiveIntensity += (goal.glow - body.current.emissiveIntensity) * k
+      body.current.color.lerp(colour, k)
+      body.current.emissive.lerp(colour, k)
     }
   })
   return (
@@ -462,7 +495,7 @@ function Plate({
       <mesh geometry={plateBody} onClick={onClick} onPointerOver={onHover(true)} onPointerOut={onHover(false)}>
         <meshStandardMaterial ref={body} color={layer.base} emissive={layer.base} emissiveIntensity={0.18} transparent opacity={0.3} roughness={0.35} metalness={0} depthWrite={false} />
         {/* The outline is what tells one layer from the next. */}
-        <Edges color={up ? C.silver : layer.edge} transparent opacity={up ? 0.95 : 0.5} worldUnits lineWidth={up ? EDGE * 1.8 : EDGE} />
+        <Edges color={muted ? MUTED : up ? C.silver : layer.edge} transparent opacity={muted ? 0.3 : up ? 0.95 : 0.5} worldUnits lineWidth={up ? EDGE * 1.8 : EDGE} />
       </mesh>
       <mesh geometry={plateTop} material={top} rotation={[-Math.PI / 2, 0, 0]} position={[0, SLAB.thickness / 2 + 0.002, 0]} />
     </group>
@@ -481,6 +514,7 @@ function LayerLabel({
   layer,
   state,
   hovered,
+  tone,
   canInteract,
   reducedMotion,
   onEnter,
@@ -492,13 +526,15 @@ function LayerLabel({
   layer: Layer
   state: PlateState
   hovered: boolean
+  tone: 'focus' | 'muted' | null
   canInteract: boolean
   reducedMotion: boolean
   onEnter: () => void
   onHover: (on: boolean) => () => void
 }) {
   const h = SLAB.size / 2
-  const up = state === 'lit' || hovered
+  const muted = tone === 'muted'
+  const up = !muted && (state === 'lit' || hovered || tone === 'focus')
   // Out in the space beside the Stack; every other name a little farther, so they read as scattered, not ruled.
   const out = 3.1 + (index % 2) * 0.5
   const line = useRef<Line2>(null)
@@ -522,10 +558,10 @@ function LayerLabel({
       <Line
         ref={line}
         points={initial}
-        color={up ? C.silver : layer.edge}
+        color={muted ? MUTED : up ? C.silver : layer.edge}
         lineWidth={up ? 1.4 : 0.8}
         transparent
-        opacity={up ? 0.8 : state === 'done' ? 0.38 : 0.24}
+        opacity={muted ? 0.16 : up ? 0.8 : state === 'done' ? 0.38 : 0.24}
       />
       <group ref={tag} position={[h + out, y, -h - out]}>
         <Html zIndexRange={[6, 0]}>
@@ -538,7 +574,7 @@ function LayerLabel({
             title={label}
             className={`flex -translate-y-1/2 items-center gap-2 rounded-full border py-0.5 pr-2.5 pl-1.5 text-xs whitespace-nowrap backdrop-blur-md transition-all duration-300 ${
               up ? 'bg-sc-midnight/85 font-semibold text-sc-silver' : state === 'done' ? 'border-white/10 bg-sc-midnight/45 text-sc-silver/85' : 'border-white/[0.07] bg-sc-midnight/30 text-sc-silver/65'
-            } ${canInteract ? 'cursor-pointer' : 'cursor-default'}`}
+            } ${muted ? 'opacity-40 grayscale' : ''} ${canInteract ? 'cursor-pointer' : 'cursor-default'}`}
             style={up ? { borderColor: layer.edge, boxShadow: `0 0 22px ${layer.base}55` } : undefined}
           >
             <span className="size-2 shrink-0 rounded-full" style={{ background: layer.base, boxShadow: `0 0 ${up ? 10 : 5}px ${layer.edge}` }} />

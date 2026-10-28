@@ -16,6 +16,7 @@ export type AudienceProfile = z.infer<typeof AudienceProfile>
 /** The three layers of the Multi-Layer AI™ Stack, each drawn as a layer of the 3D Stack. */
 export const STACK_CHAPTERS = ['data_engine', 'open_xdr', 'agentic_soc'] as const
 export type StackChapter = (typeof STACK_CHAPTERS)[number]
+export const StackChapterId = z.enum(STACK_CHAPTERS)
 /** The Chapters that group the Stages: the Stack's three layers, then the Closing (topology and lab), off the Stack. */
 export const CHAPTERS = [...STACK_CHAPTERS, 'closing'] as const
 export type Chapter = (typeof CHAPTERS)[number]
@@ -214,8 +215,9 @@ export type SceneState = z.infer<typeof SceneState>
 /**
  * The rest of the Presenter's screen, mirrored on every participant's: the side panel open or folded,
  * the Spotlight (the item the Presenter points at, by its spot id, such as `if:field:src_ip`), how many
- * times the Record Trace was replayed, the Stack layer under the Presenter's pointer, and how far the
- * Presenter scrolled each scrolling area (0 top, 1 bottom). The camera (turn, move, zoom) stays each viewer's own.
+ * times the Record Trace was replayed, the Stack layer under the Presenter's pointer, the Stack layer
+ * (Chapter) the Presenter selected by its name, which greys the others out, and how far the Presenter
+ * scrolled each scrolling area (0 top, 1 bottom). The camera (turn, move, zoom) stays each viewer's own.
  */
 export const SCROLL_AREAS = ['briefing', 'inspector', 'panel', 'questions'] as const
 export const ScrollArea = z.enum(SCROLL_AREAS)
@@ -226,10 +228,11 @@ export const ExperienceView = z.object({
   spot: Text(200).min(1).nullable(),
   replay: z.number().int().min(0),
   layer: StageId.nullable(),
+  chapter: StackChapterId.nullable(),
   scroll: z.partialRecord(ScrollArea, Ratio),
 })
 export type ExperienceView = z.infer<typeof ExperienceView>
-export const DEFAULT_VIEW: ExperienceView = { panel: true, spot: null, replay: 0, layer: null, scroll: {} }
+export const DEFAULT_VIEW: ExperienceView = { panel: true, spot: null, replay: 0, layer: null, chapter: null, scroll: {} }
 /** A view stored before a field existed reads that field's default. */
 export const viewOf = (stored: Partial<ExperienceView> | null | undefined): ExperienceView => ({ ...DEFAULT_VIEW, ...stored })
 export const ViewInput = z
@@ -238,6 +241,7 @@ export const ViewInput = z
     spot: Text(200).min(1).nullable().optional(),
     replay: z.literal(true).optional(),
     layer: StageId.nullable().optional(),
+    chapter: StackChapterId.nullable().optional(),
     scroll: z.object({ area: ScrollArea, ratio: Ratio }).optional(),
   })
   .refine((v) => Object.values(v).some((x) => x !== undefined), { message: 'empty' })
@@ -248,10 +252,11 @@ export const applyView = (view: ExperienceView, input: ViewInput): ExperienceVie
   spot: input.spot === undefined ? view.spot : input.spot,
   replay: view.replay + (input.replay ? 1 : 0),
   layer: input.layer === undefined ? view.layer : input.layer,
+  chapter: input.chapter === undefined ? view.chapter : input.chapter,
   scroll: input.scroll ? { ...view.scroll, [input.scroll.area]: input.scroll.ratio } : view.scroll,
 })
-/** New content on screen (another Stage, phase or scene): nothing pointed at, every area back at its top. */
-export const clearFocus = (view: ExperienceView): ExperienceView => ({ ...view, spot: null, scroll: {} })
+/** New content on screen (another Stage, phase or scene): nothing pointed at or selected, every area back at its top. */
+export const clearFocus = (view: ExperienceView): ExperienceView => ({ ...view, spot: null, chapter: null, scroll: {} })
 
 /** A participant confirms (or withdraws) their access to the lab, on the Closing's Lab Stage. */
 export const LabAccessInput = z.object({ confirmed: z.boolean() })

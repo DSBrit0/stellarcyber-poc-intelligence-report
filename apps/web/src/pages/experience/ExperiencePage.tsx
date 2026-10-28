@@ -305,6 +305,8 @@ export function ExperiencePage() {
             onEnter={(target) => void setScene({ model: scene.model, target })}
             pointedLayer={live ? view.layer : null}
             onLayerHover={(layer) => mirror('layer', { layer })}
+            selectedChapter={view.chapter}
+            onChapter={(chapter) => void setView({ chapter })}
           />
         </Suspense>
         </>

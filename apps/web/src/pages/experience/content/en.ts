@@ -4,7 +4,7 @@ import type { ExperienceWords } from './types'
 export const wordsEn: ExperienceWords = {
   chapters: {
     data_engine: { title: 'AI-Native Data Engine', summary: 'Every source collected, normalized into Interflow and enriched before it is stored.' },
-    open_xdr: { title: 'Open XDR Platform', summary: 'Detection engines work on the same data and Graph ML turns alerts into Cases.' },
+    open_xdr: { title: 'ISOC Platform', summary: 'Detection engines work on the same data and Graph ML turns alerts into Cases.' },
     agentic_soc: { title: 'Autonomous SOC', summary: 'AI investigates and triages each Case, and responses run back on your own tools.' },
     closing: { title: 'Wrap-up', summary: 'How the platform fits into your environment, and where you can try it yourselves.' },
   },

@@ -58,7 +58,16 @@ describe('Stellar Experience flow', () => {
     const cleared = clearFocus({ ...scrolled, spot: 'brief:how' })
     expect(cleared).toMatchObject({ spot: null, scroll: {}, layer: 'detection' })
     // A view stored before hover and scroll existed reads their defaults.
-    expect(viewOf({ panel: false, spot: null, replay: 2 })).toEqual({ panel: false, spot: null, replay: 2, layer: null, scroll: {} })
+    expect(viewOf({ panel: false, spot: null, replay: 2 })).toEqual({ panel: false, spot: null, replay: 2, layer: null, chapter: null, scroll: {} })
+  })
+
+  it('selects a whole Stack layer by its Chapter, lets go of it, and clears it on new content', () => {
+    const selected = applyView(DEFAULT_VIEW, { chapter: 'open_xdr' })
+    expect(selected.chapter).toBe('open_xdr')
+    expect(applyView(selected, { panel: false }).chapter).toBe('open_xdr')
+    expect(applyView(selected, { chapter: null }).chapter).toBeNull()
+    expect(ViewInput.safeParse({ chapter: 'closing' }).success).toBe(false)
+    expect(clearFocus(selected).chapter).toBeNull()
   })
 
   it('the Executive profile pre-selects five Stages in pipeline order', () => {
