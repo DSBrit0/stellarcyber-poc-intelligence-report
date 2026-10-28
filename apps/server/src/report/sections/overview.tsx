@@ -23,6 +23,30 @@ function InfoBlock({ title, lines, list }: { title: string; lines: Line[]; list?
   )
 }
 
+/**
+ * The Executive cover's network map: the previous tool's fixed pseudo-random nodes (seed 7) on the 210 × 166 mm
+ * dark band, linked when closer than 38 mm, so every Report shows the same texture.
+ */
+function NetworkTexture() {
+  let seed = 7
+  const rnd = () => (seed = (seed * 16807) % 2147483647) / 2147483647
+  const pts = Array.from({ length: 44 }, () => [210 * 0.35 + rnd() * 210 * 0.7, rnd() * 166] as const)
+  const links: string[] = []
+  pts.forEach((p, a) =>
+    pts.slice(a + 1).forEach((q) => {
+      if (Math.hypot(p[0] - q[0], p[1] - q[1]) < 38) links.push(`M${p[0].toFixed(2)} ${p[1].toFixed(2)}L${q[0].toFixed(2)} ${q[1].toFixed(2)}`)
+    }),
+  )
+  return (
+    <svg className="cover-texture" viewBox="0 0 210 166" preserveAspectRatio="xMidYMid slice" aria-hidden="true">
+      <path d={links.join('')} stroke="#0e4c6a" strokeWidth="0.2" fill="none" />
+      {pts.map((p, i) => (
+        <circle key={i} cx={p[0].toFixed(2)} cy={p[1].toFixed(2)} r="0.8" fill="#0689aa" />
+      ))}
+    </svg>
+  )
+}
+
 /** Stakeholders shown on the cover; the rest are counted ("+{n} others"). */
 const COVER_STAKEHOLDERS = 6
 
@@ -34,6 +58,7 @@ export function Cover({ rc }: { rc: ReportContext }) {
   const more = analysts.length - shownAnalysts.length
   return (
     <header className={`cover ${exec ? 'cover-exec' : 'cover-tech'}`}>
+      {exec ? <NetworkTexture /> : null}
       <div className="cover-top">
         <div className="brand">
           STELLAR CYBER <span>| Open XDR</span>
@@ -49,13 +74,13 @@ export function Cover({ rc }: { rc: ReportContext }) {
         </h1>
         {exec ? (
           p.customerName ? (
-            <div className="cover-client">
-              <div className="clamp2">{p.customerName}</div>
-              {p.department ? <div className="cover-dept clamp2">{p.department}</div> : null}
-            </div>
+            <div className="cover-client clamp2">{[p.customerName, p.department].filter(Boolean).join('  ·  ')}</div>
           ) : null
         ) : (
-          <div className="cover-sub">{t('coverReportType')}</div>
+          <>
+            <div className="cover-sub">{t('coverReportType')}</div>
+            <div className="cover-rule" />
+          </>
         )}
       </div>
       <div className="info-blocks">
@@ -79,7 +104,11 @@ export function Cover({ rc }: { rc: ReportContext }) {
         <InfoBlock title={t('blockPartner')} lines={[{ text: p.partner.name, kind: 'name' }, { text: p.partner.email }, { text: p.partner.site }]} />
       </div>
       <div className="cover-foot">
-        {t('footerVersion')} {rc.version} | {t('footerPocPeriod')} {fmt.date(data.period.start)}–{fmt.date(data.period.end)} | {t('footerReportDate')} {fmt.date(rc.generatedAt)}
+        <b>{t('footerVersion')}</b> {rc.version}
+        <i> | </i>
+        <b>{t('footerPocPeriod')}</b> {fmt.date(data.period.start)}–{fmt.date(data.period.end)}
+        <i> | </i>
+        <b>{t('footerReportDate')}</b> {fmt.date(rc.generatedAt)}
       </div>
     </header>
   )
@@ -228,8 +257,12 @@ function severitySlices(rc: ReportContext) {
   ]
 }
 
+/** The Technical sources donut keeps the previous tool's Template 1 order: blue, mid blue, navy, green, orange, yellow, red. */
+const TECHNICAL_PALETTE = [C.brand, C.mid, C.navy, C.green, C.orange, C.medium, C.red]
+
 function categorySlices(rc: ReportContext) {
-  return rc.d.connByCategory.map(([k, v], i) => ({ label: k || rc.t('connectorCatOther'), value: v, color: PALETTE[i % PALETTE.length] }))
+  const palette = rc.template === 'technical' ? TECHNICAL_PALETTE : PALETTE
+  return rc.d.connByCategory.map(([k, v], i) => ({ label: k || rc.t('connectorCatOther'), value: v, color: palette[i % palette.length] }))
 }
 
 /** KPIs that do not depend on Cases: shown alone (under a banner) when the period has none. */
@@ -440,14 +473,14 @@ function ExecutiveDashboard({ rc }: { rc: ReportContext }) {
         </Card>
         <Card rc={rc} title={t('t2ChartSevPie')}>{sev.some((s) => s.value > 0) ? <Donut slices={sev} cutout={0} format={fmt.num} /> : null}</Card>
       </div>
-      {/* Two columns, findings below at full width: within the ABNT margins three cards were too narrow for the scorecard labels. */}
-      <Grid cols={2}>
+      {/* The previous tool's second row: MITRE gauge, scorecard and key findings side by side. */}
+      <Grid cols={3}>
         <Card rc={rc} title={t('chartMitre')}>{d.mitreCovPct > 0 ? <Gauge pct={d.mitreCovPct} label={`${d.detectedTactics.size} / 14 ${t('sc_tactics')}`} /> : null}</Card>
         <Card rc={rc} title={t('t2ChartScore')}>
           <ScoreBars rc={rc} />
         </Card>
+        <Card rc={rc} figure={false} title={t('t2Findings')}>{findings.length ? <Findings items={findings} /> : null}</Card>
       </Grid>
-      <Card rc={rc} figure={false} title={t('t2Findings')}>{findings.length ? <Findings items={findings} /> : null}</Card>
     </>
   )
 }

@@ -68,11 +68,11 @@ describe('renderReportHtml', () => {
       ],
     }
     const html = renderReportHtml(data, details, 'technical', 'pt-BR', { versioning })
-    expect(html).toContain('Versão 2.1')
+    expect(html).toContain('<b>Versão</b> 2.1')
     expect(html).toContain('Versão inicial')
-    expect(html).toContain('Nova coleta de dados (01/09/2026–09/09/2026)')
+    expect(html).toContain('Nova coleta de dados (01/09/26–09/09/26)')
     expect(html).toContain('Ajuste &lt;do&gt; escopo')
-    expect(renderReportHtml(data, details, 'technical', 'pt-BR')).toContain('Versão 1.0')
+    expect(renderReportHtml(data, details, 'technical', 'pt-BR')).toContain('<b>Versão</b> 1.0')
   })
   it('states the Auto Triage add-on license only when the Sync collected Auto Triage', () => {
     const without = renderReportHtml(data, details, 'technical', 'pt-BR')
@@ -168,7 +168,7 @@ describe('renderReportHtml', () => {
     expect(html).toContain('Analyst 6')
     expect(html).not.toContain('Analyst 7')
     expect(html).toContain('+3 outros')
-    expect(html).toContain('@bottom-left{content:"NetUno · Confidencial"')
+    expect(html).toContain('@bottom-left{content:"CONFIDENCIAL — NetUno"')
   })
 
   it('lists the Critical Cases with the highest score first and counts the rest', () => {
@@ -184,36 +184,30 @@ describe('renderReportHtml', () => {
   })
 })
 
-describe('ABNT layout', () => {
+describe('Executive and Technical layout', () => {
   const withCases: ReportData = {
     ...data,
     keyCases: [
       { id: 'k1', name: 'Lateral movement', severity: 'critical', status: 'New', resolution: '', score: 90, alerts: 40, createdAt: Date.parse('2026-09-02T10:00:00Z'), startedAt: null, acknowledgedAt: null, closedAt: null },
     ],
   }
-  it('numbers figures and tables through the document, captions above and sources below', () => {
+  it('has no ABNT captions, sources or lists of figures and tables', () => {
+    for (const template of TEMPLATES) {
+      const html = renderReportHtml(withCases, details, template, 'pt-BR')
+      expect(html).not.toContain('class="caption"')
+      expect(html).not.toContain('class="source"')
+      expect(html).not.toContain('Lista de figuras')
+      expect(html).not.toContain('Lista de tabelas')
+    }
+  })
+  it('prints the navy bars on Executive and Technical pages only', () => {
     for (const template of ['executive', 'technical'] as const) {
       const html = renderReportHtml(withCases, details, template, 'pt-BR')
-      const tables = [...html.matchAll(/<div class="caption"><b>Tabela (\d+)<\/b> – /g)].map((m) => Number(m[1]))
-      const figures = [...html.matchAll(/<div class="caption"><b>Figura (\d+)<\/b> – /g)].map((m) => Number(m[1]))
-      expect(tables.length).toBeGreaterThan(3)
-      expect(figures.length).toBeGreaterThan(0)
-      expect(tables).toEqual(tables.map((_, i) => i + 1))
-      expect(figures).toEqual(figures.map((_, i) => i + 1))
-      expect(html).toContain('<p class="source">Fonte: Stellar Cyber, dados da PoC (01/09/2026–10/09/2026).</p>')
+      expect(html).toContain(`<main class="report ${template}">`)
+      expect(html).toContain('@page report{')
+      expect(html).toContain('@top-center{content:"Relatório de Prova de Conceito"')
     }
-    const en = renderReportHtml(withCases, details, 'executive', 'en')
-    expect(en).toMatch(/<b>Table 1<\/b> – /)
-    expect(en).toContain('Source: Stellar Cyber, PoC data')
-  })
-  it('lists the figures and tables after the Technical cover only', () => {
-    const tech = renderReportHtml(withCases, details, 'technical', 'pt-BR')
-    expect(tech).toContain('Lista de figuras')
-    expect(tech).toContain('Lista de tabelas')
-    expect(tech.indexOf('Lista de tabelas')).toBeLessThan(tech.indexOf('class="sec-num"'))
-    expect(tech).toMatch(/<b>Tabela 1<\/b> – Principais indicadores da PoC<\/span><span class="list-dots"><\/span><span class="list-where">1\.1<\/span>/)
-    expect(renderReportHtml(withCases, details, 'executive', 'pt-BR')).not.toContain('Lista de figuras')
-    expect(renderReportHtml(withCases, details, 'insight', 'pt-BR')).not.toContain('class="caption"')
+    expect(renderReportHtml(withCases, details, 'insight', 'pt-BR')).not.toContain('@page report{')
   })
   it('opens with the formal presentation, stating the measured noise reduction', () => {
     const html = renderReportHtml(withCases, details, 'executive', 'pt-BR')
@@ -250,11 +244,21 @@ describe('yAxis', () => {
 })
 
 describe('pageCss', () => {
-  it('writes the footer as an escaped CSS string, the page number top right and an uncounted cover', () => {
+  it('writes the footer as an escaped CSS string and an uncounted cover', () => {
     const css = pageCss('A"B</style> · Confidencial')
     expect(css).toContain('content:"A\\"B\\3c /style> · Confidencial"')
     expect(css).not.toContain('</style>')
-    expect(css).toMatch(/@page abnt\{size:A4;margin:30mm 20mm 20mm 30mm;@top-right\{content:counter\(page\)/)
+    expect(css).not.toContain('@page report{')
     expect(css).toContain('@page cover{size:A4;margin:0;counter-increment:page 0}')
+  })
+  it('puts the Report type, page number and escaped footer in the navy bars', () => {
+    const css = pageCss('x', { header: 'Relatório', footer: 'CONFIDENCIAL — A"B</style>' })
+    expect(css).toMatch(/@page report\{size:A4;margin:18mm 14mm 16mm;@top-left-corner\{content:url\("data:image\/svg\+xml,/)
+    expect(decodeURIComponent(css)).toContain("<rect width='210' height='10' fill='#1f3864'/><rect y='289' width='210' height='8' fill='#1f3864'/>")
+    expect(css).toContain('@top-center{content:"Relatório"')
+    expect(css).toMatch(/@top-right\{content:counter\(page\);[^}]*color:#fff\}/)
+    expect(css).toMatch(/@bottom-right\{content:"© Stellar Cyber, Inc\.";[^}]*margin-top:8mm/)
+    expect(css).toContain('@bottom-left{content:"CONFIDENCIAL — A\\"B\\3c /style>"')
+    expect(css).not.toContain('</style>')
   })
 })

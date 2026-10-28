@@ -2,7 +2,7 @@
 // A4 PDF by headless Chromium with network access disabled, so nothing may load from outside.
 // Palette follows the previous tool's PDF: navy, blue, mid blue, cyan; severity red/orange/yellow/green.
 export const REPORT_CSS = `
-:root{--navy:#0b1f4d;--brand:#1f6feb;--mid:#3d5a99;--cyan:#00a3c4;--light:#9fc3ff;--slate:#5f6b7a;
+:root{--navy:#1f3863;--brand:#2e75b6;--mid:#3d5a99;--cyan:#00a3c4;--light:#9fc3ff;--slate:#5f6b7a;
 --crit:#c00000;--high:#ff8200;--med:#c8a000;--low:#00b050;--ok:#00b050;
 --ink:#1f2733;--muted:#5f6b7a;--line:#e6eaf0;--bg:#fff;--soft:#f5f7fb;--head:#eaf0f9}
 *{box-sizing:border-box}
@@ -241,31 +241,267 @@ tr.sub-row td{padding-top:0;color:var(--muted);font-size:11.5px;background:#fff!
   .card-note,.muted,.legend{font-size:9pt}
   *{-webkit-print-color-adjust:exact;print-color-adjust:exact}
 
-  /* ABNT pages (NBR 14724): named pages for the margins and the page number; the cover bleeds to the edge. */
   .report.insight{page:insight}
-  .report.abnt{page:abnt;font-size:12pt;line-height:1.5}
-  .report.abnt .cover{page:cover;height:297mm;padding:24mm 22mm 20mm}
-  .abnt-lists{page:abnt-pre}
-  .abnt-list+.abnt-list{break-before:page}
-  .abnt-list{padding-top:0}
-  .list-title{font-size:12pt;margin-bottom:18pt}
-  .list-items li{font-size:12pt}
-  /* Running text: 12 pt, 1.5 spacing, justified, 1.25 cm first-line indent (prose only). */
-  .abnt p.body{font-size:12pt;line-height:1.5;text-align:justify;text-indent:1.25cm;margin:0 0 6pt}
-  .abnt .card p.body,.abnt .story-q p.body,.abnt p.body.prose{text-indent:0}
-  .abnt .bullets{font-size:12pt;line-height:1.5}
-  .abnt .sec-title{font-size:12pt;padding-bottom:4pt;margin-bottom:12pt}
-  .abnt .sub{font-size:12pt;margin:16pt 0 8pt}
-  .abnt h4{font-size:12pt}
-  /* Captions, sources, notes and tables: 10 pt, single spacing. */
-  .abnt .caption,.abnt .source,.abnt .card-note,.abnt .muted,.abnt .note,.abnt .legend,.abnt .findings,.abnt table,.abnt table.compact td,.abnt table.compact th,.abnt th,.abnt .list-head{font-size:10pt;line-height:1.15}
-  .abnt .note.banner{font-size:12pt;line-height:1.5}
-  .abnt tr.sub-row td,.abnt .cell-note{font-size:9pt}
-  .abnt .table-wrap{margin:10pt 0 12pt}
-  /* The text block is 16 cm wide: two charts with caption and source still share a row. */
-  .abnt .donut svg,.abnt .gauge svg{max-width:190px}
-  .caption{break-after:avoid}
-  .fig{break-inside:avoid}
+}
+/* Priority matrix (600 units = 182 mm): 5.8 pt ticks, bold 6.8 pt quadrant names, bold navy 6.5 pt axis titles. */
+.matrix .tick{font-size:6.8px;fill:#787878}.matrix .tick.strong{font-size:7px;fill:#1f3864}
+.matrix .quad-label{font-size:7.9px;font-weight:700}.matrix .axis-title{font-size:7.6px;font-weight:700;fill:#1f3864}
+.matrix .grid{stroke:#d7dee8;stroke-width:.5}
+/* Executive (the previous tool's Template 2) and Technical (Template 1): the jsPDF Report, measured from its
+   code. Print sizes are the original mm and pt; X = both Templates, T1 = Technical, T2 = Executive. */
+.report:is(.executive,.technical){--navy:#1f3864;--brand:#0070c0;--mid:#2e75b6;--cyan:#00b4d8;--light:#9cc9ec;--slate:#5b6a82;
+--ink:#1e1e1e;--muted:#787878;--line:#dce3ec;--soft:#f3f6fa;--row:#ebf3fb;--deep:#14233f;--gray:#f2f2f2;--grid:#c8c8c8}
+.cover-texture{display:none}
+@media print{
+  .report:is(.executive,.technical){page:report;font-size:8.5pt;line-height:4.5mm;color:var(--ink)}
+
+  /* Cover (no page bars, not counted): every element at the original's position, in mm from the top left. */
+  .report:is(.executive,.technical) .cover{page:cover;position:relative;display:block;height:297mm;padding:0;min-height:0;overflow:hidden;background:#fff;color:var(--ink);border:0}
+  .cover>*{position:absolute}
+  .cover .cover-hero{position:static}
+  .cover .cover-hero>*{position:absolute;margin:0}
+  .cover h1{font:700 38pt/16mm Helvetica,Arial,sans-serif;color:var(--navy);letter-spacing:0}
+  .cover-top{display:flex;justify-content:space-between;align-items:center;height:6mm}
+  .cover .brand{font:700 12pt Helvetica,Arial,sans-serif;letter-spacing:0;color:var(--navy);white-space:pre}
+  .cover .brand span{font-weight:400;color:var(--brand)}
+  .cover .pill{display:flex;align-items:center;height:6mm;padding:0 3mm;border:.5mm solid var(--brand);border-radius:1.5mm;font:700 7pt Helvetica,Arial,sans-serif;letter-spacing:0;color:var(--brand)}
+  .info-blocks{display:grid;gap:0;margin:0}
+  .info-blocks::after{content:"";position:absolute;top:-.5mm;bottom:0;width:0;border-left:.25mm solid var(--gray)}
+  .info-block{min-width:0;font:8pt/5.8mm Helvetica,Arial,sans-serif;color:var(--muted)}
+  .info-block:nth-child(n+3){border-top:.25mm solid var(--gray)}
+  .info-title{font:700 7pt/1 Helvetica,Arial,sans-serif;letter-spacing:0;color:var(--brand);border-bottom:.3mm solid currentColor;padding:0 0 1.2mm;margin:0 0 3.4mm}
+  .info-block:nth-child(even) .info-title{color:var(--navy)}
+  .info-strong{font:700 10pt/6.8mm Helvetica,Arial,sans-serif;color:var(--navy)}
+  .cover-foot{font:7.5pt/1 Helvetica,Arial,sans-serif;color:var(--muted);border:0;padding:0;top:280.6mm;white-space:nowrap}
+  .cover-foot b{font-weight:700;color:var(--navy)}
+  .cover-foot i{font-style:normal;white-space:pre}
+  .cover-foot i::before{content:" "}.cover-foot i::after{content:" "}
+  /* Technical: navy→blue rail on the left, title in the middle, 2×2 contact grid from 190 mm. */
+  .cover-tech::before{content:"";position:absolute;left:0;top:0;width:11mm;height:297mm;background:linear-gradient(var(--navy),var(--brand))}
+  .cover-tech .cover-top{left:26mm;right:14mm;top:12.5mm}
+  .cover-tech h1{left:26mm;top:86.4mm}
+  .cover-tech .cover-sub{left:26mm;top:121mm;font:13pt/5.5mm Helvetica,Arial,sans-serif;color:var(--muted)}
+  .cover-tech .cover-rule{left:26mm;top:130mm;width:70mm;border-top:.5mm solid var(--gray)}
+  .cover-tech .info-blocks{left:26mm;right:14mm;top:187.5mm;height:100mm;grid-template-columns:82mm 1fr;grid-template-rows:50.5mm 1fr}
+  .cover-tech .info-blocks::after{left:82mm}
+  .cover-tech .info-block:nth-child(even){padding-left:5mm}
+  .cover-tech .info-block:nth-child(odd){padding-right:4mm}
+  .cover-tech .info-block:nth-child(n+3){padding-top:.5mm}
+  .cover-tech .cover-foot{left:26mm}
+  /* Executive: 166 mm dark band with the network map, white title; the contact grid stays on white. */
+  .cover-exec::before{content:"";position:absolute;left:0;top:0;width:210mm;height:166mm;background:var(--deep)}
+  .cover .cover-texture{display:block;left:0;top:0;width:210mm;height:166mm}
+  .cover-exec .cover-top{left:17mm;right:17mm;top:15mm}
+  .cover-exec .brand{font-size:11pt;color:#fff}.cover-exec .brand span{color:var(--cyan)}
+  .cover-exec .pill{border:.4mm solid var(--cyan);border-radius:1.2mm;color:var(--cyan)}
+  .cover-exec .eyebrow{left:17mm;top:101.1mm;font:700 9pt/4mm Helvetica,Arial,sans-serif;letter-spacing:.8mm;color:var(--cyan);opacity:1}
+  .cover-exec h1{left:17mm;top:108.8mm;font-size:34pt;line-height:14mm;color:#fff}
+  .cover-exec .cover-client{left:17mm;right:17mm;top:142.7mm;font:14pt/6mm Helvetica,Arial,sans-serif;color:#c9d6ea;opacity:1;max-width:none}
+  .cover-exec .info-blocks{left:17mm;right:17mm;top:187.5mm;height:94mm;grid-template-columns:88mm 1fr;grid-template-rows:48.5mm 1fr}
+  .cover-exec .info-blocks::after{left:88mm}
+  .cover-exec .info-block:nth-child(even){padding-left:4mm}
+  .cover-exec .info-block:nth-child(odd){padding-right:8mm}
+  .cover-exec .info-block:nth-child(n+3){padding-top:2.5mm}
+  .cover-exec .info-title{color:var(--brand)}.cover-exec .info-block:nth-child(even) .info-title{color:var(--navy)}
+  .cover-exec .cover-foot{left:17mm;color:var(--muted)}
+
+  /* Section titles. T1: navy bar (7.5 mm, white 9.5 pt; section 1: 10 mm, 12 pt); "1." numbering. */
+  .report:is(.executive,.technical) .sec{padding:0}
+  /* A title bar is never split between two pages. */
+  .report:is(.executive,.technical) :is(.sec-title,.sub,.chip,.kpi,.verdict-banner){break-inside:avoid}
+  .report:is(.executive,.technical) .sec:not(.page-break){margin-top:5mm}
+  .technical .sec-title{display:flex;align-items:center;gap:1.4mm;height:7.5mm;margin:0 0 5mm;padding:0 3mm;border:0;border-radius:0;background:var(--navy);color:#fff;font:700 9.5pt/1 Helvetica,Arial,sans-serif;letter-spacing:0;text-transform:none}
+  .technical .sec:first-of-type .sec-title{height:10mm;font-size:12pt;margin-bottom:9mm}
+  .technical .sec-num{background:none;color:inherit;padding:0;min-width:0;border-radius:0;font-size:inherit}
+  .technical .sec-num::after{content:"."}
+  /* T2: blue number chip (10 pt) + navy 14 pt title + 0.7 mm blue rule 10 mm below the top. */
+  .executive .sec-title{display:flex;align-items:center;gap:3mm;height:auto;margin:0 0 5.3mm;padding:0 0 2.15mm;border:0;border-bottom:.7mm solid var(--brand);border-radius:0;background:none;color:var(--navy);font:700 14pt/7.5mm Helvetica,Arial,sans-serif;letter-spacing:0;text-transform:none}
+  .executive .sec-num{display:flex;align-items:center;justify-content:center;height:7.5mm;min-width:0;padding:0 2.5mm;border-radius:1.2mm;background:var(--brand);color:#fff;font:700 10pt/1 Helvetica,Arial,sans-serif}
+  /* Appendices and the architecture page (both): mid-blue bar, 7.5 mm, white 9.5 pt. */
+  .report:is(.executive,.technical) .sec-title:not(:has(.sec-num)){display:flex;align-items:center;height:7.5mm;margin:0 0 2mm;padding:0 3mm;border:0;background:var(--mid);color:#fff;font:700 9.5pt/1 Helvetica,Arial,sans-serif}
+  /* Subtitles: mid blue bold 9 pt (section 1's first: 11 pt) over a 0.3 mm rule 2 mm under the baseline. */
+  .report:is(.executive,.technical) .sub{font:700 9pt/1.2 Helvetica,Arial,sans-serif;color:var(--mid);border:0;border-bottom:.3mm solid var(--mid);padding:0 0 1.3mm;margin:5mm 0 4.5mm;text-align:left;letter-spacing:0}
+  .report:is(.executive,.technical) .sec:first-of-type .sub:first-of-type{font-size:11pt}
+  .report:is(.executive,.technical) .sec-title+.sub{margin-top:0}
+
+  /* Running text: 8.5 pt, 4.5 mm lines, left aligned; section 1 reads at 10.5 pt, 5.5 mm. */
+  .report:is(.executive,.technical) p.body{font-size:8.5pt;line-height:4.5mm;margin:0 0 2.5mm;text-align:left;text-indent:0;color:var(--ink)}
+  .report:is(.executive,.technical) .sec:first-of-type p.body{font-size:10.5pt;line-height:5.5mm;margin-bottom:4mm}
+  .report:is(.executive,.technical) p.body.strong{font-weight:700}
+  .report:is(.executive,.technical) p.body.navy{color:var(--navy);font-size:9.5pt}
+  .report:is(.executive,.technical) .bullets{font-size:8.5pt;line-height:4.5mm;margin:0 0 3mm;padding-left:5mm}
+  .report:is(.executive,.technical) .sec:first-of-type .bullets{font-size:10.5pt;line-height:5.5mm}
+  .report:is(.executive,.technical) .muted,.report:is(.executive,.technical) .volume-note{font-size:7.5pt;line-height:1.35;color:var(--muted);margin:0 0 3mm}
+  /* Info note: light blue band, muted italic 8 pt. */
+  .report:is(.executive,.technical) .note{background:var(--row);border:0;border-radius:0;color:var(--muted);font:italic 8pt/1.35 Helvetica,Arial,sans-serif;padding:2.4mm 3mm;margin:0 0 4mm;min-height:8mm}
+  .report:is(.executive,.technical) .note.banner{font-style:normal;font-weight:700;color:var(--navy)}
+
+  /* Tables (jspdf-autotable "grid"): navy header, white bold 7.5 pt, 2.5 mm padding; body 7.5 pt, 2 mm; 0.1 mm
+     #c8c8c8 lines; every other row #ebf3fb. Compact tables: mid-blue header 7 pt, 2/1.8 mm padding. */
+  .report:is(.executive,.technical) .table-wrap{margin:0 0 5mm;overflow:visible}
+  .report:is(.executive,.technical) table{border:0;border-radius:0;border-collapse:collapse;font-size:7.5pt;line-height:1.15}
+  .report:is(.executive,.technical) th{background:var(--navy);color:#fff;font:700 7.5pt/1.15 Helvetica,Arial,sans-serif;letter-spacing:0;text-transform:none;padding:2.5mm;border:.1mm solid var(--grid);vertical-align:top}
+  .report:is(.executive,.technical) td{padding:2mm;border:.1mm solid var(--grid);color:var(--ink);font-size:7.5pt;line-height:1.15;vertical-align:top}
+  .report:is(.executive,.technical) tbody tr:nth-child(odd) td{background:#fff}
+  .report:is(.executive,.technical) tbody tr:nth-child(even) td{background:var(--row)}
+  .report:is(.executive,.technical) table.compact th{background:var(--mid);font-size:7pt;padding:2mm}
+  .report:is(.executive,.technical) table.compact td{font-size:7pt;padding:1.8mm}
+  /* The alert lines under each Critical case: 6.3 pt, #464646 on #f8f9fb, indented 6 mm. */
+  .report:is(.executive,.technical) tr.sub-row td{font-size:6.3pt;color:#464646;background:#f8f9fb!important;padding:1.2mm 2mm 1.2mm 6mm}
+  .report:is(.executive,.technical) .cell-note{font-size:6.3pt;color:var(--muted)}
+  .report:is(.executive,.technical) .sev{font-weight:700}
+
+  /* KPI cards. T1: solid colour, r 2 mm, white 13 pt value and 5.5 pt label, centred; 7 in a row (22 mm),
+     4 (18 mm, gap 3) and 3 (16 mm). T2: #f3f6fa tile, 1.2 mm colour strip on top, navy 14 pt value, slate 6.5 pt
+     label, left aligned; 6 in a row (22 mm, gap 2.5). */
+  .report:is(.executive,.technical) .kpis{gap:2mm;margin:0 0 5mm}
+  .report:is(.executive,.technical) .kpis.n-3{grid-template-columns:repeat(3,1fr);gap:3mm}
+  .report:is(.executive,.technical) .kpis.n-4{grid-template-columns:repeat(4,1fr);gap:3mm}
+  .report:is(.executive,.technical) .kpis.n-5{grid-template-columns:repeat(5,1fr)}
+  .report:is(.executive,.technical) .kpis.n-6{grid-template-columns:repeat(6,1fr);gap:2.5mm}
+  .report:is(.executive,.technical) .kpis.n-7{grid-template-columns:repeat(7,1fr)}
+  .technical .kpi{display:flex;flex-direction:column;align-items:center;justify-content:center;height:22mm;padding:0 1mm;border-radius:2mm;text-align:center}
+  .technical .kpis.n-4 .kpi{height:18mm}.technical .kpis.n-3 .kpi{height:16mm}
+  .technical .kpi-value{font:700 13pt/1 Helvetica,Arial,sans-serif;color:#fff}
+  .technical .kpi-label{font:5.5pt/3.2mm Helvetica,Arial,sans-serif;color:#fff!important;margin-top:1.6mm}
+  .executive .kpi{display:block;height:22mm;padding:5.6mm 3mm 0;border:0;border-top:1.2mm solid var(--navy);border-radius:1.8mm;background:var(--soft);color:var(--navy)}
+  .executive .kpis.n-4 .kpi{height:18mm;padding-top:3.6mm}.executive .kpis.n-3 .kpi{height:16mm;padding-top:2.8mm}
+  .executive .kpi-value{font:700 14pt/1 Helvetica,Arial,sans-serif;color:var(--navy);white-space:nowrap}
+  .executive .kpi-label{font:6.5pt/1.25 Helvetica,Arial,sans-serif;color:var(--slate)!important;margin-top:2.2mm;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
+  .executive .kpis.tiles .tone-crit{border-color:var(--crit)}.executive .kpis.tiles .tone-high{border-color:var(--high)}.executive .kpis.tiles .tone-med{border-color:var(--med)}.executive .kpis.tiles .tone-ok{border-color:var(--ok)}
+  .executive .kpis.tiles .tone-brand{border-color:var(--brand)}.executive .kpis.tiles .tone-mid{border-color:var(--mid)}.executive .kpis.tiles .tone-cyan{border-color:var(--cyan)}.executive .kpis.tiles .tone-muted{border-color:var(--muted)}
+  .technical .kpis.solid .tone-muted{background:var(--muted)}
+
+  /* Chart frames. T2: 0.3 mm #dce3ec outline, r 2 mm, navy bold 8 pt title, muted 6 pt note; 4 mm gaps.
+     T1: no frame, navy bold 7.5 pt title centred over the chart; 6 mm gaps. */
+  .report:is(.executive,.technical) .grid{gap:4mm;margin:0 0 4mm}
+  .report:is(.executive,.technical) .grid.cols-2{grid-template-columns:repeat(2,minmax(0,1fr))}
+  .report:is(.executive,.technical) .card{box-shadow:none;margin:0}
+  .report:is(.executive,.technical) .card.wide{margin:0 0 4mm}
+  .executive .card{border:.3mm solid var(--line);border-radius:2mm;padding:1.6mm 2mm 2mm}
+  .executive .card-title{font:700 8pt/1.2 Helvetica,Arial,sans-serif;color:var(--navy);margin:0 0 2mm 1mm}
+  .executive .card-note{font:6pt/2.6mm Helvetica,Arial,sans-serif;color:var(--muted);margin:1.5mm 1mm 0}
+  .technical .grid{gap:6mm}
+  .technical .card{border:0;border-radius:0;padding:0}
+  .technical .card-title{font:700 7.5pt/1.2 Helvetica,Arial,sans-serif;color:var(--navy);text-align:center;margin:0 0 1.5mm}
+  .technical .card-note{font:6.5pt/1.3 Helvetica,Arial,sans-serif;color:var(--muted);text-align:center;margin:1mm 0 0}
+  .report:is(.executive,.technical) .fig-note{font:italic 6.5pt/1.3 Helvetica,Arial,sans-serif;color:var(--muted);margin:0 0 3mm}
+  /* Chart text: legends 6.5 pt (T1 7 pt), bar labels 6.5–7 pt. */
+  .report:is(.executive,.technical) .legend{font-size:6.5pt;line-height:1.3;color:var(--ink);gap:1.2mm 3.5mm;margin-top:1.5mm}
+  .technical .legend{font-size:7pt;justify-content:center}
+  .report:is(.executive,.technical) .legend i{width:2.5mm;height:2.1mm;border-radius:0;margin-right:1.2mm}
+  .report:is(.executive,.technical) .hbars{gap:1.4mm}
+  .report:is(.executive,.technical) .hbar{grid-template-columns:minmax(30mm,38%) 1fr 14mm;gap:2mm;font-size:6.5pt;color:var(--ink)}
+  .technical .hbar{font-size:7pt}
+  .report:is(.executive,.technical) .hbar-track{height:3.2mm;background:none;border-radius:0}
+  .report:is(.executive,.technical) .hbar-fill{border-radius:.8mm}
+  .report:is(.executive,.technical) .hbar-value{font-weight:700}
+
+  /* MITRE tactic grid, 7 × 2. T1: 14 mm cells, gap 1 mm, navy when detected else #f2f2f2; bold 6 pt ID and
+     5.5 pt name, centred. T2: 17 mm cells, gap 1.4 mm, heat by alerts; 5.5 pt ID, bold 6 pt name, bold 8 pt count. */
+  .technical .tactic-grid{gap:1mm;margin:0 0 6mm}
+  .technical .tactic{height:14mm;min-height:0;padding:1.8mm 1mm 0;border-radius:1.5mm;align-items:center;text-align:center;gap:.6mm;font-size:5.5pt;line-height:1.25}
+  .technical .tactic b{font-size:6pt;font-weight:700}
+  .technical .tactic.on{background:var(--navy);color:#fff}.technical .tactic.off{background:var(--gray);color:var(--muted)}
+  .executive .tactic-grid{gap:1.4mm;margin:0 0 3mm}
+  .executive .tactic{height:17mm;min-height:0;padding:1.6mm 2mm 1.4mm;border-radius:1.5mm;gap:.5mm;font:700 6pt/1.2 Helvetica,Arial,sans-serif}
+  .executive .tactic b{font-size:5.5pt;font-weight:400}
+  .executive .tactic small{font-size:8pt;font-weight:700;margin-top:auto}
+  .executive .tactic.heat-none{background:var(--empty,#eef1f5);color:#8a96a8}
+  .executive .tactic.heat-low{background:var(--light);color:var(--deep)}
+  .executive .tactic.heat-mid{background:var(--brand);color:#fff}
+  .executive .tactic.heat-high{background:var(--navy);color:#fff}
+  .executive i.heat-none{background:#eef1f5}.executive i.heat-low{background:var(--light)}.executive i.heat-mid{background:var(--brand)}.executive i.heat-high{background:var(--navy)}
+
+  /* T2 methodology: chevrons 17 mm tall, 5 mm notch, 1.2 mm gaps, navy → cyan; "PHASE n" 6 pt, name bold
+     7.5 pt; a 0.6 mm rule in the phase colour and the 7 pt description underneath. */
+  .executive .flow{gap:1.2mm;margin:0 0 5mm}
+  .executive .chevron{height:17mm;padding:2.6mm 6mm 0 2.5mm;clip-path:polygon(0 0,calc(100% - 5mm) 0,100% 50%,calc(100% - 5mm) 100%,0 100%,5mm 50%);font:700 7.5pt/1.2 Helvetica,Arial,sans-serif;color:#fff}
+  .executive .flow li:not(:first-child) .chevron{padding-left:7.5mm}
+  .executive .flow li:first-child .chevron{clip-path:polygon(0 0,calc(100% - 5mm) 0,100% 50%,calc(100% - 5mm) 100%,0 100%)}
+  .executive .chevron b{font-size:6pt;font-weight:400;letter-spacing:0;margin-bottom:1mm}
+  .executive .flow li:nth-child(1) .chevron{background:#1f3864}.executive .flow li:nth-child(2) .chevron{background:#175781}.executive .flow li:nth-child(3) .chevron{background:#10769e}.executive .flow li:nth-child(4) .chevron{background:#0895bb}.executive .flow li:nth-child(5) .chevron{background:#00b4d8}
+  .executive .flow p{margin:1.8mm 5mm 0 1mm;padding-top:2.2mm;border-top:.6mm solid #1f3864;font:7pt/3.4mm Helvetica,Arial,sans-serif;color:var(--ink)}
+  .executive .flow li:nth-child(2) p{border-color:#175781}.executive .flow li:nth-child(3) p{border-color:#10769e}.executive .flow li:nth-child(4) p{border-color:#0895bb}.executive .flow li:nth-child(5) p{border-color:#00b4d8}
+
+  /* T2 executive dashboard scorecard: 7 pt label, bold coloured rating, 2.6 mm #eef1f5 track. */
+  .executive .score-row{margin:0 0 4.6mm}
+  .executive .score-head{font-size:7pt;color:var(--ink)}.executive .score-head>span:last-child{font-weight:700}
+  .executive .rating-high .score-head>span:last-child{color:var(--ok)}.executive .rating-medium .score-head>span:last-child{color:var(--high)}.executive .rating-low .score-head>span:last-child{color:var(--crit)}
+  .executive .score-track{height:2.6mm;border-radius:1.3mm;background:#eef1f5;margin-top:.8mm}
+  .executive .findings{font-size:7pt;line-height:3.4mm}
+  .executive .findings li{margin:0 0 2.2mm}
+
+  /* T2 detection story: no frame; blue "QUESTION n OF t" chip 6.5 pt, navy bold 12 pt question, 8.5 pt answer
+     (4.2 mm lines), muted 6.2 pt note. */
+  .executive .story-q{border:0;border-radius:0;padding:0;margin:0 0 6mm}
+  .executive .chip{display:inline-flex;align-items:center;height:5mm;padding:0 2.5mm;border-radius:1mm;background:var(--brand);font:700 6.5pt/1 Helvetica,Arial,sans-serif;letter-spacing:0}
+  .executive .story-q h4{font:700 12pt/1.2 Helvetica,Arial,sans-serif;color:var(--navy);margin:2.4mm 0 2mm}
+  .executive .answer{font-size:8.5pt;line-height:4.2mm;margin:0 0 3mm;color:var(--ink)}
+  .executive .story-q .card-note{font:6.2pt/2.7mm Helvetica,Arial,sans-serif;color:var(--muted);margin:2mm 0 0}
+  /* Q1 funnel: 10 mm stages #8fa3bf → mid blue → blue → navy → red/green, white bold 10.5 pt values. */
+  .executive .stage{min-height:10mm;padding:1.6mm 3mm;border-radius:0;font-size:6.6pt}
+  .executive .stage b{font-size:10.5pt}.executive .stage small{font-size:6.6pt}
+  .executive .stage:nth-child(1){background:#8fa3bf}.executive .stage:nth-child(2){background:var(--mid)}.executive .stage:nth-child(3){background:var(--brand)}.executive .stage:nth-child(4){background:var(--navy)}
+  .executive .stage.bad{background:var(--crit)}.executive .stage.good{background:var(--ok)}
+  .executive :is(.tiles3,.tiles4){gap:3mm;margin-top:3mm}
+  .executive .tiles4{gap:4mm}
+  .executive :is(.tiles3,.tiles4) div{min-height:15mm;padding:2.4mm 3mm;border:.25mm solid var(--line);border-radius:1.5mm;background:var(--soft);font-size:6.3pt;line-height:1.3;color:var(--slate)}
+  .executive :is(.tiles3,.tiles4) b{font-size:13pt;color:var(--navy)}
+  /* Q2 threats: deep headline card (white 10.5 pt name, cyan 6.8 pt tactics, light 6.3 pt facts, 20 pt count);
+     outlined small cards (navy 7.8 pt name, blue 6 pt tactic, slate 6.2 pt facts); 1.4/1.2 mm severity strip. */
+  .executive .threat{margin:0;padding:2.2mm 3mm 2.2mm 4mm;border:.3mm solid var(--line);border-left:1.2mm solid var(--high);border-radius:1.8mm;background:#fff}
+  .executive .threat.sev-critical{border-left-color:var(--crit)}
+  .executive .threat-head{font-size:6pt;letter-spacing:0;color:var(--high)}.executive .threat.sev-critical .threat-head{color:var(--crit)}
+  .executive .threat-name{font-size:7.8pt;line-height:3.4mm;color:var(--navy);margin:1.4mm 0}
+  .executive .threat-tactics{font-size:6pt;font-weight:700;color:var(--brand)}
+  .executive .threat-facts{font-size:6.2pt;color:var(--slate)}
+  .executive .threat.headline{border:0;border-left:1.4mm solid var(--high);background:var(--deep);color:#fff;padding:3mm 4mm}
+  .executive .threat.headline.sev-critical{border-left-color:var(--crit)}
+  .executive .threat.headline .threat-head{font-size:6.6pt;color:#ffb86c}.executive .threat.headline.sev-critical .threat-head{color:#ff8a8a}
+  .executive .threat.headline .threat-name{font-size:10.5pt;line-height:4.6mm;color:#fff}
+  .executive .threat.headline .threat-tactics{font-size:6.8pt;color:var(--cyan)}
+  .executive .threat.headline .threat-facts{font-size:6.3pt;color:var(--light)}
+  .executive .threat-big b{font-size:20pt}
+  .executive .chip-ent{font-size:6pt}
+  .executive .threat-grid{gap:3mm;grid-auto-rows:1fr}
+  /* The headline card is a 76 mm column on the left, the four smaller cards a 2 × 2 grid on its right. */
+  .executive .story-visual:has(>.threat.headline){display:grid;grid-template-columns:76mm minmax(0,1fr);gap:3mm;break-inside:avoid}
+  .executive .threat.headline{display:flex;flex-direction:column;min-height:70mm}
+  .executive .threat.headline .threat-big{margin-top:auto}
+  .executive .pill-status{display:inline-flex;align-items:center;height:4.2mm;padding:0 2mm;border-radius:2.1mm;font:700 5.8pt/1 Helvetica,Arial,sans-serif}
+  .executive .pill-status.good{background:#d6f2e3;color:var(--ok)}.executive .pill-status.bad{background:#f5d6d6;color:var(--crit)}.executive .pill-status.warn{background:#ffebd6;color:var(--high)}
+  /* Q4 response: 6 outlined tiles 22 mm (lamp r 1.7 mm, slate 6.8 pt label, navy 15 pt value, muted 5.9 pt line);
+     deep verdict bar 14 mm. */
+  .executive .resp-grid{gap:3mm}
+  .executive .resp-tile{min-height:22mm;padding:2.6mm 3mm;border:.3mm solid var(--line);border-radius:1.8mm;background:#fff}
+  .executive .resp-label{font-size:6.8pt;color:var(--slate)}
+  .executive .resp-tile b{font-size:15pt;color:var(--navy)}
+  .executive .resp-tile small{font-size:5.9pt;color:var(--muted)}
+  .executive .lamp{width:3.4mm;height:3.4mm;margin-right:1.4mm;vertical-align:-.6mm}
+  .executive .lamp-yellow{background:#e8a000}.executive .lamp-none{background:#bec4cd}.executive .lamp-info{background:var(--brand)}
+  .executive .resp-verdict{min-height:14mm;margin-top:3mm;padding:2.4mm 4mm;border-radius:1.8mm;background:var(--deep);font:700 8.5pt/1.3 Helvetica,Arial,sans-serif}
+  .executive .resp-verdict small{font-size:6.6pt;font-weight:400;color:var(--light)}
+  /* Q5 effort: 32 mm label column, 11 mm bars; investigation #607daa, alert triage #cdd6e4, case triage blue,
+     avoided triage dashed #22a05a. */
+  .executive .eff-row{grid-template-columns:32mm 1fr 18mm;gap:2mm}
+  .executive .eff-label{font-size:7.5pt;color:var(--navy)}.executive .eff-label small{font-size:6pt;color:var(--muted)}
+  .executive .eff-bar{height:11mm;border-radius:0;background:none}
+  .executive .seg{font:700 6.5pt/11mm Helvetica,Arial,sans-serif;color:#fff;text-align:center}
+  .executive .seg.tri-alerts{color:var(--navy)}
+  .executive .seg.tri-cases,.executive i.tri-cases{background:var(--brand)}
+  .executive .seg.saved,.executive i.saved{border:.5mm dashed #22a05a}
+
+  /* Verdict: rounded 3 mm band, 16 mm, white bold 12 pt label over 14 pt verdict, centred. */
+  .report:is(.executive,.technical) .verdict-banner{align-items:center;justify-content:center;min-height:16mm;margin:0 0 6mm;padding:1.6mm 4mm;border-radius:3mm;text-align:center}
+  .report:is(.executive,.technical) .verdict-banner span{font:700 12pt/1.2 Helvetica,Arial,sans-serif;letter-spacing:0;text-transform:none;opacity:1}
+  .report:is(.executive,.technical) .verdict-banner b{font:700 14pt/1.25 Helvetica,Arial,sans-serif}
+  .report:is(.executive,.technical) .verdict-approved{background:var(--ok)}.report:is(.executive,.technical) .verdict-conditional{background:var(--high)}.report:is(.executive,.technical) .verdict-rejected{background:var(--crit)}
+  /* Signatures: two columns 10 mm apart; 0.4 mm muted line 14 mm down; navy bold 7.5 pt role, muted 7 pt name. */
+  .report:is(.executive,.technical) .signatures{gap:10mm;margin-top:0}
+  .report:is(.executive,.technical) .sig-line{height:14mm;border-top:0;border-bottom:.4mm solid var(--muted);margin:0 0 2.6mm}
+  .report:is(.executive,.technical) .signatures b{font:700 7.5pt/1.3 Helvetica,Arial,sans-serif;color:var(--navy)}
+  .report:is(.executive,.technical) .signatures span:not(.sig-line){font-size:7pt;color:var(--muted)}
 }
 `
 
@@ -274,18 +510,33 @@ const cssString = (s: string) => `"${s.replace(/[\\"]/g, '\\$&').replace(/[\r\n]
 
 /**
  * The print pages, with the Report's footer text ("{client} · Confidential", in its language):
- * - abnt: A4 with NBR 14724 margins (top and left 3 cm, bottom and right 2 cm); the page number top right, 2 cm
- *   from the top edge; the footer without a number;
- * - abnt-pre: the Technical lists of figures and tables, counted but not numbered;
+ * - report (with `bars`): Executive and Technical, the previous tool's navy bars with "STELLAR CYBER", the Report
+ *   type and the page number on top, and "CONFIDENTIAL — {client}" and the copyright at the bottom;
+ * - abnt, abnt-pre: the ABNT layout (turned off since 2026-10-19, kept to switch back): page number top right,
+ *   and the Technical lists of figures and tables, counted but not numbered;
  * - cover: full bleed, not counted (the first page after it is page 1);
  * - insight: the brief keeps its previous margins and its "client · Confidential · p. X/Y" footer.
  */
-export function pageCss(footer: string): string {
+export function pageCss(footer: string, bars: { header: string; footer: string } | null = null): string {
   const label = cssString(footer)
-  const foot = `@bottom-left{content:${label};vertical-align:bottom;padding-bottom:10mm;font:8pt Helvetica,Arial,sans-serif;color:#5f6b7a}`
-  return `@page abnt{size:A4;margin:30mm 20mm 20mm 30mm;@top-right{content:counter(page);vertical-align:top;padding-top:20mm;font:10pt Helvetica,Arial,sans-serif;color:#1f2733}${foot}}
-@page abnt-pre{size:A4;margin:30mm 20mm 20mm 30mm;${foot}}
-@page cover{size:A4;margin:0;counter-increment:page 0}
+  // Executive and Technical: the previous tool's navy bars on every page but the cover, which has its own page.
+  // Both bars are one A4-sized SVG (10 mm on top, 8 mm at the bottom) drawn by the top-left corner box, the first
+  // margin box painted, overflowing under the others: painted margin boxes left hairlines where they met, and
+  // Chromium does not print an @page background image. The text boxes on top are transparent.
+  const font = 'Helvetica,Arial,sans-serif'
+  const barsSvg = `url("data:image/svg+xml,${encodeURIComponent(
+    "<svg xmlns='http://www.w3.org/2000/svg' width='210mm' height='297mm' viewBox='0 0 210 297'><rect width='210' height='10' fill='#1f3864'/><rect y='289' width='210' height='8' fill='#1f3864'/></svg>",
+  )}")`
+  const top = 'margin-bottom:8mm;vertical-align:middle;color:#fff'
+  const bottom = 'margin-top:8mm;vertical-align:middle;color:#fff'
+  const report = bars
+    ? `@page report{size:A4;margin:18mm 14mm 16mm;@top-left-corner{content:${barsSvg};vertical-align:top;text-align:left;overflow:visible}@top-left{content:"STELLAR CYBER";width:26mm;font:700 8pt ${font};${top}}@top-center{content:${cssString(bars.header)};width:130mm;text-align:left;font:8pt ${font};${top}}@top-right{content:counter(page);text-align:right;font:8pt ${font};${top}}@bottom-left{content:${cssString(bars.footer)};width:130mm;font:6.5pt ${font};${bottom}}@bottom-right{content:"© Stellar Cyber, Inc.";text-align:right;font:6.5pt ${font};${bottom}}}
+`
+    : ''
+  const foot = `@bottom-left{content:${label};vertical-align:bottom;padding-bottom:4mm;font:8pt Helvetica,Arial,sans-serif;color:#5f6b7a}`
+  return `@page abnt{size:A4;margin:14mm 13mm 17mm;@top-right{content:counter(page);vertical-align:top;padding-top:5mm;font:10pt Helvetica,Arial,sans-serif;color:#1f2733}${foot}}
+@page abnt-pre{size:A4;margin:14mm 13mm 17mm;${foot}}
+${report}@page cover{size:A4;margin:0;counter-increment:page 0}
 @page insight{size:A4;margin:14mm 13mm 17mm;@bottom-right{content:${label} " " counter(page) "/" counter(pages);vertical-align:bottom;padding-bottom:2mm;font:7.5pt Helvetica,Arial,sans-serif;color:#5f6b7a}}
 `
 }

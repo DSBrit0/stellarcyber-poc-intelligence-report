@@ -20,7 +20,7 @@ export async function renderPdf(html: string, outputPath: string): Promise<void>
     await page.emulateMedia({ media: 'print' })
     await mkdir(dirname(outputPath), { recursive: true })
     const tmp = `${outputPath}.${process.pid}.tmp`
-    // Margins, page number and footer come from the Report's own @page rules (see pageCss in styles.ts).
+    // Margins, bars, page number and footer come from the Report's own @page rules (see pageCss in styles.ts).
     await page.pdf({ path: tmp, format: 'A4', printBackground: true, preferCSSPageSize: true })
     await rename(tmp, outputPath)
   } finally {

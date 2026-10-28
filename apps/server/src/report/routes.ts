@@ -1,6 +1,6 @@
 import { Locale, Template } from '@poc-intel/shared'
 import { access } from 'node:fs/promises'
-import { createReadStream } from 'node:fs'
+import { createReadStream, readFileSync } from 'node:fs'
 import type { FastifyInstance } from 'fastify'
 import { z } from 'zod'
 import { requireAuth } from '../auth/guards.js'
@@ -22,6 +22,9 @@ const Query = z.object({ template: Template.default('technical'), locale: Locale
 const PDF_WAIT_MS = 60_000
 
 const exists = (path: string) => access(path).then(() => true, () => false)
+// The running code (the bundle in production): a deploy that changes the Reports' layout must not
+// serve PDFs rendered by the previous one from the disk cache.
+const BUILD = sha256(readFileSync(new URL(import.meta.url), 'utf8')).slice(0, 12)
 
 export async function reportRoutes(app: FastifyInstance): Promise<void> {
   // The Report page is always the interactive version (hover insights, legends, keyboard navigation,
@@ -75,10 +78,10 @@ export async function reportRoutes(app: FastifyInstance): Promise<void> {
     const locale = q.locale ?? auth.user.locale
     const { report, poc } = await loadReportMeta(auth, id)
 
-    // Cache key covers everything the PDF depends on: editing PoC details or adding a Report comment
-    // (a new version) yields a fresh render.
+    // Cache key covers everything the PDF depends on: editing PoC details, adding a Report comment
+    // (a new version) or deploying new code yields a fresh render.
     const versioning = await loadVersioning(report.id)
-    const key = sha256(`${report.id}|${q.template}|${locale}|${poc.updatedAt.toISOString()}|${versioning?.version ?? ''}`).slice(0, 32)
+    const key = sha256(`${report.id}|${q.template}|${locale}|${poc.updatedAt.toISOString()}|${versioning?.version ?? ''}|${BUILD}`).slice(0, 32)
     const outputPath = renderPath(report.id, key)
     if (!(await exists(outputPath))) {
       const jobId = await app.enqueuePdf({ reportDataId: report.id, template: q.template, locale, outputPath })

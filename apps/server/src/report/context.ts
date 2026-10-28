@@ -139,7 +139,8 @@ export function buildReportContext(
   const extra = reportExtra(locale)
   const strings = reportStrings(locale)
   const d = deriveReport(data, details)
-  const abnt = template !== 'insight'
+  // ABNT layout turned off on 2026-10-19 (user's choice): the Reports follow the previous tool's PDF again.
+  const abnt = false
   const byId = new Map(mitigations.map((m) => [m.technique.id, m.mitigation]))
   return {
     data,

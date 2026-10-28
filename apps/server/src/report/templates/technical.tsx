@@ -11,7 +11,7 @@ import { CaptionLists } from '../ui.js'
  */
 export function TechnicalTemplate({ rc, archImage }: { rc: ReportContext; archImage: string | null }) {
   return (
-    <main className="report technical abnt">
+    <main className="report technical">
       <Cover rc={rc} />
       <CaptionLists rc={rc} />
       <Section1 rc={rc} />

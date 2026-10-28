@@ -40,7 +40,7 @@ export function renderReportHtml(data: ReportData, details: PocDetails, template
   const extras = interactive
     ? `${toolbarHtml({ prev: rc.x('presentPrev'), next: rc.x('presentNext'), full: rc.x('presentFullscreen'), print: rc.x('presentPrint') })}<script nonce="${opts.interactiveNonce}">${INTERACTIVE_JS}</script>`
     : ''
-  return `<!doctype html><html lang="${locale}"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>${title}</title><style>${REPORT_CSS}${pageCss(footer)}${interactive ? INTERACTIVE_CSS : ''}</style></head><body${interactive ? ' class="interactive"' : ''}>${body}${extras}</body></html>`
+  return `<!doctype html><html lang="${locale}"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>${title}</title><style>${REPORT_CSS}${pageCss(footer, template === 'insight' ? null : { header: rc.t('coverReportType'), footer: `${rc.x('footerConfidential').toUpperCase()} — ${rc.client}` })}${interactive ? INTERACTIVE_CSS : ''}</style></head><body${interactive ? ' class="interactive"' : ''}>${body}${extras}</body></html>`
 }
 
 /** CSP for serving a Report page: static, so nothing beyond its own inline styles (and, when presenting, its one script). */

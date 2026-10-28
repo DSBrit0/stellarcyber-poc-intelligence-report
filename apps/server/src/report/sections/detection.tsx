@@ -490,15 +490,16 @@ function Q3({ rc, n, total }: { rc: ReportContext; n: number; total: number }) {
   const y = (v: number) => H - pad.b - (Math.log10(Math.max(1, v)) / dec) * (H - pad.t - pad.b)
   const cx = x(m.scoreCut)
   const cy = y(m.alertCut)
-  const quads: { q: Quadrant; x: number; y: number; w: number; h: number; fill: string }[] = [
-    { q: 'act', x: cx, y: pad.t, w: W - pad.r - cx, h: cy - pad.t, fill: '#fdecec' },
-    { q: 'investigate', x: cx, y: cy, w: W - pad.r - cx, h: H - pad.b - cy, fill: '#fff3e6' },
-    { q: 'monitor', x: pad.l, y: pad.t, w: cx - pad.l, h: cy - pad.t, fill: '#eaf1fb' },
-    { q: 'noise', x: pad.l, y: cy, w: cx - pad.l, h: H - pad.b - cy, fill: '#f1f3f5' },
+  const quads: { q: Quadrant; x: number; y: number; w: number; h: number; fill: string; ink: string }[] = [
+    { q: 'act', x: cx, y: pad.t, w: W - pad.r - cx, h: cy - pad.t, fill: '#f9e6e6', ink: '#a00000' },
+    { q: 'investigate', x: cx, y: cy, w: W - pad.r - cx, h: H - pad.b - cy, fill: '#fff3e6', ink: '#a35a00' },
+    { q: 'monitor', x: pad.l, y: pad.t, w: cx - pad.l, h: cy - pad.t, fill: '#edf5fb', ink: '#1f3864' },
+    { q: 'noise', x: pad.l, y: cy, w: cx - pad.l, h: H - pad.b - cy, fill: '#f3f6fa', ink: '#5b6a82' },
   ]
   const layers = ['medium', 'high', 'critical'] as const
   const names = new Map(rc.d.loaded.map((c) => [c.id, c.name]))
-  const radius = { medium: 3, high: 4, critical: 5, low: 3 }
+  // 600 units span 182 mm in print (1 unit ≈ 0.3 mm): the previous tool's 0.75 / 1.0 / 1.3 mm points.
+  const radius = { medium: 2.5, high: 3.3, critical: 4.3, low: 2.5 }
   return (
     <Question
       rc={rc}
@@ -515,7 +516,7 @@ function Q3({ rc, n, total }: { rc: ReportContext; n: number; total: number }) {
             <rect x={qd.x} y={qd.y} width={Math.max(0, qd.w)} height={Math.max(0, qd.h)} fill={qd.fill} />
             {qd.w > 60 && qd.h > 20 ? (
               // Each quadrant names itself in a corner on its left edge: high scores (the right edge) are where the points crowd.
-              <text x={qd.x + 6} y={qd.q === 'act' || qd.q === 'monitor' ? qd.y + 14 : qd.y + qd.h - 6} className="tick strong halo">
+              <text x={qd.x + 6} y={qd.q === 'act' || qd.q === 'monitor' ? qd.y + 14 : qd.y + qd.h - 6} className="quad-label" fill={qd.ink}>
                 {t(QUAD_KEY[qd.q], { n: m.counts[qd.q] })} · {m.counts[qd.q]}
               </text>
             ) : null}
@@ -534,8 +535,8 @@ function Q3({ rc, n, total }: { rc: ReportContext; n: number; total: number }) {
             {v}
           </text>
         ))}
-        <line x1={cx} x2={cx} y1={pad.t} y2={H - pad.b} stroke="#5b6270" strokeDasharray="5 4" />
-        <line x1={pad.l} x2={W - pad.r} y1={cy} y2={cy} stroke="#5b6270" strokeDasharray="5 4" />
+        <line x1={cx} x2={cx} y1={pad.t} y2={H - pad.b} stroke="#8fa3bf" strokeDasharray="4 3.3" />
+        <line x1={pad.l} x2={W - pad.r} y1={cy} y2={cy} stroke="#8fa3bf" strokeDasharray="4 3.3" />
         {layers.map((sev) =>
           m.points
             .filter((p) => p.sev === sev)
@@ -547,7 +548,8 @@ function Q3({ rc, n, total }: { rc: ReportContext; n: number; total: number }) {
                 cy={y(p.alerts)}
                 r={radius[sev]}
                 fill={sev === 'critical' ? C.critical : sev === 'high' ? C.high : C.medium}
-                fillOpacity="0.85"
+                stroke="#fff"
+                strokeWidth="0.66"
                 data-tip={`${names.get(p.id) ?? ''} — ${rc.x('tipPoint', { s: p.score, a: p.alerts, q: t(QUAD_KEY[p.q]) })}`}
               />
             )),
@@ -557,10 +559,10 @@ function Q3({ rc, n, total }: { rc: ReportContext; n: number; total: number }) {
             {l.label}
           </text>
         ))}
-        <text x={(W + pad.l) / 2} y={H - 4} textAnchor="middle" className="tick">
+        <text x={(W + pad.l) / 2} y={H - 4} textAnchor="middle" className="axis-title">
           {t('t2AxisScore')}
         </text>
-        <text x={12} y={H / 2} transform={`rotate(-90 12 ${H / 2})`} textAnchor="middle" className="tick">
+        <text x={12} y={H / 2} transform={`rotate(-90 12 ${H / 2})`} textAnchor="middle" className="axis-title">
           {t('t2AxisAlerts')}
         </text>
       </svg>

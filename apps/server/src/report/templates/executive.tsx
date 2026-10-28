@@ -7,7 +7,7 @@ import { Cover, Section1, Section2, Section3 } from '../sections/overview.js'
 /** Template 2 — Executive: Risks right after MITRE; sections are numbered by render order. */
 export function ExecutiveTemplate({ rc }: { rc: ReportContext }) {
   return (
-    <main className="report executive abnt">
+    <main className="report executive">
       <Cover rc={rc} />
       <Section1 rc={rc} />
       <Section2 rc={rc} />

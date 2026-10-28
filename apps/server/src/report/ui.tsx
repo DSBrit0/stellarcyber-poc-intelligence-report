@@ -89,7 +89,14 @@ export type SourceKind = 'poc' | 'static'
  * visuals): caption above, source below. Outside the ABNT Templates it draws its content only.
  */
 export function Figure({ rc, title, note, children, className }: { rc: ReportContext; title: string; note?: string; children: ReactNode; className?: string }) {
-  if (!rc.abnt) return <>{children}</>
+  // Without ABNT captions the note leads the figure, as in the previous tool (the MITRE matrix note).
+  if (!rc.abnt)
+    return (
+      <>
+        {note ? <p className="fig-note">{note}</p> : null}
+        {children}
+      </>
+    )
   const n = register(rc, 'figure', unnumbered(title))
   return (
     <figure className={`fig ${className ?? ''}`}>
