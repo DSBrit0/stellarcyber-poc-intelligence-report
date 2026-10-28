@@ -8,6 +8,7 @@ import type { Line2, LineGeometry } from 'three-stdlib'
 import { useEffect, useMemo, useRef, useState, type RefObject } from 'react'
 import * as THREE from 'three'
 import { Chamber, ringStops, tubeView } from './Chamber'
+import type { AudienceWords } from '../content/types'
 import { SATELLITE_STAGES, SLAB, stackLayout } from './layout'
 
 /** Brand colours (Brand Guidelines 2026 v4; Cube Blue from the Multi-Layer AI v4 brief). */
@@ -54,6 +55,17 @@ const SATELLITE_COLOR: Partial<Record<StageId, string>> = {
   itdr_ueba: C.purple,
 }
 
+/** Someone in the session other than the Presenter, as their name floats above the Stack. */
+export interface AudienceMember {
+  id: string
+  name: string
+  /** Looking at the session; away (page hidden, window out of focus, pointer off the page); or gone (no sign for 30 s). */
+  state: 'here' | 'away' | 'left'
+  mine: boolean
+  /** "SE" for a Stellar Cyber runner watching; none for a Customer User. */
+  badge?: string
+}
+
 export interface StackSceneProps {
   stages: StageId[]
   current: StageId
@@ -89,6 +101,9 @@ export interface StackSceneProps {
   selectedChapter: StackChapter | null
   /** Clicking a layer's name selects it; clicking it again lets go. */
   onChapter: (chapter: StackChapter | null) => void
+  /** Everyone in the session but the Presenter: their names float above the purple top, tied to it. */
+  audience: AudienceMember[]
+  audienceWords: AudienceWords
 }
 
 /**
@@ -147,6 +162,7 @@ export default function StackScene(props: StackSceneProps) {
       <Framing shift={props.shift} shiftDown={props.shiftDown} />
       <Backdrop />
       <Shell bottom={bottom - 0.5} top={top + 0.5} />
+      {tube ? null : <Audience people={props.audience} words={props.audienceWords} capTop={top + 0.5 + 0.55 + 0.21} />}
       {layout.slabs.map((s) => {
         const state = s.id === props.current ? 'lit' : props.settled.has(s.id) ? 'done' : 'idle'
         const tone = props.selectedChapter == null ? null : s.chapter === props.selectedChapter ? 'focus' : 'muted'
@@ -398,6 +414,75 @@ function Shell({ bottom, top }: { bottom: number; top: number }) {
           <p className="font-semibold whitespace-nowrap text-sc-silver drop-shadow">Multi-Layer AI™</p>
         </Html>
       </mesh>
+    </group>
+  )
+}
+
+/** Names that fit above the Stack; the rest are counted in one more tag. */
+const AUDIENCE_MAX = 10
+const AUDIENCE_DOT: Record<AudienceMember['state'], string> = {
+  here: 'bg-[#3FB950] shadow-[0_0_8px_#3FB950]',
+  away: 'bg-[#F5A524] shadow-[0_0_8px_#F5A524]',
+  left: 'bg-white/25',
+}
+
+/**
+ * Who is watching: a floating name per person on an arc above the purple top, facing the camera, each
+ * tied to the top by a soft purple leader, like the Stages' names. A name is dimmed with "away" while
+ * that person is not looking at the session.
+ */
+function Audience({ people, words, capTop }: { people: AudienceMember[]; words: AudienceWords; capTop: number }) {
+  const shown = people.slice(0, AUDIENCE_MAX)
+  const extra = people.length - shown.length
+  const tags = useMemo(() => {
+    const n = shown.length + (extra > 0 ? 1 : 0)
+    const half = (SLAB.size + 0.9) * 0.31
+    // Centred on the default camera's side of the Stack, spread up to 80° each way.
+    const spread = Math.min(1.4, 0.32 * (n - 1))
+    return Array.from({ length: n }, (_, i) => {
+      const a = Math.PI / 4 + (n === 1 ? 0 : -spread + (2 * spread * i) / (n - 1))
+      const r = 3.4 + (i % 2) * 0.6
+      const tag = new THREE.Vector3(r * Math.cos(a), capTop + 1.3 + (i % 2) * 0.8, r * Math.sin(a))
+      const from = new THREE.Vector3(half * Math.cos(a), capTop, half * Math.sin(a))
+      const curve = new THREE.QuadraticBezierCurve3(from, new THREE.Vector3(tag.x * 0.75, capTop + 0.15, tag.z * 0.75), tag)
+      return { tag, points: curve.getPoints(20) }
+    })
+  }, [shown.length, extra, capTop])
+  return (
+    <group>
+      {shown.map((p, i) => {
+        const t = tags[i]!
+        const looking = p.state === 'here'
+        return (
+          <group key={p.id}>
+            <Line points={t.points} color="#C77DFF" lineWidth={0.8} transparent opacity={looking ? 0.55 : 0.2} />
+            <Html position={t.tag} center zIndexRange={[6, 0]} className="pointer-events-none">
+              <span
+                title={looking ? undefined : p.state === 'away' ? words.awayHint : words.leftHint}
+                className={`pointer-events-auto flex items-center gap-2 rounded-full border py-0.5 pr-2.5 pl-1.5 text-xs whitespace-nowrap backdrop-blur-md transition-all duration-500 ${
+                  looking ? 'border-[#C77DFF]/50 bg-sc-midnight/80 text-sc-silver' : 'border-white/10 bg-sc-midnight/40 text-sc-silver/55'
+                }`}
+              >
+                <span className={`size-2 shrink-0 rounded-full ${AUDIENCE_DOT[p.state]}`} aria-hidden />
+                <span className="max-w-[10rem] truncate">{p.name}</span>
+                {p.mine ? <span className="text-[10px] text-sc-silver/50">({words.you})</span> : null}
+                {p.badge ? <span className="rounded bg-sc-sky/40 px-1 text-[10px] text-sc-silver">{p.badge}</span> : null}
+                {looking ? null : <span className="text-[10px] font-semibold tracking-wide text-[#F5A524] uppercase">{words.away}</span>}
+              </span>
+            </Html>
+          </group>
+        )
+      })}
+      {extra > 0 ? (
+        <group>
+          <Line points={tags[shown.length]!.points} color="#C77DFF" lineWidth={0.8} transparent opacity={0.3} />
+          <Html position={tags[shown.length]!.tag} center zIndexRange={[6, 0]} className="pointer-events-none">
+            <span className="rounded-full border border-white/15 bg-sc-midnight/60 px-2 py-0.5 text-xs whitespace-nowrap text-sc-silver/75">
+              {words.more.replace('{n}', String(extra))}
+            </span>
+          </Html>
+        </group>
+      ) : null}
     </group>
   )
 }

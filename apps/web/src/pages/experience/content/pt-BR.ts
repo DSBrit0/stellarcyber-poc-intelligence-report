@@ -12,6 +12,13 @@ export const wordsPtBR: ExperienceWords = {
     missions: { data_engine: 'Transformação de dados', open_xdr: 'Gestão de detecções', agentic_soc: 'Remediação' },
     defaultSources: ['Identidade', 'Rede', 'Logs', 'SaaS / Nuvem', 'Aplicações', 'Qualquer EDR'],
   },
+  audience: {
+    away: 'fora',
+    awayHint: 'Fora da tela: outra aba ou janela, ou o mouse fora da página',
+    leftHint: 'Fora da sessão: sem sinal há mais de 30 segundos',
+    you: 'você',
+    more: '+{n}',
+  },
   stages: {
     data_sources: {
       title: 'Fontes de dados',

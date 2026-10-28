@@ -69,9 +69,22 @@ export interface SceneWords {
   defaultSources: [string, string, string, string, string, string]
 }
 
+/** The names floating above the Stack: everyone in the session but the Presenter, and whether they are looking. */
+export interface AudienceWords {
+  /** Shown beside a name while that person is not looking (away or gone). */
+  away: string
+  /** Tooltips: page hidden, window out of focus or pointer off the page; or no sign for 30 s. */
+  awayHint: string
+  leftHint: string
+  you: string
+  /** "+{n}" when more people are in the session than names fit. */
+  more: string
+}
+
 export interface ExperienceWords {
   chapters: Record<Chapter, { title: string; summary: string }>
   scene: SceneWords
+  audience: AudienceWords
   stages: StagesWords
   closing: ClosingWords
   mttdPhases: Record<MttdPhase, string>

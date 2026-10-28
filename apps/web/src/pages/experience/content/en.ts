@@ -12,6 +12,13 @@ export const wordsEn: ExperienceWords = {
     missions: { data_engine: 'Data Transformation', open_xdr: 'Detection Management', agentic_soc: 'Remediation' },
     defaultSources: ['Identity', 'Network', 'Logs', 'SaaS / Cloud', 'Apps', 'Any EDR'],
   },
+  audience: {
+    away: 'away',
+    awayHint: 'Away from the screen: another tab or window, or the pointer off the page',
+    leftHint: 'Left the session: no sign for over 30 seconds',
+    you: 'you',
+    more: '+{n} more',
+  },
   stages: {
     data_sources: {
       title: 'Data sources',

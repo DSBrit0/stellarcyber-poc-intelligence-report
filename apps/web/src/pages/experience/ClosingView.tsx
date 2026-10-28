@@ -14,7 +14,12 @@ export interface Participant {
   /** Shown to whoever runs the session, and to each participant for their own row. */
   email: string | null
   customer: boolean
+  /** Seen in the last 30 s. */
   online: boolean
+  /** Online but not looking: page hidden, window out of focus or pointer off the page. */
+  away: boolean
+  /** The runner leading the session: left out of the names above the Stack. */
+  presenter: boolean
   labConfirmed: boolean
   mine: boolean
 }

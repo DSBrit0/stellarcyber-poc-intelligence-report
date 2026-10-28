@@ -66,10 +66,13 @@ export function installFakeServer(state: LabState): () => void {
     answers: [],
     // A session as the Presenter sees it: their own row, and Customer Users with their e-mails.
     participants: [
-      { userId: 'lab-se', name: 'Lab', email: 'lab@local', customer: false, online: true, labConfirmed: false, mine: true },
-      { userId: 'lab-c1', name: 'Ana Souza', email: 'ana.souza@cliente.example', customer: true, online: true, labConfirmed: true, mine: false },
-      { userId: 'lab-c2', name: 'Bruno Lima', email: 'bruno.lima@cliente.example', customer: true, online: true, labConfirmed: false, mine: false },
-      { userId: 'lab-c3', name: 'Carla Mendes', email: 'carla.mendes@cliente.example', customer: true, online: false, labConfirmed: true, mine: false },
+      // Every attention state above the Stack: looking, away (another tab or the pointer off the page), gone.
+      { userId: 'lab-se', name: 'Lab', email: 'lab@local', customer: false, online: true, away: false, presenter: true, labConfirmed: false, mine: true },
+      { userId: 'lab-c1', name: 'Ana Souza', email: 'ana.souza@cliente.example', customer: true, online: true, away: false, presenter: false, labConfirmed: true, mine: false },
+      { userId: 'lab-c2', name: 'Bruno Lima', email: 'bruno.lima@cliente.example', customer: true, online: true, away: true, presenter: false, labConfirmed: false, mine: false },
+      { userId: 'lab-c3', name: 'Carla Mendes', email: 'carla.mendes@cliente.example', customer: true, online: false, away: false, presenter: false, labConfirmed: true, mine: false },
+      { userId: 'lab-c4', name: 'Diego Ferreira', email: 'diego.ferreira@cliente.example', customer: true, online: true, away: false, presenter: false, labConfirmed: false, mine: false },
+      { userId: 'lab-se2', name: 'Elisa Rocha', email: null, customer: false, online: true, away: false, presenter: false, labConfirmed: false, mine: false },
     ],
     results: [...state.settled].map((stageId) => ({ stageId, outcome: 'skipped', value: null, answerIds: [], decidedAt: new Date().toISOString() })),
     canRun: true,

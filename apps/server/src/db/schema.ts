@@ -325,6 +325,8 @@ export const experiences = pgTable('experiences', {
   /** The Presenter's screen beyond the Stage (migration 0023); rows written before a field existed lack it: read through `viewOf`. */
   view: jsonb('view').$type<Partial<ExperienceView>>().notNull().default({ panel: true, spot: null, replay: 0 }),
   createdBy: uuid('created_by'),
+  /** The runner who last moved the session (migration 0028): left out of the floating names. */
+  presenterId: uuid('presenter_id'),
   createdAt: ts('created_at').notNull().defaultNow(),
   updatedAt: ts('updated_at').notNull().defaultNow(),
   finishedAt: ts('finished_at'),
@@ -362,6 +364,8 @@ export const experienceParticipants = pgTable(
     userId: uuid('user_id').notNull(),
     lastSeenAt: ts('last_seen_at').notNull().defaultNow(),
     labConfirmedAt: ts('lab_confirmed_at'),
+    /** Page hidden, window out of focus or pointer off the page (migration 0028). */
+    away: boolean('away').notNull().default(false),
   },
   (t) => [primaryKey({ columns: [t.experienceId, t.userId] })],
 )

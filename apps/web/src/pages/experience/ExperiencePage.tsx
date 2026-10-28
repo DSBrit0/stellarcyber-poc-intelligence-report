@@ -18,6 +18,7 @@ import { familyOf, SAMPLES } from './content/interflow-samples'
 import { InterflowInspector } from './InterflowInspector'
 import { questionWords, useWords } from './content'
 import { Spot, SpotlightProvider, useMirroredScroll, useSpotlight } from './spotlight'
+import { usePresence } from './usePresence'
 import { StackPreview } from './StackPreview'
 
 // three.js and its effects load only where the 3D scene can run.
@@ -107,6 +108,8 @@ export function ExperiencePage() {
   const settled = new Set((data?.results ?? []).map((r) => r.stageId))
   const result = data?.results.find((r) => r.stageId === stage)
   const presenting = Boolean(data?.canRun && live)
+  // Whether this participant is looking at the session: shown beside their name above the Stack.
+  usePresence(live && exp ? `/api/pocs/${id}/experiences/${exp.id}/presence` : null)
   // The Presenter's panel, Spotlight and trace replays: mirrored on every screen; in a replay, the viewer's own.
   const view: ExperienceView = exp ? (live ? viewOf(exp.view) : replayView) : DEFAULT_VIEW
   const leading = presenting || !live
@@ -307,6 +310,20 @@ export function ExperiencePage() {
             onLayerHover={(layer) => mirror('layer', { layer })}
             selectedChapter={view.chapter}
             onChapter={(chapter) => void setView({ chapter })}
+            audience={
+              live
+                ? (data.participants ?? [])
+                    .filter((p) => !p.presenter)
+                    .map((p) => ({
+                      id: p.userId,
+                      name: p.name,
+                      state: !p.online ? 'left' : p.away ? 'away' : 'here',
+                      mine: p.mine,
+                      badge: p.customer ? undefined : words.closing.lab.participants.presenter,
+                    }))
+                : []
+            }
+            audienceWords={words.audience}
           />
         </Suspense>
         </>
@@ -376,7 +393,7 @@ export function ExperiencePage() {
               {closing ? (
                 <ClosingView
                   stage={stage as 'topology' | 'lab'}
-                  participants={data.participants ?? []}
+                  participants={(data.participants ?? []).filter((p) => p.online || p.labConfirmed)}
                   canRun={data.canRun}
                   live={live}
                   onLabAccess={async (confirmed) => {

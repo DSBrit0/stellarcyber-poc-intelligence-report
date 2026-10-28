@@ -1,4 +1,4 @@
-import { DEFAULT_VIEW, STAGE_IDS, hasQuestion, ViewInput, answerSchema, applyView, clearFocus, viewOf, mergeAnswers, stageById, stagesForProfile, type StageId } from '@poc-intel/shared'
+import { DEFAULT_VIEW, STAGE_IDS, hasQuestion, PresenceInput, ViewInput, answerSchema, applyView, clearFocus, viewOf, mergeAnswers, stageById, stagesForProfile, type StageId } from '@poc-intel/shared'
 import { describe, expect, it } from 'vitest'
 import { canGoTo, canTransition, stageAfterSelection } from './flow.js'
 
@@ -109,5 +109,11 @@ describe('Answers', () => {
   it('multiple-choice merges keep the question\'s option order', () => {
     const q = stageById('sandbox').question
     expect(mergeAnswers(q, [{ options: ['usb'] }, { options: ['email', 'usb'] }])).toEqual({ options: ['email', 'usb'] })
+  })
+
+  it('takes a participant\'s attention as away or back, nothing else', () => {
+    expect(PresenceInput.parse({ away: true })).toEqual({ away: true })
+    expect(PresenceInput.safeParse({}).success).toBe(false)
+    expect(PresenceInput.safeParse({ away: 'yes' }).success).toBe(false)
   })
 })

@@ -258,6 +258,9 @@ export const applyView = (view: ExperienceView, input: ViewInput): ExperienceVie
 /** New content on screen (another Stage, phase or scene): nothing pointed at or selected, every area back at its top. */
 export const clearFocus = (view: ExperienceView): ExperienceView => ({ ...view, spot: null, chapter: null, scroll: {} })
 
+/** A participant's attention: away while their page is hidden, the window out of focus or the pointer off the page. */
+export const PresenceInput = z.object({ away: z.boolean() })
+
 /** A participant confirms (or withdraws) their access to the lab, on the Closing's Lab Stage. */
 export const LabAccessInput = z.object({ confirmed: z.boolean() })
 

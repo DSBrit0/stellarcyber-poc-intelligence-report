@@ -6,6 +6,7 @@ import {
   CustomerQuestionInput,
   GoToStageInput,
   LabAccessInput,
+  PresenceInput,
   PhaseInput,
   ReplyInput,
   SceneState,
@@ -188,6 +189,7 @@ export async function experienceRoutes(app: FastifyInstance): Promise<void> {
       if (!canTransition(exp.status, input.status)) throw new HttpError(409, 'invalid_transition')
       set.status = input.status
       set.finishedAt = input.status === 'finished' ? (dsql`now()` as unknown as Date) : null
+      if (input.status === 'active') set.presenterId = auth.user.id
     }
     try {
       await db.update(experiences).set(set).where(eq(experiences.id, exp.id))
@@ -212,11 +214,11 @@ export async function experienceRoutes(app: FastifyInstance): Promise<void> {
     if (!canRun && exp.status === 'disabled') throw notFound()
     // Polling marks the caller present; written at most every five seconds per participant.
     if (exp.status === 'active') await markPresent(exp.id, auth.user.id)
-    // Live, the screen shows Answers only with the question open, and Participants only on the Lab
-    // Stage: the other polls skip those queries. A replay (not Active) gets everything at once.
+    // Live, the screen shows Answers only with the question open: the other polls skip that query. A
+    // replay (not Active) gets everything at once. Participants come on every poll: their names float
+    // above the Stack.
     const live = exp.status === 'active'
     const wantAnswers = !live || exp.currentPhase === 'question'
-    const wantParticipants = !live || exp.currentStage === 'lab'
     const [answers, results, questions, docs, participants] = await Promise.all([
       !wantAnswers
         ? []
@@ -246,10 +248,9 @@ export async function experienceRoutes(app: FastifyInstance): Promise<void> {
         .where(eq(experienceQuestions.experienceId, exp.id))
         .orderBy(asc(experienceQuestions.createdAt)),
       currentDocsVersion(),
-      // Who is in the session now (seen in the last 30 s), and anyone who confirmed their lab access.
-      !wantParticipants
-        ? []
-        : db
+      // Who is in the session: seen in the last 10 minutes (online when seen in the last 30 s), and anyone
+      // who confirmed their lab access.
+      db
             .select({
               userId: experienceParticipants.userId,
               name: users.name,
@@ -257,10 +258,11 @@ export async function experienceRoutes(app: FastifyInstance): Promise<void> {
               role: users.role,
               online: dsql<boolean>`${experienceParticipants.lastSeenAt} > now() - interval '30 seconds'`,
               labConfirmedAt: experienceParticipants.labConfirmedAt,
+              away: experienceParticipants.away,
             })
             .from(experienceParticipants)
             .innerJoin(users, eq(users.id, experienceParticipants.userId))
-            .where(and(eq(experienceParticipants.experienceId, exp.id), dsql`(${experienceParticipants.lastSeenAt} > now() - interval '30 seconds' OR ${experienceParticipants.labConfirmedAt} IS NOT NULL)`))
+            .where(and(eq(experienceParticipants.experienceId, exp.id), dsql`(${experienceParticipants.lastSeenAt} > now() - interval '10 minutes' OR ${experienceParticipants.labConfirmedAt} IS NOT NULL)`))
             .orderBy(asc(users.name)),
     ])
     return {
@@ -289,6 +291,8 @@ export async function experienceRoutes(app: FastifyInstance): Promise<void> {
         email: canRun || p.userId === auth.user.id ? p.email : null,
         customer: p.role === 'customer',
         online: p.online,
+        away: p.online && p.away,
+        presenter: p.userId === exp.presenterId,
         labConfirmed: p.labConfirmedAt != null,
         mine: p.userId === auth.user.id,
       })),
@@ -380,7 +384,7 @@ export async function experienceRoutes(app: FastifyInstance): Promise<void> {
     // Every Stage opens on its Briefing.
     await db
       .update(experiences)
-      .set({ currentStage: stageId, currentPhase: 'briefing', briefingOpen: [], scene: dsql`jsonb_set(${experiences.scene}, '{target}', 'null'::jsonb)`, view: viewClearFocus(), updatedAt: dsql`now()` })
+      .set({ currentStage: stageId, currentPhase: 'briefing', briefingOpen: [], scene: dsql`jsonb_set(${experiences.scene}, '{target}', 'null'::jsonb)`, view: viewClearFocus(), presenterId: auth.user.id, updatedAt: dsql`now()` })
       .where(eq(experiences.id, exp.id))
     return { ok: true }
   })
@@ -394,7 +398,7 @@ export async function experienceRoutes(app: FastifyInstance): Promise<void> {
     requireActive(exp)
     const { phase } = parse(PhaseInput, req.body)
     if (phase === 'question' && !hasQuestion(exp.currentStage)) throw new HttpError(409, 'no_question')
-    await db.update(experiences).set({ currentPhase: phase, view: viewClearFocus(), updatedAt: dsql`now()` }).where(eq(experiences.id, exp.id))
+    await db.update(experiences).set({ currentPhase: phase, view: viewClearFocus(), presenterId: auth.user.id, updatedAt: dsql`now()` }).where(eq(experiences.id, exp.id))
     return { ok: true }
   })
 
@@ -410,7 +414,7 @@ export async function experienceRoutes(app: FastifyInstance): Promise<void> {
     const opened = open.at(-1)
     await db
       .update(experiences)
-      .set({ briefingOpen: [...new Set(open)], view: viewSpot(opened ? `brief:${opened}` : null), updatedAt: dsql`now()` })
+      .set({ briefingOpen: [...new Set(open)], view: viewSpot(opened ? `brief:${opened}` : null), presenterId: auth.user.id, updatedAt: dsql`now()` })
       .where(eq(experiences.id, exp.id))
     return { ok: true }
   })
@@ -423,7 +427,7 @@ export async function experienceRoutes(app: FastifyInstance): Promise<void> {
     const exp = await loadExperience(poc.id, expId)
     requireActive(exp)
     const scene = parse(SceneState, req.body)
-    await db.update(experiences).set({ scene, view: viewClearFocus(), updatedAt: dsql`now()` }).where(eq(experiences.id, exp.id))
+    await db.update(experiences).set({ scene, view: viewClearFocus(), presenterId: auth.user.id, updatedAt: dsql`now()` }).where(eq(experiences.id, exp.id))
     return { ok: true }
   })
 
@@ -438,6 +442,22 @@ export async function experienceRoutes(app: FastifyInstance): Promise<void> {
     const view = viewPatch(parse(ViewInput, req.body))
     await db.update(experiences).set({ view, updatedAt: dsql`now()` }).where(eq(experiences.id, exp.id))
     return { ok: true }
+  })
+
+  // A participant reports their attention: away when their page is hidden, the window loses focus or the
+  // pointer leaves the page; back when it returns. Sent on each change (and on leaving the page).
+  app.post('/pocs/:id/experiences/:expId/presence', { config: { rateLimit: { max: 600, timeWindow: '1 minute' } } }, async (req, reply) => {
+    const auth = requireAuth(req)
+    const { id, expId } = parse(ExpParams, req.params)
+    const { poc } = await loadAccess(auth, id)
+    const exp = await loadExperience(poc.id, expId)
+    if (exp.status !== 'active') return reply.code(204).send()
+    const { away } = parse(PresenceInput, req.body)
+    await db
+      .insert(experienceParticipants)
+      .values({ experienceId: exp.id, userId: auth.user.id, away })
+      .onConflictDoUpdate({ target: [experienceParticipants.experienceId, experienceParticipants.userId], set: { away, lastSeenAt: dsql`now()` } })
+    return reply.code(204).send()
   })
 
   // A participant confirms their own access to the lab (the Closing's Lab Stage), or withdraws it.
